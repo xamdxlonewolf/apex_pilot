@@ -68,6 +68,11 @@ The SQL safety policy is intentionally deterministic and conservative:
   depending on risk.
 - SQLcl-specific `run-sqlcl` commands are controlled by an allowlist.
 
+The backend safety layer classifies `run-sql`, `run-sqlcl`, and MCP tool
+requests before execution. Classification returns both an approval decision and
+a read-only versus data-changing access value that MCP sessions use to prevent
+write-classified work from running through read-only pool sessions.
+
 ## Development Roadmap
 
 Work is split into small reviewable PRs:

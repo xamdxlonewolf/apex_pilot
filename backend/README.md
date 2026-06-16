@@ -80,3 +80,17 @@ decisions documented in `../docs/adr/`:
 - `settings`: future local app configuration.
 - `storage`: future local metadata persistence.
 - `events`: future typed chat and tool activity events.
+
+## SQL Safety Classification
+
+The `apex_pilot.safety` package classifies SQL and SQLcl requests before MCP
+execution:
+
+- `SELECT` and `WITH` queries are allowed as read-only work.
+- `INSERT`, `UPDATE`, `MERGE`, and constructive DDL are allowed but classified
+  as data-changing work for primary-session execution.
+- `DELETE` requires preview and approval.
+- `TRUNCATE`, `DROP ... PURGE`, grants, revokes, and user/security operations
+  are blocked.
+- PL/SQL, unknown SQL, and risky or unknown `run-sqlcl` commands require a
+  prompt.
