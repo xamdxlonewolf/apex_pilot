@@ -6,8 +6,9 @@ uses Oracle SQLcl MCP for every database execution path, and layers Oracle/APEX
 skills on top for inspection, validation, transformation, and generation.
 
 This repository is being built in small PR-sized slices. The backend scaffold
-lives in `backend/`; later PRs will add the frontend, SQLcl MCP integration,
-agent runtime, skill runtime, and APEX workflows.
+lives in `backend/`, and the frontend scaffold lives in `frontend/`. Later PRs
+will add SQLcl MCP integration, agent runtime, skill runtime, and APEX
+workflows.
 
 ## Core Architecture
 
@@ -40,7 +41,7 @@ agent runtime, skill runtime, and APEX workflows.
 ```text
 .
 ├── backend/                  # FastAPI backend scaffold
-├── frontend/                 # Future Tauri + React desktop app
+├── frontend/                 # Tauri + React desktop app scaffold
 ├── docs/
 │   └── adr/                  # Architecture Decision Records
 ├── AGENTS.md                 # Agent and maintainer guardrails
@@ -98,6 +99,23 @@ uv run pyright
 ```
 
 The current backend exposes `GET /health`.
+
+## Frontend Development
+
+Run frontend commands from `frontend/`:
+
+```powershell
+pnpm install
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+The frontend is a Tauri, Vite, React, and TypeScript shell. It can display
+backend health when a local backend URL is configured, but packaged sidecar
+startup and runtime bearer-token injection are planned for a later vertical
+slice.
 
 ## Documentation
 

@@ -36,7 +36,7 @@ Backend PRs are expected to run these commands from `backend/`:
 - `uv run ruff format --check`
 - `uv run pyright`
 
-Future frontend PRs are expected to use:
+Frontend PRs are expected to run these commands from `frontend/`:
 
 - `pnpm lint`
 - `pnpm typecheck`
