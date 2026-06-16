@@ -1,8 +1,8 @@
 # Apex Pilot Backend
 
-This is the local FastAPI backend for Apex Pilot. It is intentionally small in
-PR 2: the scaffold establishes package structure, quality tooling, and a health
-endpoint before SQLcl MCP, agent, skill, and schema behavior is added.
+This is the local FastAPI backend for Apex Pilot. The backend owns local API
+contracts, SQLcl MCP lifecycle boundaries, agent orchestration, skills, safety,
+schema intelligence, storage, and event streams.
 
 ## Development
 
@@ -30,6 +30,30 @@ uv run apex-pilot-api
 The scaffold exposes `GET /health`, which returns a small JSON payload with
 service status and version metadata.
 
+## SQLcl MCP Preflight
+
+The `apex_pilot.mcp` package validates the local SQLcl MCP runtime before any
+database-facing MCP process starts:
+
+- SQLcl must resolve to an executable named `sql` or an explicitly configured
+  absolute path.
+- SQLcl must report version `25.2` or newer from `sql -V`.
+- Java must be available from `JAVA_HOME` or `PATH`, with JRE 17 or 21.
+- `TNS_ADMIN` is supported when configured and must point to an existing
+  directory.
+
+The backend starts SQLcl MCP with stdio only, using `sql -mcp` and optional
+restrict-level arguments such as `sql -R 3 -mcp`. It does not pass Oracle
+credentials. Connections must be saved in SQLcl ahead of time.
+
+Run the optional live preflight check only when SQLcl and Java are installed:
+
+```powershell
+$env:APEX_PILOT_LIVE_SQLCL_PREFLIGHT = "1"
+$env:APEX_PILOT_SQLCL_PATH = "C:\path\to\sql.exe"
+uv run pytest tests/test_sqlcl_preflight.py
+```
+
 ## Package Layout
 
 The Python package is `apex_pilot`. Top-level modules mirror the architecture
@@ -37,7 +61,7 @@ decisions documented in `../docs/adr/`:
 
 - `api`: FastAPI app, routes, and HTTP contracts.
 - `agent`: future PydanticAI orchestration.
-- `mcp`: future SQLcl MCP lifecycle and client wrappers.
+- `mcp`: SQLcl MCP preflight, environment configuration, and lifecycle wrappers.
 - `skills`: future system/user skill installation and runtime.
 - `safety`: future deterministic SQL classification and approval policy.
 - `schema`: future Oracle schema intelligence.
