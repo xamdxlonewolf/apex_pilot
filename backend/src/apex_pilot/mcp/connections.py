@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from apex_pilot.mcp.sqlcl import SqlclMcpError
+from apex_pilot.safety import SqlRequestAccess
 
 LIST_CONNECTIONS_TOOL = "list-connections"
 CONNECT_TOOL = "connect"
@@ -21,13 +22,6 @@ class SqlclConnectionError(SqlclMcpError):
 
 class SqlclReadOnlySessionError(SqlclConnectionError):
     """Raised when a read-only MCP session is asked to perform write work."""
-
-
-class SqlRequestAccess(StrEnum):
-    """Caller-provided access classification for an MCP SQL request."""
-
-    READ_ONLY = "read_only"
-    DATA_CHANGE = "data_change"
 
 
 class SqlclMcpSessionRole(StrEnum):
