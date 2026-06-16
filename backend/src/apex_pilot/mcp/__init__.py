@@ -1,5 +1,20 @@
 """SQLcl MCP lifecycle and integration layer."""
 
+from apex_pilot.mcp.connections import (
+    CONNECT_TOOL,
+    LIST_CONNECTIONS_TOOL,
+    SqlclConnectionError,
+    SqlclConnectionManager,
+    SqlclMcpSession,
+    SqlclMcpSessionRole,
+    SqlclMcpToolClient,
+    SqlclReadOnlyPool,
+    SqlclReadOnlySessionError,
+    SqlclSavedConnection,
+    SqlRequestAccess,
+    normalize_saved_connection_name,
+    parse_saved_connections,
+)
 from apex_pilot.mcp.sqlcl import (
     SQLCL_MINIMUM_VERSION,
     SUPPORTED_JAVA_MAJOR_VERSIONS,
@@ -19,18 +34,31 @@ from apex_pilot.mcp.sqlcl import (
 )
 
 __all__ = [
+    "CONNECT_TOOL",
+    "LIST_CONNECTIONS_TOOL",
     "SQLCL_MINIMUM_VERSION",
     "SUPPORTED_JAVA_MAJOR_VERSIONS",
     "CommandResult",
+    "SqlRequestAccess",
+    "SqlclConnectionError",
+    "SqlclConnectionManager",
     "SqlclMcpConfig",
     "SqlclMcpError",
+    "SqlclMcpSession",
+    "SqlclMcpSessionRole",
     "SqlclMcpService",
     "SqlclMcpServiceError",
+    "SqlclMcpToolClient",
     "SqlclPreflightError",
     "SqlclPreflightResult",
+    "SqlclReadOnlyPool",
+    "SqlclReadOnlySessionError",
+    "SqlclSavedConnection",
     "build_sqlcl_environment",
     "find_sqlcl_binary",
+    "normalize_saved_connection_name",
     "parse_java_major_version",
+    "parse_saved_connections",
     "parse_sqlcl_version",
     "resolve_java_binary",
     "run_sqlcl_preflight",

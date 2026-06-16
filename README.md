@@ -104,6 +104,10 @@ The backend also contains SQLcl MCP preflight and lifecycle primitives. They
 validate SQLcl 25.2+, Java availability, and optional `TNS_ADMIN` configuration
 before starting SQLcl in stdio MCP mode with `sql -mcp`.
 
+The MCP layer also provides saved-connection primitives for `list-connections`
+and `connect`, plus an explicit primary session and read-only pool sessions.
+Read-only pool sessions reject write-classified requests before calling MCP.
+
 ## Frontend Development
 
 Run frontend commands from `frontend/`:

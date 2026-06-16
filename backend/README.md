@@ -46,6 +46,18 @@ The backend starts SQLcl MCP with stdio only, using `sql -mcp` and optional
 restrict-level arguments such as `sql -R 3 -mcp`. It does not pass Oracle
 credentials. Connections must be saved in SQLcl ahead of time.
 
+## SQLcl Connections
+
+The `apex_pilot.mcp` package exposes saved-connection and session ownership
+primitives on top of the SQLcl MCP boundary:
+
+- Saved connections are listed with the MCP `list-connections` tool.
+- Sessions connect with the MCP `connect` tool using a SQLcl saved connection
+  name only.
+- One explicit primary MCP session owns data-changing work.
+- Optional read-only pool sessions are reserved for discovery and comparison.
+  They reject write-classified requests before an MCP tool call is made.
+
 Run the optional live preflight check only when SQLcl and Java are installed:
 
 ```powershell
