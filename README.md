@@ -5,8 +5,9 @@ product shape is a chat-first desktop application that runs a local backend,
 uses Oracle SQLcl MCP for every database execution path, and layers Oracle/APEX
 skills on top for inspection, validation, transformation, and generation.
 
-This repository is currently in the project foundation phase. The first PR
-establishes the project constitution before implementation code is added.
+This repository is being built in small PR-sized slices. The backend scaffold
+lives in `backend/`; later PRs will add the frontend, SQLcl MCP integration,
+agent runtime, skill runtime, and APEX workflows.
 
 ## Core Architecture
 
@@ -38,7 +39,7 @@ establishes the project constitution before implementation code is added.
 
 ```text
 .
-├── backend/                  # Future FastAPI + PydanticAI backend
+├── backend/                  # FastAPI backend scaffold
 ├── frontend/                 # Future Tauri + React desktop app
 ├── docs/
 │   └── adr/                  # Architecture Decision Records
@@ -83,6 +84,20 @@ Work is split into small reviewable PRs:
 11. Skill runtime.
 12. Approval workflow.
 13. APEXLang check-only flow.
+
+## Backend Development
+
+Run backend commands from `backend/`:
+
+```powershell
+uv sync --all-groups
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run pyright
+```
+
+The current backend exposes `GET /health`.
 
 ## Documentation
 

@@ -1,0 +1,55 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --all-groups
+
+      - name: Run tests
+        working-directory: backend
+        run: uv run pytest
+
+      - name: Run Ruff
+        working-directory: backend
+        run: uv run ruff check .
+
+      - name: Check formatting
+        working-directory: backend
+        run: uv run ruff format --check .
+
+      - name: Run Pyright
+        working-directory: backend
+        run: uv run pyright

@@ -29,7 +29,7 @@ reviewed before broad implementation lands.
 
 Foundation documentation PRs should verify Markdown renders cleanly.
 
-Future backend PRs are expected to use:
+Backend PRs are expected to run these commands from `backend/`:
 
 - `uv run pytest`
 - `uv run ruff check`
