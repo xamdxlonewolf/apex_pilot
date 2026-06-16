@@ -7,8 +7,8 @@ skills on top for inspection, validation, transformation, and generation.
 
 This repository is being built in small PR-sized slices. The backend scaffold
 lives in `backend/`, and the frontend scaffold lives in `frontend/`. Later PRs
-will add SQLcl MCP integration, agent runtime, skill runtime, and APEX
-workflows.
+will add connection workflows, SQL safety, agent runtime, skill runtime, and
+APEX workflows.
 
 ## Core Architecture
 
@@ -99,6 +99,10 @@ uv run pyright
 ```
 
 The current backend exposes `GET /health`.
+
+The backend also contains SQLcl MCP preflight and lifecycle primitives. They
+validate SQLcl 25.2+, Java availability, and optional `TNS_ADMIN` configuration
+before starting SQLcl in stdio MCP mode with `sql -mcp`.
 
 ## Frontend Development
 
