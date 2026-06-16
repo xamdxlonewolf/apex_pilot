@@ -1,0 +1,21 @@
+---
+description: Apex Pilot project invariants and protected generated exports
+alwaysApply: true
+---
+
+# Apex Pilot Project Foundation
+
+- Do not touch Oracle APEX export folders.
+- Do not touch root-level `f*.sql` APEX export files.
+- SQL execution must go through Oracle SQLcl MCP only.
+- Skills may inspect, transform, validate, and generate; they must not directly
+  access the database.
+- PydanticAI tools must receive guarded application facades only, never raw MCP
+  clients.
+- System skills come from sparse checkout of only `apex/` and `db/` from
+  `https://github.com/oracle/skills.git`.
+- User skills are additive extensions with consent. They cannot override system
+  skill core actions or safety policy.
+- Do not persist Oracle passwords or SQL result rows by default.
+- Add or update ADRs for meaningful architecture, execution, persistence,
+  safety, or trust-boundary decisions.
