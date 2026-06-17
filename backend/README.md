@@ -81,6 +81,19 @@ decisions documented in `../docs/adr/`:
 - `storage`: future local metadata persistence.
 - `events`: future typed chat and tool activity events.
 
+## Schema Intelligence
+
+The `apex_pilot.schema` package provides read-only Oracle schema intelligence
+through guarded SQLcl MCP sessions:
+
+- Schema summaries query `ALL_OBJECTS`, `ALL_TABLES`, and database context
+  through MCP `run-sql`.
+- Dependency and reference helpers query `ALL_DEPENDENCIES`.
+- Schema summaries are cached per session, connection, and schema with visible
+  cache age and explicit refresh or clear-cache support.
+- Returned dataclasses expose `to_dict()` payloads for future agent and UI
+  contracts.
+
 ## SQL Safety Classification
 
 The `apex_pilot.safety` package classifies SQL and SQLcl requests before MCP

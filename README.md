@@ -73,6 +73,10 @@ requests before execution. Classification returns both an approval decision and
 a read-only versus data-changing access value that MCP sessions use to prevent
 write-classified work from running through read-only pool sessions.
 
+The schema layer builds read-only Oracle schema summaries and dependency views
+through MCP dictionary queries, with session-scoped cache age and manual refresh
+support for future agent and UI use.
+
 ## Development Roadmap
 
 Work is split into small reviewable PRs:
