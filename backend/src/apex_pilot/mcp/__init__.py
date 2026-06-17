@@ -1,5 +1,6 @@
 """SQLcl MCP lifecycle and integration layer."""
 
+from apex_pilot.mcp.client import SqlclMcpSdkClient, ToolActivityMcpClient
 from apex_pilot.mcp.connections import (
     CONNECT_TOOL,
     LIST_CONNECTIONS_TOOL,
@@ -48,12 +49,14 @@ __all__ = [
     "SqlclMcpSessionRole",
     "SqlclMcpService",
     "SqlclMcpServiceError",
+    "SqlclMcpSdkClient",
     "SqlclMcpToolClient",
     "SqlclPreflightError",
     "SqlclPreflightResult",
     "SqlclReadOnlyPool",
     "SqlclReadOnlySessionError",
     "SqlclSavedConnection",
+    "ToolActivityMcpClient",
     "build_sqlcl_environment",
     "find_sqlcl_binary",
     "normalize_saved_connection_name",

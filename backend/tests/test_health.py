@@ -20,3 +20,21 @@ def test_health_endpoint_returns_ok() -> None:
         "service": "apex-pilot-backend",
         "version": __version__,
     }
+
+
+def test_health_endpoint_allows_local_cors_preflight() -> None:
+    """Bearer-authenticated frontend calls can preflight local backend routes."""
+    client = TestClient(create_app())
+
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "http://127.0.0.1:1420",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:1420"
+    assert "Authorization" in response.headers["access-control-allow-headers"]

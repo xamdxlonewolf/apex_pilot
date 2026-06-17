@@ -1,3 +1,5 @@
 """Application settings layer."""
 
-__all__: list[str] = []
+from apex_pilot.settings.backend import BackendSettings
+
+__all__ = ["BackendSettings"]

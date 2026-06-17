@@ -26,10 +26,11 @@ Run the Tauri desktop shell:
 pnpm tauri dev
 ```
 
-## Backend Health Configuration
+## Backend Configuration
 
-The placeholder shell can check the FastAPI `/health` endpoint when a backend URL
-is configured. Development can use Vite environment variables:
+The desktop shell can check backend health, list SQLcl saved connections, connect,
+run a schema summary, and show MCP tool activity when a backend URL and bearer
+token are configured. Development can use Vite environment variables:
 
 ```powershell
 $env:VITE_APEX_PILOT_BACKEND_URL = "http://127.0.0.1:8000"
@@ -37,5 +38,8 @@ $env:VITE_APEX_PILOT_BACKEND_TOKEN = "dev-token"
 pnpm dev
 ```
 
-Future Tauri sidecar work will inject the loopback backend URL and per-run bearer
-token at runtime instead of relying on development environment variables.
+Tauri can also provide backend config at runtime through its `backend_config`
+command. Packaged mode generates a per-run bearer token and can launch
+`apex-pilot-api` as a sidecar when `APEX_PILOT_START_BACKEND_SIDECAR` is enabled
+or debug assertions are disabled. Use `APEX_PILOT_BACKEND_COMMAND` to point the
+sidecar launcher at a specific backend executable during packaging smoke tests.

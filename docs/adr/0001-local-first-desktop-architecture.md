@@ -90,6 +90,12 @@ architecture documentation. The backend Python package name will be
 
 - FastAPI must bind to `127.0.0.1` on a dynamic available port.
 - Tauri must pass a per-run bearer token to the frontend at startup.
+- Browser-based Tauri dev mode must allow CORS only for loopback/Tauri origins
+  because bearer-authenticated frontend requests use the `Authorization` header
+  and trigger preflight requests.
+- The frontend may resolve backend config from development environment variables
+  or a Tauri runtime command. Packaged mode should prefer a generated per-run
+  token and sidecar-owned loopback URL.
 - Chat streaming and tool activity should use typed WebSocket event envelopes.
 - Backend/frontend API contracts should be driven by FastAPI OpenAPI, with
   generated TypeScript client/types where practical.

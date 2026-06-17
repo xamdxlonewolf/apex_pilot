@@ -107,7 +107,8 @@ uv run ruff format --check .
 uv run pyright
 ```
 
-The current backend exposes `GET /health`.
+The current backend exposes `GET /health` plus bearer-protected local routes for
+saved connections, connect, schema summary, and MCP tool activity.
 
 The backend also contains SQLcl MCP preflight and lifecycle primitives. They
 validate SQLcl 25.2+, Java availability, and optional `TNS_ADMIN` configuration
@@ -130,9 +131,9 @@ pnpm build
 ```
 
 The frontend is a Tauri, Vite, React, and TypeScript shell. It can display
-backend health when a local backend URL is configured, but packaged sidecar
-startup and runtime bearer-token injection are planned for a later vertical
-slice.
+backend health, list saved SQLcl connections, connect, run a schema summary, and
+show MCP tool activity when local backend config is available from Vite env vars
+or the Tauri runtime command.
 
 ## Documentation
 

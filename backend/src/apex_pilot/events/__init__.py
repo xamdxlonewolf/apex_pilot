@@ -1,3 +1,5 @@
 """Typed application event layer."""
 
-__all__: list[str] = []
+from apex_pilot.events.activity import ToolActivityEntry, ToolActivityLog
+
+__all__ = ["ToolActivityEntry", "ToolActivityLog"]

@@ -83,6 +83,14 @@ explicit primary MCP session.
 - Validate SQLcl version 25.2+ and Java/JRE availability before MCP use.
 - Support `TNS_ADMIN` configuration.
 - Use SQLcl saved connection names for connection selection.
+- Keep application code behind logical MCP tool names, then translate to the
+  live SQLcl MCP tool names and argument schema in one adapter. SQLcl 25.x live
+  smoke testing advertised underscore names such as `connections_list`,
+  `sql_run`, and `sqlcl_run` even though public examples also describe
+  hyphenated names.
+- Parse SQLcl MCP result payloads defensively. Live `sql_run` responses may
+  return CSV text content instead of structured JSON rows, so schema
+  intelligence must normalize those payloads before building contract responses.
 - Classify SQL deterministically where practical.
 - Allow `SELECT`.
 - Allow `INSERT`, `UPDATE`, and constructive DDL.
