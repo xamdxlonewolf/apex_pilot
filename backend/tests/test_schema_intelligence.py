@@ -12,6 +12,7 @@ from apex_pilot.schema import (
     SchemaDependency,
     SchemaIntelligenceError,
     SchemaIntelligenceService,
+    normalize_dictionary_identifier,
     rows_from_mcp_payload,
 )
 
@@ -234,3 +235,28 @@ def test_rows_from_mcp_payload_rejects_unsupported_shapes() -> None:
     """Unsupported MCP payloads fail clearly instead of being silently accepted."""
     with pytest.raises(SchemaIntelligenceError, match="unsupported"):
         rows_from_mcp_payload({"rows": "not-row-data"})
+
+
+def test_rows_from_mcp_payload_unwraps_nested_mcp_text_json() -> None:
+    """MCP text-content envelopes can carry JSON row payloads."""
+    rows = rows_from_mcp_payload(
+        {
+            "content": [
+                {
+                    "type": "text",
+                    "text": '{"result": {"rows": [{"OBJECT_TYPE": "TABLE", "OBJECT_COUNT": 1}]}}',
+                },
+            ],
+        },
+    )
+
+    assert rows == ({"OBJECT_TYPE": "TABLE", "OBJECT_COUNT": 1},)
+
+
+def test_dictionary_identifier_normalization_matches_oracle_defaults() -> None:
+    """Unquoted Oracle dictionary identifiers are uppercase; quoted names keep case."""
+    assert normalize_dictionary_identifier(" app ") == "APP"
+    assert normalize_dictionary_identifier('"MixedCase"') == "MixedCase"
+
+    with pytest.raises(SchemaIntelligenceError, match="empty"):
+        normalize_dictionary_identifier(" ")
