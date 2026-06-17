@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -10,6 +11,7 @@ from apex_pilot.mcp import SqlclMcpSession
 from apex_pilot.safety import SqlRequestAccess
 
 RUN_SQL_TOOL = "run-sql"
+_MAX_PAYLOAD_UNWRAP_DEPTH = 6
 
 DATABASE_CONTEXT_SQL = """
 SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') AS current_user,
@@ -285,22 +287,69 @@ def normalize_dictionary_identifier(identifier: str) -> str:
     if not normalized:
         msg = "Oracle dictionary identifier cannot be empty."
         raise SchemaIntelligenceError(msg)
-    return normalized
+
+    if normalized.startswith('"') and normalized.endswith('"') and len(normalized) >= 2:
+        return normalized[1:-1].replace('""', '"')
+
+    return normalized.upper()
 
 
 def rows_from_mcp_payload(payload: object) -> tuple[Mapping[str, object], ...]:
     """Extract row mappings from common SQLcl MCP fake/live payload shapes."""
+    return _rows_from_payload(payload, depth=0)
+
+
+def _rows_from_payload(payload: object, *, depth: int) -> tuple[Mapping[str, object], ...]:
+    if depth > _MAX_PAYLOAD_UNWRAP_DEPTH:
+        msg = "SQLcl MCP run-sql returned a row payload nested too deeply."
+        raise SchemaIntelligenceError(msg)
+
     if isinstance(payload, Sequence) and not isinstance(payload, str):
         return tuple(_ensure_row_mapping(row) for row in payload)
 
     if isinstance(payload, Mapping):
-        for key in ("rows", "items", "data", "result"):
+        for key in ("rows", "items", "data"):
             value = payload.get(key)
             if isinstance(value, Sequence) and not isinstance(value, str):
                 return tuple(_ensure_row_mapping(row) for row in value)
+            if isinstance(value, Mapping):
+                return _rows_from_payload(value, depth=depth + 1)
+
+        result = payload.get("result")
+        if isinstance(result, Sequence) and not isinstance(result, str):
+            return tuple(_ensure_row_mapping(row) for row in result)
+        if isinstance(result, Mapping):
+            return _rows_from_payload(result, depth=depth + 1)
+
+        content = payload.get("content")
+        if isinstance(content, Sequence) and not isinstance(content, str):
+            return _rows_from_mcp_content(content, depth=depth + 1)
+
+        text = payload.get("text")
+        if isinstance(text, str):
+            return _rows_from_payload(_parse_json_text(text), depth=depth + 1)
 
     msg = "SQLcl MCP run-sql returned an unsupported row payload shape."
     raise SchemaIntelligenceError(msg)
+
+
+def _rows_from_mcp_content(content: Sequence[object], *, depth: int) -> tuple[Mapping[str, object], ...]:
+    for item in content:
+        if isinstance(item, Mapping):
+            text = item.get("text")
+            if isinstance(text, str):
+                return _rows_from_payload(_parse_json_text(text), depth=depth)
+
+    msg = "SQLcl MCP run-sql content did not include JSON row data."
+    raise SchemaIntelligenceError(msg)
+
+
+def _parse_json_text(text: str) -> object:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as error:
+        msg = "SQLcl MCP run-sql text content did not contain JSON row data."
+        raise SchemaIntelligenceError(msg) from error
 
 
 def _parse_database_context(rows: Sequence[Mapping[str, object]]) -> DatabaseContext:
