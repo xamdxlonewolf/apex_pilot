@@ -24,11 +24,22 @@ uv run pyright
 Run the local API:
 
 ```powershell
+$env:APEX_PILOT_BEARER_TOKEN = "dev-token"
 uv run apex-pilot-api
 ```
 
-The scaffold exposes `GET /health`, which returns a small JSON payload with
-service status and version metadata.
+The backend exposes `GET /health` without authentication. The PR 8 vertical
+slice also exposes bearer-protected local routes for the desktop UI:
+
+- `GET /connections`
+- `POST /connections/{connection_name}/connect`
+- `GET /schema/summary?schema=APP&refresh=true`
+- `GET /activity`
+
+The live API starts SQLcl in MCP mode through the MCP Python SDK. It accepts
+optional `APEX_PILOT_SQLCL_PATH`, `TNS_ADMIN`, `JAVA_HOME`,
+`APEX_PILOT_BIND_HOST`, `APEX_PILOT_BIND_PORT`, and
+`APEX_PILOT_BEARER_TOKEN` environment variables.
 
 ## SQLcl MCP Preflight
 
