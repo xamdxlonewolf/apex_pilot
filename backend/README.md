@@ -89,8 +89,20 @@ decisions documented in `../docs/adr/`:
 - `safety`: future deterministic SQL classification and approval policy.
 - `schema`: future Oracle schema intelligence.
 - `settings`: future local app configuration.
-- `storage`: future local metadata persistence.
+- `storage`: local SQLite metadata, project manifests, profiles, retention, and FTS5 memory search.
 - `events`: future typed chat and tool activity events.
+
+## Local Project Storage
+
+The `apex_pilot.storage` package provides the phase 1 local persistence boundary:
+
+- Committed project manifests use `apex-pilot.json` for portable facts such as
+  project name and logical environments.
+- Local SQLite stores profiles, project paths, retention policy, logical
+  environment to SQLcl saved connection mappings, chat/tool metadata, and FTS5
+  memory search indexes.
+- SQL result rows are stripped and are not persisted by default.
+- Vector memory is exposed only as an optional adapter stub for a later phase.
 
 ## Schema Intelligence
 

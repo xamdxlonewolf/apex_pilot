@@ -109,6 +109,8 @@ class ActivityEntryResponse(BaseModel):
     arguments: dict[str, object]
     status: Literal["succeeded", "failed"]
     message: str | None = None
+    connection_name: str | None = None
+    session_id: str | None = None
 
 
 class ActivityResponse(BaseModel):
@@ -117,6 +119,7 @@ class ActivityResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     entries: list[ActivityEntryResponse]
+    active_session_id: str | None = None
 
 
 @router.get("/health", response_model=HealthResponse, tags=["health"])
@@ -192,11 +195,18 @@ async def summarize_schema(
     tags=["activity"],
     dependencies=[Depends(require_bearer_token)],
 )
-def list_activity(request: Request) -> ActivityResponse:
-    """Return MCP tool activity for the current local backend session."""
+def list_activity(
+    request: Request,
+    connection: str | None = Query(default=None),
+) -> ActivityResponse:
+    """Return MCP tool activity, optionally filtered by saved connection name."""
     runtime = _runtime_from_request(request)
     return ActivityResponse(
-        entries=[ActivityEntryResponse.model_validate(entry.to_dict()) for entry in runtime.activity_entries()],
+        entries=[
+            ActivityEntryResponse.model_validate(entry.to_dict())
+            for entry in runtime.activity_entries(connection_name=connection)
+        ],
+        active_session_id=runtime.active_activity_session_id(),
     )
 
 

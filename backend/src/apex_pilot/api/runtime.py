@@ -60,12 +60,19 @@ class ApexPilotRuntime:
 
     async def connect(self, connection_name: str) -> str:
         """Connect the primary MCP session by saved connection name."""
+        # Tag future activity with this connection before the MCP connect call so
+        # reconnects keep prior history for the same saved connection name.
+        self._activity_log.set_active_connection(connection_name)
         return await self._connection_manager.connect(connection_name)
 
     async def summarize_schema(self, schema_name: str, *, refresh: bool = False) -> SchemaSummary:
         """Return a schema summary through guarded MCP dictionary queries."""
         return await self._schema_service.summarize_schema(schema_name, refresh=refresh)
 
-    def activity_entries(self) -> tuple[ToolActivityEntry, ...]:
-        """Return recorded MCP tool activity."""
-        return self._activity_log.entries()
+    def activity_entries(self, *, connection_name: str | None = None) -> tuple[ToolActivityEntry, ...]:
+        """Return recorded MCP tool activity, optionally filtered by connection."""
+        return self._activity_log.entries(connection_name=connection_name)
+
+    def active_activity_session_id(self) -> str | None:
+        """Return the active MCP activity session id."""
+        return self._activity_log.active_session_id

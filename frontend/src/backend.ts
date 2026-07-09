@@ -68,10 +68,13 @@ export type ActivityEntry = Readonly<{
   arguments: Record<string, unknown>;
   status: "succeeded" | "failed";
   message: string | null;
+  connection_name: string | null;
+  session_id: string | null;
 }>;
 
 export type ActivityResponse = Readonly<{
   entries: ActivityEntry[];
+  active_session_id: string | null;
 }>;
 
 type RuntimeWindow = Window &
@@ -180,8 +183,15 @@ export const getSchemaSummary = async (
 };
 
 export const listActivity = async (
-  config: BackendConfig = getBackendConfig(),
-): Promise<ActivityResponse> => apiFetch("/activity", {}, config);
+  options: Readonly<{ connectionName?: string | null; config?: BackendConfig }> = {},
+): Promise<ActivityResponse> => {
+  const params = new URLSearchParams();
+  if (options.connectionName) {
+    params.set("connection", options.connectionName);
+  }
+  const query = params.toString();
+  return apiFetch(`/activity${query ? `?${query}` : ""}`, {}, options.config);
+};
 
 const apiFetch = async <Payload>(
   path: string,
