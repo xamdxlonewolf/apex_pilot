@@ -89,11 +89,16 @@ Work is split into small reviewable PRs:
 6. SQL safety classifier.
 7. Schema intelligence.
 8. First desktop vertical slice.
-9. Agent core.
+9. Local project and storage foundation (`9A`), project wizard (`9B`), then agent core.
 10. Skill installer.
 11. Skill runtime.
 12. Approval workflow.
 13. APEXLang check-only flow.
+
+Phase 1 project storage uses a committed `apex-pilot.json` manifest for portable
+facts and local SQLite for profiles, environment mappings, chat/tool metadata,
+retention policy, and FTS5 keyword memory search. SQL result rows are not
+persisted by default.
 
 ## Backend Development
 

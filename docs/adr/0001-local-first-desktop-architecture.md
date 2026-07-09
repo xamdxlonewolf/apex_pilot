@@ -99,8 +99,11 @@ architecture documentation. The backend Python package name will be
 - Chat streaming and tool activity should use typed WebSocket event envelopes.
 - Backend/frontend API contracts should be driven by FastAPI OpenAPI, with
   generated TypeScript client/types where practical.
+- Local persistence uses a committed project manifest for portable facts and
+  SQLite for private/user/runtime metadata. See ADR-0005.
 
 ## Related Decisions
 
 - [ADR-0002](0002-sql-execution-through-sqlcl-mcp.md)
 - [ADR-0003](0003-guarded-agent-and-skill-boundaries.md)
+- [ADR-0005](0005-local-project-manifest-and-sqlite-storage.md)

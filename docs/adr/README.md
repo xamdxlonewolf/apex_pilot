@@ -12,6 +12,7 @@ persistence, trust, security posture, or long-term maintenance.
 | [0002](0002-sql-execution-through-sqlcl-mcp.md) | SQL Execution Through SQLcl MCP | Accepted | 2026-06-16 |
 | [0003](0003-guarded-agent-and-skill-boundaries.md) | Guarded Agent and Skill Boundaries | Accepted | 2026-06-16 |
 | [0004](0004-oracle-system-skills-sparse-checkout.md) | Oracle System Skills Sparse Checkout | Accepted | 2026-06-16 |
+| [0005](0005-local-project-manifest-and-sqlite-storage.md) | Local Project Manifest and SQLite Storage | Accepted | 2026-07-09 |
 
 ## Creating a New ADR
 
