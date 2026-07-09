@@ -193,6 +193,202 @@ export const listActivity = async (
   return apiFetch(`/activity${query ? `?${query}` : ""}`, {}, options.config);
 };
 
+export type PrerequisiteGuide = Readonly<{
+  title: string;
+  summary: string;
+  steps: string[];
+  docs_url: string | null;
+}>;
+
+export type PreflightCheck = Readonly<{
+  id: string;
+  label: string;
+  status: "ok" | "warning" | "missing" | "failed";
+  detail: string;
+  guide: PrerequisiteGuide | null;
+}>;
+
+export type PreflightReport = Readonly<{
+  ready: boolean;
+  blocking_ids: string[];
+  checks: PreflightCheck[];
+}>;
+
+export type LocalProfile = Readonly<{
+  profile_id: string;
+  display_name: string;
+  email: string | null;
+  username: string | null;
+  created_at: string;
+  updated_at: string;
+}>;
+
+export type ProjectSummary = Readonly<{
+  project_id: string;
+  profile_id: string;
+  name: string;
+  root_path: string;
+  retention_days: number | null;
+  created_at: string;
+  updated_at: string;
+}>;
+
+export type OpenedProject = Readonly<{
+  project: ProjectSummary;
+  manifest: Record<string, unknown>;
+  environment_mappings: ReadonlyArray<{
+    environment_name: string;
+    sqlcl_connection_name: string;
+  }>;
+  apex_workspace_mappings: ReadonlyArray<{
+    sqlcl_connection_name: string;
+    workspace_name: string;
+  }>;
+  unmapped_environments: string[];
+  preflight: PreflightReport;
+}>;
+
+export const getPreflight = async (
+  options: Readonly<{ projectRoot?: string | null; config?: BackendConfig }> = {},
+): Promise<PreflightReport> => {
+  const params = new URLSearchParams();
+  if (options.projectRoot) {
+    params.set("project_root", options.projectRoot);
+  }
+  const query = params.toString();
+  return apiFetch(`/preflight${query ? `?${query}` : ""}`, {}, options.config);
+};
+
+export const listProfiles = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<{ profiles: LocalProfile[] }> => apiFetch("/profiles", {}, config);
+
+export const createProfile = async (
+  body: Readonly<{
+    display_name: string;
+    email?: string | null;
+    username?: string | null;
+    force_new?: boolean;
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<LocalProfile> =>
+  apiFetch(
+    "/profiles",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const listProjects = async (
+  options: Readonly<{ profileId?: string | null; limit?: number; config?: BackendConfig }> = {},
+): Promise<{ projects: ProjectSummary[] }> => {
+  const params = new URLSearchParams();
+  if (options.profileId) {
+    params.set("profile_id", options.profileId);
+  }
+  if (options.limit) {
+    params.set("limit", String(options.limit));
+  }
+  const query = params.toString();
+  return apiFetch(`/projects${query ? `?${query}` : ""}`, {}, options.config);
+};
+
+export const getCurrentProject = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<OpenedProject | null> => apiFetch("/projects/current", {}, config);
+
+export const closeCurrentProject = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<void> => {
+  await apiFetch("/projects/close", { method: "POST" }, config);
+};
+
+export const createProject = async (
+  body: Readonly<{
+    profile_id: string;
+    name: string;
+    root_path: string;
+    description?: string | null;
+    retention_days?: number | null;
+    retention_indefinite?: boolean;
+    init_git?: boolean;
+    write_readme?: boolean;
+    apex_workspace_hint?: string | null;
+    apex_app_id?: number | null;
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<OpenedProject> =>
+  apiFetch(
+    "/projects",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const importProject = async (
+  body: Readonly<{
+    profile_id: string;
+    root_path?: string | null;
+    remote_url?: string | null;
+    clone_parent?: string | null;
+    clone_directory_name?: string | null;
+    retention_days?: number | null;
+    retention_indefinite?: boolean;
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<OpenedProject> =>
+  apiFetch(
+    "/projects/import",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const openProject = async (
+  projectId: string,
+  config: BackendConfig = getBackendConfig(),
+): Promise<OpenedProject> =>
+  apiFetch(`/projects/${encodeURIComponent(projectId)}/open`, { method: "POST" }, config);
+
+export const setEnvironmentMapping = async (
+  projectId: string,
+  body: Readonly<{ environment_name: string; sqlcl_connection_name: string }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<{ environment_name: string; sqlcl_connection_name: string }> =>
+  apiFetch(
+    `/projects/${encodeURIComponent(projectId)}/environment-mappings`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const setApexWorkspaceMapping = async (
+  projectId: string,
+  body: Readonly<{ sqlcl_connection_name: string; workspace_name: string }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<{ sqlcl_connection_name: string; workspace_name: string }> =>
+  apiFetch(
+    `/projects/${encodeURIComponent(projectId)}/apex-workspace-mappings`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
 const apiFetch = async <Payload>(
   path: string,
   init: RequestInit = {},
@@ -218,7 +414,16 @@ const apiFetch = async <Payload>(
     throw new BackendApiError(await errorMessageFromResponse(response), response.status);
   }
 
-  return (await response.json()) as Payload;
+  if (response.status === 204) {
+    return undefined as Payload;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return null as Payload;
+  }
+
+  return JSON.parse(text) as Payload;
 };
 
 const errorMessageFromResponse = async (response: Response): Promise<string> => {

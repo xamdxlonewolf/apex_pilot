@@ -1,6 +1,8 @@
 import {
   checkBackendHealth,
   connectSavedConnection,
+  createProject,
+  getPreflight,
   getSchemaSummary,
   listActivity,
   listSavedConnections,
@@ -133,5 +135,56 @@ describe("backend API helpers", () => {
         bearerToken: "test-token",
       }),
     ).rejects.toThrow("Unknown tool: invalid_tool_name");
+  });
+
+  it("calls project preflight and create endpoints", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("/preflight")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ ready: true, blocking_ids: [], checks: [] })),
+        );
+      }
+      if (url.endsWith("/projects")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              project: {
+                project_id: "p1",
+                profile_id: "u1",
+                name: "Demo",
+                root_path: "C:/demo",
+                retention_days: 365,
+                created_at: "2026-07-09T00:00:00+00:00",
+                updated_at: "2026-07-09T00:00:00+00:00",
+              },
+              manifest: { schemaVersion: 1, name: "Demo", environments: [{ name: "dev" }] },
+              environment_mappings: [],
+              apex_workspace_mappings: [],
+              unmapped_environments: ["dev"],
+              preflight: { ready: true, blocking_ids: [], checks: [] },
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const config = { baseUrl: "http://127.0.0.1:8000", bearerToken: "test-token" };
+    await expect(getPreflight({ config })).resolves.toEqual({
+      ready: true,
+      blocking_ids: [],
+      checks: [],
+    });
+    await expect(
+      createProject(
+        {
+          profile_id: "u1",
+          name: "Demo",
+          root_path: "C:/demo",
+        },
+        config,
+      ),
+    ).resolves.toMatchObject({ project: { name: "Demo" } });
   });
 });

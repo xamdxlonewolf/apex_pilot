@@ -206,6 +206,68 @@ class LocalMetadataStore:
         ).fetchone()
         return _project_from_row(row) if row else None
 
+    def list_profiles(self) -> tuple[LocalProfile, ...]:
+        """Return all local profiles ordered by display name."""
+        rows = self._connection.execute(
+            """
+            SELECT profile_id, display_name, email, username, identity_hash, created_at, updated_at
+            FROM profiles
+            ORDER BY display_name COLLATE NOCASE ASC, created_at ASC
+            """,
+        ).fetchall()
+        return tuple(_profile_from_row(row) for row in rows)
+
+    def list_projects(self, *, profile_id: str | None = None, limit: int | None = None) -> tuple[LocalProject, ...]:
+        """Return registered projects, newest first, optionally filtered by profile."""
+        query = """
+            SELECT project_id, profile_id, name, root_path, retention_days, created_at, updated_at
+            FROM projects
+        """
+        params: list[object] = []
+        if profile_id is not None:
+            query += " WHERE profile_id = ?"
+            params.append(profile_id)
+        query += " ORDER BY updated_at DESC, created_at DESC"
+        if limit is not None:
+            if limit <= 0:
+                raise StorageError("limit must be a positive integer")
+            query += " LIMIT ?"
+            params.append(limit)
+        rows = self._connection.execute(query, params).fetchall()
+        return tuple(_project_from_row(row) for row in rows)
+
+    def find_project_by_root(self, root_path: Path | str) -> LocalProject | None:
+        """Return a project registered at the resolved root path, if any."""
+        resolved = str(Path(root_path).resolve())
+        row = self._connection.execute(
+            """
+            SELECT project_id, profile_id, name, root_path, retention_days, created_at, updated_at
+            FROM projects
+            WHERE root_path = ?
+            """,
+            (resolved,),
+        ).fetchone()
+        return _project_from_row(row) if row else None
+
+    def touch_project(self, project_id: str) -> LocalProject:
+        """Bump updated_at so the project rises in recent lists."""
+        project = self.get_project(project_id)
+        if project is None:
+            raise StorageError(f"Unknown project_id {project_id!r}")
+        now = datetime.now(UTC)
+        self._connection.execute(
+            """
+            UPDATE projects
+            SET updated_at = ?
+            WHERE project_id = ?
+            """,
+            (_to_iso(now), project_id),
+        )
+        self._connection.commit()
+        updated = self.get_project(project_id)
+        assert updated is not None
+        return updated
+
     def set_project_retention(self, project_id: str, retention: RetentionPolicy) -> LocalProject:
         """Update the retention policy for a project."""
         project = self.get_project(project_id)
@@ -270,6 +332,26 @@ class LocalMetadataStore:
                 project_id=row["project_id"],
                 environment_name=row["environment_name"],
                 sqlcl_connection_name=row["sqlcl_connection_name"],
+            )
+            for row in rows
+        )
+
+    def list_apex_workspace_mappings(self, project_id: str) -> tuple[ApexWorkspaceMapping, ...]:
+        """List local APEX workspace mappings for a project."""
+        rows = self._connection.execute(
+            """
+            SELECT project_id, sqlcl_connection_name, workspace_name
+            FROM apex_workspace_mappings
+            WHERE project_id = ?
+            ORDER BY sqlcl_connection_name
+            """,
+            (project_id,),
+        ).fetchall()
+        return tuple(
+            ApexWorkspaceMapping(
+                project_id=row["project_id"],
+                sqlcl_connection_name=row["sqlcl_connection_name"],
+                workspace_name=row["workspace_name"],
             )
             for row in rows
         )
@@ -691,7 +773,9 @@ class LocalMetadataStore:
     @staticmethod
     def _open_connection(path: Path) -> sqlite3.Connection:
         path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(path)
+        # FastAPI may run sync route handlers in a worker thread pool, so the
+        # long-lived metadata connection must allow cross-thread use.
+        connection = sqlite3.connect(path, check_same_thread=False)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         return connection

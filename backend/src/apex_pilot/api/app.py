@@ -34,7 +34,7 @@ def create_app(
         CORSMiddleware,
         allow_origin_regex=LOCAL_APP_ORIGIN_REGEX,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
     api.state.apex_pilot_bearer_token = bearer_token

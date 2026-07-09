@@ -113,7 +113,8 @@ uv run pyright
 ```
 
 The current backend exposes `GET /health` plus bearer-protected local routes for
-saved connections, connect, schema summary, and MCP tool activity.
+project wizard/preflight, profiles, projects, saved connections, connect, schema
+summary, and MCP tool activity.
 
 The backend also contains SQLcl MCP preflight and lifecycle primitives. They
 validate SQLcl 25.2+, Java availability, and optional `TNS_ADMIN` configuration
