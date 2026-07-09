@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   type ActivityEntry,
@@ -43,6 +43,319 @@ const statusFromConfig = (config: BackendConfig): BackendStatus => {
   return { kind: "checking", baseUrl: config.baseUrl };
 };
 
+const formatActivityTime = (timestamp: string): string => {
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) {
+    return timestamp;
+  }
+  return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+};
+
+const formatActivityDateTime = (timestamp: string): string => {
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) {
+    return timestamp;
+  }
+  return parsed.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const activityBelongsToConnection = (entry: ActivityEntry, connectionName: string): boolean => {
+  if (entry.connection_name === connectionName) {
+    return true;
+  }
+  const args = entry.arguments;
+  const candidates = [args.connection_name, args.connectionName, args.name];
+  return candidates.some((value) => typeof value === "string" && value === connectionName);
+};
+
+const entriesForConnection = (
+  entries: ActivityEntry[],
+  connectionName: string | null,
+): ActivityEntry[] => {
+  const newestFirst = [...entries].reverse();
+  if (!connectionName) {
+    return newestFirst;
+  }
+  return newestFirst.filter((entry) => activityBelongsToConnection(entry, connectionName));
+};
+
+type ActivityGroup = {
+  toolName: string;
+  entries: ActivityEntry[];
+  succeededEntries: ActivityEntry[];
+  failedEntries: ActivityEntry[];
+  latestTimestamp: string;
+  succeededCount: number;
+  failedCount: number;
+};
+
+type ActivitySessionBucket = {
+  sessionId: string;
+  label: string;
+  isActive: boolean;
+  entries: ActivityEntry[];
+  startedAt: string;
+  succeededCount: number;
+  failedCount: number;
+  toolGroups: ActivityGroup[];
+};
+
+const splitEntriesByStatus = (
+  entries: ActivityEntry[],
+): { succeeded: ActivityEntry[]; failed: ActivityEntry[] } => ({
+  succeeded: entries.filter((entry) => entry.status === "succeeded"),
+  failed: entries.filter((entry) => entry.status === "failed"),
+});
+
+const groupActivityByTool = (entries: ActivityEntry[]): ActivityGroup[] => {
+  const groups = new Map<string, ActivityEntry[]>();
+  for (const entry of entries) {
+    const existing = groups.get(entry.tool_name);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      groups.set(entry.tool_name, [entry]);
+    }
+  }
+
+  return [...groups.entries()].map(([toolName, toolEntries]) => {
+    const { succeeded, failed } = splitEntriesByStatus(toolEntries);
+    return {
+      toolName,
+      entries: toolEntries,
+      succeededEntries: succeeded,
+      failedEntries: failed,
+      latestTimestamp: toolEntries[0]?.timestamp ?? "",
+      succeededCount: succeeded.length,
+      failedCount: failed.length,
+    };
+  });
+};
+
+const groupActivityBySession = (
+  entries: ActivityEntry[],
+  activeSessionId: string | null,
+): ActivitySessionBucket[] => {
+  const sessions = new Map<string, ActivityEntry[]>();
+  for (const entry of entries) {
+    const sessionKey = entry.session_id ?? "unknown-session";
+    const existing = sessions.get(sessionKey);
+    if (existing) {
+      existing.push(entry);
+    } else {
+      sessions.set(sessionKey, [entry]);
+    }
+  }
+
+  const buckets = [...sessions.entries()].map(([sessionId, sessionEntries]) => {
+    const isActive = Boolean(activeSessionId) && sessionId === activeSessionId;
+    const oldest = sessionEntries[sessionEntries.length - 1];
+    const { succeeded, failed } = splitEntriesByStatus(sessionEntries);
+    return {
+      sessionId,
+      label: isActive ? "Active session" : "Previous session",
+      isActive,
+      entries: sessionEntries,
+      startedAt: oldest?.timestamp ?? sessionEntries[0]?.timestamp ?? "",
+      succeededCount: succeeded.length,
+      failedCount: failed.length,
+      toolGroups: groupActivityByTool(sessionEntries),
+    };
+  });
+
+  return buckets.sort((left, right) => {
+    if (left.isActive !== right.isActive) {
+      return left.isActive ? -1 : 1;
+    }
+    return right.startedAt.localeCompare(left.startedAt);
+  });
+};
+
+const OutcomeSummary = ({
+  succeededCount,
+  failedCount,
+}: {
+  succeededCount: number;
+  failedCount: number;
+}) => (
+  <span className="activity-outcome-summary" aria-label={`${succeededCount} succeeded, ${failedCount} failed`}>
+    <span className="activity-status activity-status--succeeded">{succeededCount} succeeded</span>
+    <span className="activity-outcome-separator" aria-hidden="true">
+      ·
+    </span>
+    <span className="activity-status activity-status--failed">{failedCount} failed</span>
+  </span>
+);
+
+const CallOutcomeBucket = ({
+  label,
+  status,
+  entries,
+  openByDefault = false,
+}: {
+  label: string;
+  status: "succeeded" | "failed";
+  entries: ActivityEntry[];
+  openByDefault?: boolean;
+}) => {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return (
+    <li className={`activity-outcome activity-outcome--${status}`}>
+      <details open={openByDefault}>
+        <summary>
+          <span className="activity-tree-chevron" aria-hidden="true" />
+          <span className="activity-tree-main">
+            <strong>{label}</strong>
+            <span className="activity-tree-count">
+              {entries.length} {entries.length === 1 ? "call" : "calls"}
+            </span>
+          </span>
+          <span className={`activity-status activity-status--${status}`}>{status}</span>
+        </summary>
+        <ul className="activity-call-list" aria-label={`${label} calls`}>
+          {entries.map((entry) => (
+            <li key={entry.sequence} className="activity-call">
+              <details>
+                <summary>
+                  <span className="activity-tree-chevron" aria-hidden="true" />
+                  <span className="activity-tree-main">
+                    <strong>#{entry.sequence}</strong>
+                    <span className="activity-tree-seq">{formatActivityTime(entry.timestamp)}</span>
+                  </span>
+                  <span className={`activity-status activity-status--${entry.status}`}>
+                    {entry.status}
+                  </span>
+                </summary>
+                <div className="activity-tree-details">
+                  {entry.message ? <p>{entry.message}</p> : null}
+                  <pre>
+                    <code>{JSON.stringify(entry.arguments, null, 2)}</code>
+                  </pre>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </li>
+  );
+};
+
+const ToolActivityGroups = ({ groups }: { groups: ActivityGroup[] }) => (
+  <ul className="activity-tool-list" aria-label="Tool groups">
+    {groups.map((group) => (
+      <li key={group.toolName} className="activity-tool">
+        <details>
+          <summary>
+            <span className="activity-tree-chevron" aria-hidden="true" />
+            <span className="activity-tree-main">
+              <strong>{group.toolName}</strong>
+              <span className="activity-tree-count">
+                {group.entries.length} {group.entries.length === 1 ? "call" : "calls"}
+              </span>
+            </span>
+            <OutcomeSummary
+              succeededCount={group.succeededCount}
+              failedCount={group.failedCount}
+            />
+            <time dateTime={group.latestTimestamp}>{formatActivityTime(group.latestTimestamp)}</time>
+          </summary>
+          <ul className="activity-outcome-list" aria-label={`${group.toolName} outcomes`}>
+            <CallOutcomeBucket
+              label="Failed"
+              status="failed"
+              entries={group.failedEntries}
+              openByDefault={group.failedCount > 0}
+            />
+            <CallOutcomeBucket
+              label="Succeeded"
+              status="succeeded"
+              entries={group.succeededEntries}
+            />
+          </ul>
+        </details>
+      </li>
+    ))}
+  </ul>
+);
+
+const ActivityTree = ({
+  entries,
+  connectionName,
+  activeSessionId,
+}: {
+  entries: ActivityEntry[];
+  connectionName: string | null;
+  activeSessionId: string | null;
+}) => {
+  const visibleEntries = useMemo(
+    () => entriesForConnection(entries, connectionName),
+    [connectionName, entries],
+  );
+  const sessions = useMemo(
+    () => groupActivityBySession(visibleEntries, activeSessionId),
+    [activeSessionId, visibleEntries],
+  );
+
+  if (!connectionName) {
+    return (
+      <p className="activity-empty-copy">
+        Not connected to a database. Connect to a saved SQLcl connection to view MCP call history.
+      </p>
+    );
+  }
+
+  if (visibleEntries.length === 0) {
+    return <p className="activity-empty-copy">No MCP tool activity for this connection yet.</p>;
+  }
+
+  return (
+    <div className="activity-panel">
+      <p className="activity-panel-meta">
+        {`${connectionName} · ${sessions.length} sessions · ${visibleEntries.length} calls`}
+      </p>
+      <ul className="activity-tree" aria-label="MCP tool activity">
+        {sessions.map((session) => (
+          <li
+            key={session.sessionId}
+            className={`activity-tree-item activity-session${session.isActive ? " activity-session--active" : ""}`}
+          >
+            <details open={session.isActive}>
+              <summary>
+                <span className="activity-tree-chevron" aria-hidden="true" />
+                <span className="activity-tree-main">
+                  <strong>{session.label}</strong>
+                  <span className="activity-tree-count">
+                    {session.entries.length} {session.entries.length === 1 ? "call" : "calls"} ·{" "}
+                    {session.toolGroups.length}{" "}
+                    {session.toolGroups.length === 1 ? "tool" : "tools"}
+                  </span>
+                </span>
+                <OutcomeSummary
+                  succeededCount={session.succeededCount}
+                  failedCount={session.failedCount}
+                />
+                <time dateTime={session.startedAt}>{formatActivityDateTime(session.startedAt)}</time>
+              </summary>
+              <div className="activity-session-body">
+                <ToolActivityGroups groups={session.toolGroups} />
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 export const App = () => {
   const [backendConfig, setBackendConfig] = useState<BackendConfig>(() => getBackendConfig());
   const [backendStatus, setBackendStatus] = useState<BackendStatus>(() =>
@@ -51,6 +364,8 @@ export const App = () => {
   const [connections, setConnections] = useState<SavedConnection[]>([]);
   const [selectedConnection, setSelectedConnection] = useState("");
   const [connectedConnection, setConnectedConnection] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isRunningSummary, setIsRunningSummary] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("Waiting for backend.");
   const [schemaName, setSchemaName] = useState("");
   const [schemaSummary, setSchemaSummary] = useState<SchemaSummary | null>(null);
@@ -58,17 +373,29 @@ export const App = () => {
     "Connect to a saved connection, then run a schema summary.",
   );
   const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
+  const [activeActivitySessionId, setActiveActivitySessionId] = useState<string | null>(null);
+  const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false);
 
   const isBackendOnline = backendStatus.kind === "online";
+  const canConnect =
+    isBackendOnline && !isConnecting && Boolean(selectedConnection) && connections.length > 0;
+  const canRunSummary =
+    isBackendOnline && !isConnecting && !isRunningSummary && Boolean(connectedConnection);
 
   const refreshActivity = useCallback(async () => {
-    if (!isBackendOnline) {
+    if (!isBackendOnline || !connectedConnection) {
+      setActivityEntries([]);
+      setActiveActivitySessionId(null);
       return;
     }
 
-    const response = await listActivity(backendConfig);
+    const response = await listActivity({
+      connectionName: connectedConnection,
+      config: backendConfig,
+    });
     setActivityEntries(response.entries);
-  }, [backendConfig, isBackendOnline]);
+    setActiveActivitySessionId(response.active_session_id);
+  }, [backendConfig, connectedConnection, isBackendOnline]);
 
   const refreshConnections = useCallback(async () => {
     if (!isBackendOnline) {
@@ -85,13 +412,12 @@ export const App = () => {
           ? "Choose a saved SQLcl connection."
           : "No SQLcl saved connections were returned.",
       );
-      await refreshActivity();
     } catch (error) {
       setConnectionMessage(
         error instanceof Error ? error.message : "Could not list saved connections.",
       );
     }
-  }, [backendConfig, isBackendOnline, refreshActivity]);
+  }, [backendConfig, isBackendOnline]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -119,17 +445,27 @@ export const App = () => {
     if (isBackendOnline) {
       queueMicrotask(() => {
         void refreshConnections();
-        void refreshActivity();
       });
     }
-  }, [isBackendOnline, refreshActivity, refreshConnections]);
+  }, [isBackendOnline, refreshConnections]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void refreshActivity();
+    });
+  }, [connectedConnection, isBackendOnline, refreshActivity]);
 
   const connectSelectedConnection = async () => {
+    if (isConnecting) {
+      return;
+    }
+
     if (!selectedConnection) {
       setConnectionMessage("Select a SQLcl saved connection first.");
       return;
     }
 
+    setIsConnecting(true);
     setConnectionMessage(`Connecting to ${selectedConnection}.`);
     try {
       const response = await connectSavedConnection(selectedConnection, backendConfig);
@@ -140,18 +476,28 @@ export const App = () => {
       setConnectedConnection(null);
       setConnectionMessage(error instanceof Error ? error.message : "Could not connect.");
       await refreshActivity();
+    } finally {
+      setIsConnecting(false);
     }
   };
 
   const runSchemaSummary = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmedSchema = schemaName.trim();
+    if (isRunningSummary) {
+      return;
+    }
 
+    const trimmedSchema = schemaName.trim();
     if (!trimmedSchema) {
       setSchemaMessage("Enter an Oracle schema name.");
       return;
     }
+    if (!connectedConnection) {
+      setSchemaMessage("Connect to a saved connection before running a schema summary.");
+      return;
+    }
 
+    setIsRunningSummary(true);
     setSchemaMessage(`Loading schema summary for ${trimmedSchema}.`);
     try {
       const summary = await getSchemaSummary(trimmedSchema, {
@@ -165,11 +511,12 @@ export const App = () => {
       setSchemaSummary(null);
       setSchemaMessage(error instanceof Error ? error.message : "Could not load schema summary.");
       await refreshActivity();
+    } finally {
+      setIsRunningSummary(false);
     }
   };
 
   const copy = statusCopy[backendStatus.kind];
-  const newestActivity = [...activityEntries].reverse();
 
   return (
     <main className="app-shell">
@@ -227,7 +574,7 @@ export const App = () => {
               id="connection-name"
               value={selectedConnection}
               onChange={(event) => setSelectedConnection(event.target.value)}
-              disabled={!isBackendOnline || connections.length === 0}
+              disabled={!isBackendOnline || isConnecting || connections.length === 0}
             >
               {connections.length === 0 ? <option value="">No connections</option> : null}
               {connections.map((connection) => (
@@ -242,11 +589,24 @@ export const App = () => {
           <button
             type="button"
             onClick={() => void connectSelectedConnection()}
-            disabled={!isBackendOnline}
+            disabled={!canConnect}
+            aria-busy={isConnecting}
           >
-            Connect
+            {isConnecting ? (
+              <>
+                <span className="button-spinner" aria-hidden="true" />
+                Connecting…
+              </>
+            ) : (
+              "Connect"
+            )}
           </button>
-          {connectedConnection ? (
+          {isConnecting ? (
+            <p className="pending-copy" role="status" aria-live="polite">
+              Connecting to {selectedConnection}. This can take a few seconds.
+            </p>
+          ) : null}
+          {connectedConnection && !isConnecting ? (
             <p className="success-copy">Connected: {connectedConnection}</p>
           ) : null}
         </article>
@@ -263,22 +623,48 @@ export const App = () => {
                 value={schemaName}
                 onChange={(event) => setSchemaName(event.target.value)}
                 placeholder="APP"
-                disabled={!isBackendOnline}
+                disabled={!canRunSummary}
               />
             </div>
-            <button type="submit" disabled={!isBackendOnline}>
-              Run Summary
+            <button type="submit" disabled={!canRunSummary} aria-busy={isRunningSummary}>
+              {isRunningSummary ? (
+                <>
+                  <span className="button-spinner" aria-hidden="true" />
+                  Running…
+                </>
+              ) : (
+                "Run Summary"
+              )}
             </button>
           </form>
+          {isRunningSummary ? (
+            <p className="pending-copy" role="status" aria-live="polite">
+              Running schema summary for {schemaName.trim()}. This can take a few seconds.
+            </p>
+          ) : null}
         </article>
       </section>
 
       <section className="workspace-grid" aria-label="Schema intelligence workspace">
-        <article className="detail-card">
-          <p className="card-label">Summary Result</p>
+        <article className="detail-card detail-card--summary">
+          <div className="summary-header">
+            <div>
+              <p className="card-label">Summary Result</p>
+              {schemaSummary ? <h2>{schemaSummary.schema_name}</h2> : <h2>Schema summary</h2>}
+            </div>
+            <button
+              type="button"
+              className="drawer-toggle"
+              onClick={() => setIsActivityDrawerOpen(true)}
+            >
+              MCP Activity
+              {connectedConnection && activityEntries.length > 0 ? (
+                <span className="drawer-toggle-count">{activityEntries.length}</span>
+              ) : null}
+            </button>
+          </div>
           {schemaSummary ? (
             <>
-              <h2>{schemaSummary.schema_name}</h2>
               <dl>
                 <div>
                   <dt>Current User</dt>
@@ -318,30 +704,37 @@ export const App = () => {
             <p>Run a schema summary to show database context, object counts, and visible tables.</p>
           )}
         </article>
-
-        <article className="detail-card">
-          <p className="card-label">Tool Activity</p>
-          <h2>MCP calls</h2>
-          {newestActivity.length > 0 ? (
-            <ol className="activity-list">
-              {newestActivity.map((entry) => (
-                <li key={entry.sequence}>
-                  <div>
-                    <strong>{entry.tool_name}</strong>
-                    <span className={`activity-status activity-status--${entry.status}`}>
-                      {entry.status}
-                    </span>
-                  </div>
-                  <code>{JSON.stringify(entry.arguments)}</code>
-                  {entry.message ? <p>{entry.message}</p> : null}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p>No MCP tool activity yet.</p>
-          )}
-        </article>
       </section>
+
+      {isActivityDrawerOpen ? (
+        <button
+          type="button"
+          className="activity-drawer-backdrop"
+          aria-label="Close MCP activity drawer"
+          onClick={() => setIsActivityDrawerOpen(false)}
+        />
+      ) : null}
+
+      <aside
+        className={`activity-drawer${isActivityDrawerOpen ? " activity-drawer--open" : ""}`}
+        aria-hidden={!isActivityDrawerOpen}
+        aria-label="MCP tool activity drawer"
+      >
+        <div className="activity-drawer-header">
+          <div>
+            <p className="card-label">Tool Activity</p>
+            <h2>MCP calls</h2>
+          </div>
+          <button type="button" className="drawer-close" onClick={() => setIsActivityDrawerOpen(false)}>
+            Close
+          </button>
+        </div>
+        <ActivityTree
+          entries={activityEntries}
+          connectionName={connectedConnection}
+          activeSessionId={activeActivitySessionId}
+        />
+      </aside>
     </main>
   );
 };

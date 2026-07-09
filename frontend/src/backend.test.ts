@@ -89,7 +89,9 @@ describe("backend API helpers", () => {
           ),
         );
       }
-      return Promise.resolve(new Response(JSON.stringify({ entries: [] })));
+      return Promise.resolve(
+        new Response(JSON.stringify({ entries: [], active_session_id: null })),
+      );
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -104,7 +106,10 @@ describe("backend API helpers", () => {
     await expect(getSchemaSummary("APP", { refresh: true, config })).resolves.toMatchObject({
       schema_name: "APP",
     });
-    await expect(listActivity(config)).resolves.toEqual({ entries: [] });
+    await expect(listActivity({ config })).resolves.toEqual({
+      entries: [],
+      active_session_id: null,
+    });
 
     for (const call of fetchMock.mock.calls) {
       const requestInit = call[1] as RequestInit;
