@@ -107,7 +107,7 @@ load from the latest message backward in 2-week windows.
 - Do not expose raw SQLite handles to PydanticAI tools.
 - Do not add direct Oracle driver persistence in phase 1.
 - PR 9B owns the project wizard UI and retention selection UX on top of this
-  foundation.
+  foundation; see ADR-0006.
 
 ## Related Decisions
 

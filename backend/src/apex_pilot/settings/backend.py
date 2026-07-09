@@ -7,6 +7,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def default_metadata_db_path() -> Path:
+    """Return the default local metadata SQLite path under the user data directory."""
+    override = os.environ.get("APEX_PILOT_METADATA_DB")
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "apex-pilot" / "metadata.sqlite3"
+
+
 @dataclass(frozen=True)
 class BackendSettings:
     """Environment-backed settings for the local backend process."""
@@ -18,6 +30,7 @@ class BackendSettings:
     tns_admin: Path | None = None
     java_home: Path | None = None
     restrict_level: int | None = None
+    metadata_db_path: Path | None = None
 
     @classmethod
     def from_env(cls) -> BackendSettings:
@@ -30,6 +43,7 @@ class BackendSettings:
             tns_admin=_optional_path("TNS_ADMIN"),
             java_home=_optional_path("JAVA_HOME"),
             restrict_level=_optional_int("APEX_PILOT_SQLCL_RESTRICT_LEVEL"),
+            metadata_db_path=_optional_path("APEX_PILOT_METADATA_DB") or default_metadata_db_path(),
         )
 
 

@@ -4,16 +4,19 @@ import {
   type ActivityEntry,
   type BackendConfig,
   type BackendStatus,
+  type OpenedProject,
   type SavedConnection,
   type SchemaSummary,
   checkBackendHealth,
   connectSavedConnection,
   getBackendConfig,
+  getCurrentProject,
   getSchemaSummary,
   listActivity,
   listSavedConnections,
   resolveBackendConfig,
 } from "./backend";
+import { ProjectWorkspace } from "./ProjectWorkspace";
 
 const statusCopy = {
   "missing-config": {
@@ -375,6 +378,7 @@ export const App = () => {
   const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
   const [activeActivitySessionId, setActiveActivitySessionId] = useState<string | null>(null);
   const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false);
+  const [openedProject, setOpenedProject] = useState<OpenedProject | null>(null);
 
   const isBackendOnline = backendStatus.kind === "online";
   const canConnect =
@@ -445,9 +449,12 @@ export const App = () => {
     if (isBackendOnline) {
       queueMicrotask(() => {
         void refreshConnections();
+        void getCurrentProject(backendConfig)
+          .then((project) => setOpenedProject(project))
+          .catch(() => setOpenedProject(null));
       });
     }
-  }, [isBackendOnline, refreshConnections]);
+  }, [backendConfig, isBackendOnline, refreshConnections]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -528,6 +535,14 @@ export const App = () => {
           execution boundary.
         </p>
       </section>
+
+      <ProjectWorkspace
+        backendConfig={backendConfig}
+        isBackendOnline={isBackendOnline}
+        connections={connections}
+        openedProject={openedProject}
+        onOpenedProjectChange={setOpenedProject}
+      />
 
       <section className="status-grid" aria-label="Application status">
         <article className={`status-card status-card--${backendStatus.kind}`}>

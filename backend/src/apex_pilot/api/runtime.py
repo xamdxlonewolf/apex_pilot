@@ -1,4 +1,4 @@
-"""Application runtime composition for PR 8 backend routes."""
+"""Application runtime composition for backend routes."""
 
 from __future__ import annotations
 
@@ -11,12 +11,14 @@ from apex_pilot.mcp import (
     SqlclSavedConnection,
     ToolActivityMcpClient,
 )
+from apex_pilot.projects import OpenedProject, ProjectService
 from apex_pilot.schema import SchemaIntelligenceService, SchemaSummary
-from apex_pilot.settings import BackendSettings
+from apex_pilot.settings import BackendSettings, default_metadata_db_path
+from apex_pilot.storage import LocalMetadataStore
 
 
 class ApexPilotRuntime:
-    """App-scoped façade over MCP connections, schema intelligence, and activity."""
+    """App-scoped façade over MCP, schema intelligence, activity, and projects."""
 
     def __init__(
         self,
@@ -24,25 +26,44 @@ class ApexPilotRuntime:
         *,
         managed_client: SqlclMcpSdkClient | None = None,
         activity_log: ToolActivityLog | None = None,
+        project_service: ProjectService | None = None,
+        metadata_store: LocalMetadataStore | None = None,
+        sqlcl_config: SqlclMcpConfig | None = None,
+        owns_metadata_store: bool = False,
     ) -> None:
         self._managed_client = managed_client
         self._activity_log = activity_log or ToolActivityLog()
         activity_client = ToolActivityMcpClient(tool_client, self._activity_log)
         self._connection_manager = SqlclConnectionManager(activity_client)
         self._schema_service = SchemaIntelligenceService(self._connection_manager.primary_session)
+        self._sqlcl_config = sqlcl_config or SqlclMcpConfig()
+        self._metadata_store = metadata_store
+        self._owns_metadata_store = owns_metadata_store
+        self._project_service = project_service
+        self._opened_project: OpenedProject | None = None
 
     @classmethod
     def live(cls, settings: BackendSettings) -> ApexPilotRuntime:
-        """Create a runtime backed by a live SQLcl MCP SDK client."""
-        client = SqlclMcpSdkClient(
-            SqlclMcpConfig(
-                sqlcl_path=settings.sqlcl_path,
-                restrict_level=settings.restrict_level,
-                tns_admin=settings.tns_admin,
-                java_home=settings.java_home,
-            ),
+        """Create a runtime backed by a live SQLcl MCP SDK client and local metadata."""
+        sqlcl_config = SqlclMcpConfig(
+            sqlcl_path=settings.sqlcl_path,
+            restrict_level=settings.restrict_level,
+            tns_admin=settings.tns_admin,
+            java_home=settings.java_home,
         )
-        return cls(client, managed_client=client)
+        client = SqlclMcpSdkClient(sqlcl_config)
+        metadata_path = settings.metadata_db_path or default_metadata_db_path()
+        metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        store = LocalMetadataStore.open(metadata_path)
+        project_service = ProjectService(store, sqlcl_config=sqlcl_config)
+        return cls(
+            client,
+            managed_client=client,
+            project_service=project_service,
+            metadata_store=store,
+            sqlcl_config=sqlcl_config,
+            owns_metadata_store=True,
+        )
 
     async def start(self) -> None:
         """Start any owned runtime resources."""
@@ -53,6 +74,28 @@ class ApexPilotRuntime:
         """Stop any owned runtime resources."""
         if self._managed_client is not None:
             await self._managed_client.stop()
+        if self._owns_metadata_store and self._metadata_store is not None:
+            self._metadata_store.close()
+
+    @property
+    def projects(self) -> ProjectService:
+        """Return the project wizard service."""
+        if self._project_service is None:
+            raise RuntimeError("Project service is not configured.")
+        return self._project_service
+
+    @property
+    def opened_project(self) -> OpenedProject | None:
+        """Return the currently opened project, if any."""
+        return self._opened_project
+
+    def set_opened_project(self, opened: OpenedProject | None) -> None:
+        """Remember the currently opened project in this backend process."""
+        self._opened_project = opened
+
+    def close_project(self) -> None:
+        """Clear the currently opened project without deleting local registration."""
+        self._opened_project = None
 
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
@@ -76,3 +119,7 @@ class ApexPilotRuntime:
     def active_activity_session_id(self) -> str | None:
         """Return the active MCP activity session id."""
         return self._activity_log.active_session_id
+
+    def sqlcl_config(self) -> SqlclMcpConfig:
+        """Return the SQLcl MCP configuration used by this runtime."""
+        return self._sqlcl_config

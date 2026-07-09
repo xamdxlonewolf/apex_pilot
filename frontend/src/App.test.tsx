@@ -2,6 +2,36 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 
 import { App } from "./App";
 
+const projectApiResponse = (url: string): Response | null => {
+  if (url.includes("/preflight")) {
+    return new Response(
+      JSON.stringify({
+        ready: true,
+        blocking_ids: [],
+        checks: [
+          {
+            id: "git",
+            label: "Git",
+            status: "ok",
+            detail: "git version 2.45.0",
+            guide: null,
+          },
+        ],
+      }),
+    );
+  }
+  if (url.endsWith("/profiles")) {
+    return new Response(JSON.stringify({ profiles: [] }));
+  }
+  if (url.endsWith("/projects") || url.includes("/projects?")) {
+    return new Response(JSON.stringify({ projects: [] }));
+  }
+  if (url.endsWith("/projects/current")) {
+    return new Response("null", { status: 200 });
+  }
+  return null;
+};
+
 describe("App", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -18,6 +48,7 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("Backend not configured")).toBeInTheDocument();
     expect(screen.getByText("Saved Connections")).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
   });
 
   it("loads saved connections when the backend is online", async () => {
@@ -28,6 +59,10 @@ describe("App", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
+        const projectResponse = projectApiResponse(url);
+        if (projectResponse) {
+          return Promise.resolve(projectResponse);
+        }
         if (url.endsWith("/health")) {
           return Promise.resolve(
             new Response(
@@ -56,6 +91,7 @@ describe("App", () => {
 
     expect(await screen.findByText("Backend online")).toBeInTheDocument();
     expect(await screen.findByText("Development (dev)")).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /mcp activity/i }));
     expect(
@@ -71,6 +107,10 @@ describe("App", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string, init?: RequestInit) => {
+        const projectResponse = projectApiResponse(url);
+        if (projectResponse) {
+          return Promise.resolve(projectResponse);
+        }
         if (url.endsWith("/health")) {
           return Promise.resolve(
             new Response(
@@ -203,6 +243,10 @@ describe("App", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string, init?: RequestInit) => {
+        const projectResponse = projectApiResponse(url);
+        if (projectResponse) {
+          return Promise.resolve(projectResponse);
+        }
         if (url.endsWith("/health")) {
           return Promise.resolve(
             new Response(
@@ -270,6 +314,10 @@ describe("App", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string, init?: RequestInit) => {
+        const projectResponse = projectApiResponse(url);
+        if (projectResponse) {
+          return Promise.resolve(projectResponse);
+        }
         if (url.endsWith("/health")) {
           return Promise.resolve(
             new Response(
