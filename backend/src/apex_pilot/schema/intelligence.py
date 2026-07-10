@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import Callable, Mapping, Sequence
@@ -19,9 +20,9 @@ SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') AS current_user,
        SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS current_schema,
        SYS_CONTEXT('USERENV', 'PROXY_USER') AS proxy_user,
        SYS_CONTEXT('USERENV', 'DB_NAME') AS db_name,
-       SYS_CONTEXT('USERENV', 'CON_NAME') AS container_name,
-       SYS_CONTEXT('USERENV', 'CDB_NAME') AS cdb_name,
-       SYS_CONTEXT('USERENV', 'SERVER_HOST') AS host
+       CAST(NULL AS VARCHAR2(128)) AS container_name,
+       CAST(NULL AS VARCHAR2(128)) AS cdb_name,
+       CAST(NULL AS VARCHAR2(128)) AS host
 FROM   DUAL
 """
 
@@ -216,7 +217,23 @@ class SchemaIntelligenceService:
             cached = self._summary_cache[cache_key]
             return replace(cached, cache_age_seconds=_age_seconds(cached.captured_at, now))
 
-        database_context = await self.fetch_database_context()
+        # Dictionary queries are the product; session context is best-effort so a
+        # hung SYS_CONTEXT call cannot block schema browsing after connect.
+        try:
+            database_context = await asyncio.wait_for(
+                self.fetch_database_context(),
+                timeout=10.0,
+            )
+        except Exception:  # noqa: BLE001 - empty context keeps summary usable
+            database_context = DatabaseContext(
+                current_user=None,
+                current_schema=None,
+                proxy_user=None,
+                db_name=None,
+                container_name=None,
+                cdb_name=None,
+                host=None,
+            )
         object_count_rows = await self._run_read_only_sql(
             SCHEMA_OBJECT_COUNTS_SQL,
             {"schema_name": normalized_schema},
@@ -240,7 +257,10 @@ class SchemaIntelligenceService:
 
     async def fetch_database_context(self) -> DatabaseContext:
         """Return the live Oracle session user/schema context."""
-        rows = await self._run_read_only_sql(DATABASE_CONTEXT_SQL)
+        rows = await asyncio.wait_for(
+            self._run_read_only_sql(DATABASE_CONTEXT_SQL),
+            timeout=10.0,
+        )
         return _parse_database_context(rows)
 
     async def set_current_schema(self, schema_name: str) -> str:
@@ -340,14 +360,18 @@ def normalize_dictionary_identifier(identifier: str) -> str:
 
 
 def suggested_schema_from_context(context: DatabaseContext) -> str | None:
-    """Prefer CURRENT_SCHEMA, then proxy bracket form, then SESSION_USER."""
-    if context.current_schema:
-        return context.current_schema.upper()
+    """Prefer the login identity, not a leftover CURRENT_SCHEMA.
+
+    Order: proxy bracket schema from SESSION_USER (`proxy[SCHEMA]`), then
+    SESSION_USER, then CURRENT_SCHEMA as a last resort.
+    """
     if context.current_user:
         proxy_match = _PROXY_USER_PATTERN.fullmatch(context.current_user.strip())
         if proxy_match:
             return proxy_match.group("schema").upper()
         return context.current_user.upper()
+    if context.current_schema:
+        return context.current_schema.upper()
     return None
 
 

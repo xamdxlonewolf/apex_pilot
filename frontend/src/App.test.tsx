@@ -630,7 +630,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Load" })).toBeEnabled();
     });
-    expect(await screen.findByText(/browsing schema app/i)).toBeInTheDocument();
+    expect(await screen.findByText(/browsing login schema app/i)).toBeInTheDocument();
     expect(screen.getByText(/db connected: dev/i)).toBeInTheDocument();
     expect(screen.getByText(/browsing: app/i)).toBeInTheDocument();
   });

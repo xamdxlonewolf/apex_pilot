@@ -3,9 +3,9 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   type BackendConfig,
   type SchemaSummary,
+  type SessionContext,
   getSchemaSummary,
   getSessionContext,
-  setSessionSchema,
 } from "./backend";
 import { schemaFromSessionUser } from "./prefs";
 
@@ -13,8 +13,10 @@ type SchemaBrowserProps = Readonly<{
   backendConfig: BackendConfig;
   connectedConnection: string | null;
   isBackendOnline: boolean;
+  /** Project/local override. When set, auto-load uses this and skips login detection. */
+  projectSchemaOverride: string | null;
   workingSchema: string;
-  onWorkingSchemaChange: (schema: string) => void;
+  onWorkingSchemaChange: (schema: string, options?: { persist?: boolean }) => void;
   onActivityRefresh: () => Promise<void>;
   onSaveSummary?: (summary: SchemaSummary) => void;
 }>;
@@ -39,10 +41,23 @@ const withTimeout = <T,>(
   });
 };
 
+/** Deduplicate concurrent session-context calls (React Strict Mode remounts). */
+let sessionContextInflight: Promise<SessionContext> | null = null;
+
+const fetchSessionContextOnce = (config: BackendConfig): Promise<SessionContext> => {
+  if (!sessionContextInflight) {
+    sessionContextInflight = getSessionContext(config).finally(() => {
+      sessionContextInflight = null;
+    });
+  }
+  return sessionContextInflight;
+};
+
 export const SchemaBrowser = ({
   backendConfig,
   connectedConnection,
   isBackendOnline,
+  projectSchemaOverride,
   workingSchema,
   onWorkingSchemaChange,
   onActivityRefresh,
@@ -53,7 +68,7 @@ export const SchemaBrowser = ({
   const [message, setMessage] = useState("Connect, then load a schema.");
   const [busy, setBusy] = useState(false);
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
-  const autoLoadedConnection = useRef<string | null>(null);
+  const autoLoadKey = useRef<string | null>(null);
 
   useEffect(() => {
     setDraftSchema(workingSchema);
@@ -61,12 +76,55 @@ export const SchemaBrowser = ({
 
   useEffect(() => {
     if (!connectedConnection) {
-      autoLoadedConnection.current = null;
+      autoLoadKey.current = null;
       setSummary(null);
       setActiveSchema(null);
+      setBusy(false);
       setMessage("Not connected. Use Connect in the strip above.");
     }
   }, [connectedConnection]);
+
+  const loadSummaryForSchema = async (
+    schema: string,
+    options: Readonly<{
+      loginUser: string | null;
+      source: "project" | "login" | "manual";
+      allowStateUpdate?: () => boolean;
+    }>,
+  ) => {
+    const next = await withTimeout(
+      getSchemaSummary(schema, {
+        refresh: true,
+        config: backendConfig,
+      }),
+      60_000,
+      `Schema summary for ${schema}`,
+    );
+    if (options.allowStateUpdate && !options.allowStateUpdate()) {
+      return;
+    }
+    setSummary(next);
+    setActiveSchema(schema);
+    setDraftSchema(schema);
+    onWorkingSchemaChange(schema, {
+      persist: options.source === "project" || options.source === "manual",
+    });
+    const asUser = options.loginUser ? ` as ${options.loginUser}` : "";
+    if (options.source === "project") {
+      setMessage(
+        `Connected to ${connectedConnection}${asUser}. Using project schema ${schema}.`,
+      );
+    } else if (options.source === "login") {
+      setMessage(
+        `Connected to ${connectedConnection}${asUser}. Browsing login schema ${schema}.`,
+      );
+    } else {
+      setMessage(
+        `Browsing schema ${schema} on ${connectedConnection}. SQL sheet will use this as CURRENT_SCHEMA.`,
+      );
+    }
+    await onActivityRefresh();
+  };
 
   const applySchema = async (schema: string) => {
     const trimmed = schema.trim().toUpperCase();
@@ -78,37 +136,25 @@ export const SchemaBrowser = ({
       setMessage("Connect to a database first.");
       return;
     }
+    // Mark complete before parent override updates, so the auto-load effect
+    // does not re-fire and fight this manual Load.
+    autoLoadKey.current = `${connectedConnection}:${trimmed}`;
     setBusy(true);
-    setMessage(`Switching session to ${trimmed} and loading summary…`);
+    setMessage(`Loading schema ${trimmed}…`);
     try {
-      const setResult = await withTimeout(
-        setSessionSchema(trimmed, backendConfig),
-        45_000,
-        `Setting CURRENT_SCHEMA=${trimmed}`,
-      );
-      const next = await withTimeout(
-        getSchemaSummary(setResult.schema_name, {
-          refresh: true,
-          config: backendConfig,
-        }),
-        60_000,
-        `Schema summary for ${setResult.schema_name}`,
-      );
-      setSummary(next);
-      setActiveSchema(setResult.schema_name);
-      setDraftSchema(setResult.schema_name);
-      onWorkingSchemaChange(setResult.schema_name);
-      setMessage(
-        `Active schema ${setResult.schema_name} on ${connectedConnection}. CURRENT_SCHEMA set for this session.`,
-      );
-      await onActivityRefresh();
+      // Schema browser queries ALL_* by owner — no ALTER SESSION needed.
+      // SQL sheet still prefixes CURRENT_SCHEMA per statement when running.
+      await loadSummaryForSchema(trimmed, {
+        loginUser: null,
+        source: "manual",
+      });
     } catch (error) {
       setSummary(null);
       setActiveSchema(null);
       setMessage(
         error instanceof Error
           ? error.message
-          : `Could not switch to schema ${trimmed}.`,
+          : `Could not load schema ${trimmed}.`,
       );
       await onActivityRefresh();
     } finally {
@@ -120,76 +166,110 @@ export const SchemaBrowser = ({
     if (!connectedConnection || !isBackendOnline) {
       return;
     }
-    if (autoLoadedConnection.current === connectedConnection) {
+    const override = projectSchemaOverride?.trim().toUpperCase() || null;
+    const key = `${connectedConnection}:${override ?? "login"}`;
+    if (autoLoadKey.current === key) {
       return;
     }
-    autoLoadedConnection.current = connectedConnection;
+
     let cancelled = false;
-    void (async () => {
-      setBusy(true);
-      setMessage(`Connected to ${connectedConnection}. Detecting login schema…`);
-      try {
-        // Keep auto-detect light: read session context + dictionary summary only.
-        // Do not ALTER SESSION here — that can hang on some SQLcl MCP sessions.
-        // Load / SQL sheet apply CURRENT_SCHEMA when the user explicitly needs it.
-        const context = await withTimeout(
-          getSessionContext(backendConfig),
-          30_000,
-          "Session context",
-        );
-        if (cancelled) {
-          return;
-        }
-        const suggested =
-          workingSchema.trim() ||
-          context.suggested_schema ||
-          schemaFromSessionUser(
-            context.database_context.current_user,
-            context.database_context.current_schema,
+    // Debounce so React Strict Mode remount cancels before any MCP call starts.
+    const timer = window.setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+      void (async () => {
+        setBusy(true);
+        try {
+          if (override) {
+            setDraftSchema(override);
+            onWorkingSchemaChange(override, { persist: true });
+            setMessage(
+              `Connected to ${connectedConnection}. Loading project schema ${override}…`,
+            );
+            await loadSummaryForSchema(override, {
+              loginUser: null,
+              source: "project",
+              allowStateUpdate: () => !cancelled,
+            });
+            if (!cancelled) {
+              autoLoadKey.current = key;
+            }
+            return;
+          }
+
+          setMessage(`Connected to ${connectedConnection}. Detecting login schema…`);
+          let loginUser: string | null = null;
+          let suggested: string | null = null;
+          try {
+            const context = await withTimeout(
+              fetchSessionContextOnce(backendConfig),
+              15_000,
+              "Session context",
+            );
+            if (cancelled) {
+              return;
+            }
+            loginUser = context.database_context.current_user;
+            suggested =
+              context.suggested_schema ||
+              schemaFromSessionUser(
+                context.database_context.current_user,
+                context.database_context.current_schema,
+              );
+          } catch {
+            if (cancelled) {
+              return;
+            }
+          }
+
+          if (!suggested) {
+            if (!cancelled) {
+              autoLoadKey.current = key;
+              setMessage(
+                `Connected to ${connectedConnection}. Enter a schema and click Load.`,
+              );
+            }
+            return;
+          }
+
+          setDraftSchema(suggested);
+          onWorkingSchemaChange(suggested, { persist: false });
+          setMessage(
+            `Connected to ${connectedConnection}${loginUser ? ` as ${loginUser}` : ""}. Loading schema ${suggested}…`,
           );
-        if (!suggested) {
-          setMessage(`Connected to ${connectedConnection}. Enter a schema and click Load.`);
-          return;
-        }
-        setDraftSchema(suggested);
-        onWorkingSchemaChange(suggested);
-        const next = await withTimeout(
-          getSchemaSummary(suggested, {
-            refresh: true,
-            config: backendConfig,
-          }),
-          60_000,
-          `Schema summary for ${suggested}`,
-        );
-        if (cancelled) {
-          return;
-        }
-        setSummary(next);
-        setActiveSchema(suggested);
-        setMessage(
-          `Connected to ${connectedConnection} as ${context.database_context.current_user ?? "unknown"}. ` +
-            `Browsing schema ${suggested}. Click Load to set CURRENT_SCHEMA for SQL sheet work.`,
-        );
-        await onActivityRefresh();
-      } catch (error) {
-        if (!cancelled) {
+          await loadSummaryForSchema(suggested, {
+            loginUser,
+            source: "login",
+            allowStateUpdate: () => !cancelled,
+          });
+          if (!cancelled) {
+            autoLoadKey.current = key;
+          }
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
+          autoLoadKey.current = key;
           setMessage(
             error instanceof Error
-              ? `Connected, but schema auto-detect failed: ${error.message} Enter a schema and click Load.`
-              : "Connected, but could not auto-detect schema. Enter a schema and click Load.",
+              ? `Connected, but schema auto-load failed: ${error.message} Enter a schema and click Load.`
+              : "Connected, but could not auto-load schema. Enter a schema and click Load.",
           );
+        } finally {
+          if (!cancelled) {
+            setBusy(false);
+          }
         }
-      } finally {
-        if (!cancelled) {
-          setBusy(false);
-        }
-      }
-    })();
+      })();
+    }, 75);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-load once per connection
-  }, [backendConfig, connectedConnection, isBackendOnline]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per connection+override
+  }, [backendConfig, connectedConnection, isBackendOnline, projectSchemaOverride]);
 
   const runSummary = async (event: FormEvent) => {
     event.preventDefault();

@@ -96,6 +96,7 @@ export const IdeWorkspace = ({
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [workingSchema, setWorkingSchema] = useState("");
+  const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const autoConnectKey = useRef<string | null>(null);
 
@@ -125,8 +126,9 @@ export const IdeWorkspace = ({
     const schema =
       defaults.schemaName ??
       defaultSchemaFromManifest(openedProject) ??
-      "";
-    setWorkingSchema(schema);
+      null;
+    setProjectSchemaOverride(schema);
+    setWorkingSchema(schema ?? "");
 
     const connection =
       defaults.connectionName ??
@@ -198,9 +200,17 @@ export const IdeWorkspace = ({
     });
   };
 
-  const handleWorkingSchemaChange = (schema: string) => {
+  const handleWorkingSchemaChange = (
+    schema: string,
+    options: Readonly<{ persist?: boolean }> = {},
+  ) => {
     const next = schema.toUpperCase();
     setWorkingSchema(next);
+    // Login auto-detect must not overwrite a project schema override (or invent one).
+    if (options.persist === false) {
+      return;
+    }
+    setProjectSchemaOverride(next || null);
     persistWorkspaceDefaults((connectedConnection ?? selectedConnection) || null, next || null);
   };
 
@@ -252,6 +262,7 @@ export const IdeWorkspace = ({
       (connectedConnection ?? selectedConnection) || null,
       summary.schema_name,
     );
+    setProjectSchemaOverride(summary.schema_name);
     setWorkingSchema(summary.schema_name);
 
     const runtime = window as Window & { __TAURI_INTERNALS__?: unknown };
@@ -387,6 +398,7 @@ export const IdeWorkspace = ({
               backendConfig={backendConfig}
               connectedConnection={connectedConnection}
               isBackendOnline={isBackendOnline}
+              projectSchemaOverride={projectSchemaOverride}
               workingSchema={workingSchema}
               onWorkingSchemaChange={handleWorkingSchemaChange}
               onActivityRefresh={onActivityRefresh}

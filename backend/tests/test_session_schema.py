@@ -4,17 +4,17 @@ from apex_pilot.safety import SafetyDecision, classify_sql
 from apex_pilot.schema import DatabaseContext, suggested_schema_from_context
 
 
-def test_suggested_schema_prefers_current_schema() -> None:
+def test_suggested_schema_prefers_login_user_over_current_schema() -> None:
     context = DatabaseContext(
-        current_user="PROXY[APP]",
+        current_user="MCCOBB",
         current_schema="HR",
-        proxy_user="PROXY",
+        proxy_user=None,
         db_name="ORCL",
         container_name=None,
         cdb_name=None,
         host=None,
     )
-    assert suggested_schema_from_context(context) == "HR"
+    assert suggested_schema_from_context(context) == "MCCOBB"
 
 
 def test_suggested_schema_parses_proxy_bracket_user() -> None:

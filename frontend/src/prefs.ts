@@ -94,21 +94,21 @@ export const saveProjectDefaults = (
   localStorage.setItem(projectDefaultsKey(projectId), JSON.stringify(defaults));
 };
 
-/** Prefer CURRENT_SCHEMA, then proxy user[SCHEMA], then SESSION_USER. */
+/** Prefer login identity: proxy user[SCHEMA], then SESSION_USER, then CURRENT_SCHEMA. */
 export const schemaFromSessionUser = (
   currentUser: string | null | undefined,
   currentSchema?: string | null,
 ): string | null => {
+  if (currentUser?.trim()) {
+    const trimmed = currentUser.trim();
+    const proxyMatch = /^([^[\]]+)\[([A-Za-z][A-Za-z0-9_$#]*)\]$/.exec(trimmed);
+    if (proxyMatch?.[2]) {
+      return proxyMatch[2].toUpperCase();
+    }
+    return trimmed.toUpperCase();
+  }
   if (currentSchema?.trim()) {
     return currentSchema.trim().toUpperCase();
   }
-  if (!currentUser?.trim()) {
-    return null;
-  }
-  const trimmed = currentUser.trim();
-  const proxyMatch = /^([^[\]]+)\[([A-Za-z][A-Za-z0-9_$#]*)\]$/.exec(trimmed);
-  if (proxyMatch?.[2]) {
-    return proxyMatch[2].toUpperCase();
-  }
-  return trimmed.toUpperCase();
+  return null;
 };

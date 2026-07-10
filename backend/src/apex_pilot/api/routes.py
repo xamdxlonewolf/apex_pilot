@@ -502,6 +502,11 @@ async def get_session_context(request: Request) -> SessionContextResponse:
     runtime = _runtime_from_request(request)
     try:
         context = await runtime.fetch_database_context()
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Timed out reading Oracle session context. Enter a schema and click Load.",
+        ) from error
     except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
         raise _mcp_http_error(error) from error
     return SessionContextResponse(
