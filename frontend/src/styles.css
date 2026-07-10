@@ -404,11 +404,49 @@ button:disabled {
   background: #1a1b1e;
 }
 
+.connection-strip-message {
+  margin: 0;
+  padding: 0 8px 8px;
+}
+
 .connection-strip label {
   display: grid;
   gap: 4px;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.connection-state {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.connection-state--ok {
+  color: var(--ok);
+}
+
+.schema-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  background: #141518;
+}
+
+.status-pill--ok {
+  border-color: rgb(61 214 140 / 40%);
+  color: var(--ok);
 }
 
 .tool-panel,

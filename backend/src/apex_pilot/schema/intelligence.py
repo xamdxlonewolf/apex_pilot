@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -15,10 +17,12 @@ _MAX_PAYLOAD_UNWRAP_DEPTH = 6
 
 DATABASE_CONTEXT_SQL = """
 SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') AS current_user,
+       SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS current_schema,
+       SYS_CONTEXT('USERENV', 'PROXY_USER') AS proxy_user,
        SYS_CONTEXT('USERENV', 'DB_NAME') AS db_name,
-       SYS_CONTEXT('USERENV', 'CON_NAME') AS container_name,
-       SYS_CONTEXT('USERENV', 'CDB_NAME') AS cdb_name,
-       SYS_CONTEXT('USERENV', 'SERVER_HOST') AS host
+       CAST(NULL AS VARCHAR2(128)) AS container_name,
+       CAST(NULL AS VARCHAR2(128)) AS cdb_name,
+       CAST(NULL AS VARCHAR2(128)) AS host
 FROM   DUAL
 """
 
@@ -82,6 +86,8 @@ class DatabaseContext:
     """Current Oracle database/session context."""
 
     current_user: str | None
+    current_schema: str | None
+    proxy_user: str | None
     db_name: str | None
     container_name: str | None
     cdb_name: str | None
@@ -91,6 +97,8 @@ class DatabaseContext:
         """Return a JSON-serializable context payload."""
         return {
             "current_user": self.current_user,
+            "current_schema": self.current_schema,
+            "proxy_user": self.proxy_user,
             "db_name": self.db_name,
             "container_name": self.container_name,
             "cdb_name": self.cdb_name,
@@ -209,7 +217,23 @@ class SchemaIntelligenceService:
             cached = self._summary_cache[cache_key]
             return replace(cached, cache_age_seconds=_age_seconds(cached.captured_at, now))
 
-        database_context_rows = await self._run_read_only_sql(DATABASE_CONTEXT_SQL)
+        # Dictionary queries are the product; session context is best-effort so a
+        # hung SYS_CONTEXT call cannot block schema browsing after connect.
+        try:
+            database_context = await asyncio.wait_for(
+                self.fetch_database_context(),
+                timeout=10.0,
+            )
+        except Exception:  # noqa: BLE001 - empty context keeps summary usable
+            database_context = DatabaseContext(
+                current_user=None,
+                current_schema=None,
+                proxy_user=None,
+                db_name=None,
+                container_name=None,
+                cdb_name=None,
+                host=None,
+            )
         object_count_rows = await self._run_read_only_sql(
             SCHEMA_OBJECT_COUNTS_SQL,
             {"schema_name": normalized_schema},
@@ -224,12 +248,51 @@ class SchemaIntelligenceService:
             schema_name=normalized_schema,
             captured_at=now,
             cache_age_seconds=0.0,
-            database_context=_parse_database_context(database_context_rows),
+            database_context=database_context,
             object_counts=tuple(_parse_object_count(row) for row in object_count_rows),
             tables=tuple(_parse_table(row) for row in table_rows),
         )
         self._summary_cache[cache_key] = summary
         return summary
+
+    async def fetch_database_context(self) -> DatabaseContext:
+        """Return the live Oracle session user/schema context."""
+        rows = await asyncio.wait_for(
+            self._run_read_only_sql(DATABASE_CONTEXT_SQL),
+            timeout=10.0,
+        )
+        return _parse_database_context(rows)
+
+    async def set_current_schema(self, schema_name: str) -> str:
+        """Set CURRENT_SCHEMA for the primary MCP session.
+
+        Uses a single ALTER SESSION statement. Avoids multi-statement verify
+        round-trips that can hang some SQLcl MCP sessions. SQL sheet work still
+        prefixes ALTER SESSION per statement via sql_with_current_schema.
+        """
+        normalized_schema = normalize_dictionary_identifier(schema_name)
+        if not _is_safe_oracle_identifier(normalized_schema):
+            msg = f"Schema name `{schema_name}` is not a safe Oracle identifier."
+            raise SchemaIntelligenceError(msg)
+        await self._session.call_tool(
+            RUN_SQL_TOOL,
+            {
+                "sql": f"ALTER SESSION SET CURRENT_SCHEMA = {normalized_schema}",
+                "binds": {},
+            },
+            access=SqlRequestAccess.READ_ONLY,
+        )
+        return normalized_schema
+
+    def sql_with_current_schema(self, schema_name: str, sql_text: str) -> str:
+        """Rewrite user SQL so unqualified objects target the working schema.
+
+        SQLcl MCP ``sql_run`` commonly executes only the first statement in a
+        multi-statement string, so prefixing ``ALTER SESSION`` is unreliable.
+        Qualifying the primary object (``CREATE TABLE APEX_PILOT.T ...``) keeps
+        DDL/DML in one tool call and lands objects in the intended schema.
+        """
+        return qualify_sql_for_schema(schema_name, sql_text)
 
     async def list_object_dependencies(
         self,
@@ -294,6 +357,133 @@ def normalize_dictionary_identifier(identifier: str) -> str:
     return normalized.upper()
 
 
+def suggested_schema_from_context(context: DatabaseContext) -> str | None:
+    """Prefer the login identity, not a leftover CURRENT_SCHEMA.
+
+    Order: proxy bracket schema from SESSION_USER (`proxy[SCHEMA]`), then
+    SESSION_USER, then CURRENT_SCHEMA as a last resort.
+    """
+    if context.current_user:
+        proxy_match = _PROXY_USER_PATTERN.fullmatch(context.current_user.strip())
+        if proxy_match:
+            return proxy_match.group("schema").upper()
+        return context.current_user.upper()
+    if context.current_schema:
+        return context.current_schema.upper()
+    return None
+
+
+def qualify_sql_for_schema(schema_name: str, sql_text: str) -> str:
+    """Prefix unqualified primary objects with ``schema.`` for common SQL forms."""
+    normalized_schema = normalize_dictionary_identifier(schema_name)
+    if not _is_safe_oracle_identifier(normalized_schema):
+        msg = f"Schema name `{schema_name}` is not a safe Oracle identifier."
+        raise SchemaIntelligenceError(msg)
+    trimmed = sql_text.strip()
+    if not trimmed:
+        msg = "SQL text cannot be empty."
+        raise SchemaIntelligenceError(msg)
+
+    rewritten = trimmed
+    for pattern in _SCHEMA_QUALIFY_PATTERNS:
+        rewritten, count = pattern.subn(
+            lambda match: _qualify_match(match, normalized_schema),
+            rewritten,
+            count=1,
+        )
+        if count:
+            break
+
+    # CREATE INDEX ... ON table — also qualify the ON target when still bare.
+    rewritten = _INDEX_ON_PATTERN.sub(
+        lambda match: _qualify_index_on(match, normalized_schema),
+        rewritten,
+        count=1,
+    )
+    return rewritten
+
+
+def _qualify_match(match: re.Match[str], schema: str) -> str:
+    prefix = match.group("prefix")
+    name = match.group("name")
+    if _is_already_qualified(name) or _should_skip_object(name):
+        return match.group(0)
+    return f"{prefix}{schema}.{name}"
+
+
+def _qualify_index_on(match: re.Match[str], schema: str) -> str:
+    prefix = match.group("prefix")
+    name = match.group("name")
+    if _is_already_qualified(name) or _should_skip_object(name):
+        return match.group(0)
+    return f"{prefix}{schema}.{name}"
+
+
+def _is_already_qualified(name: str) -> bool:
+    return "." in name
+
+
+def _should_skip_object(name: str) -> bool:
+    bare = name.strip().strip('"').upper()
+    if bare in _SKIP_SCHEMA_QUALIFY_OBJECTS:
+        return True
+    # Data-dictionary / fixed views are owned by SYS; never rewrite as schema.obj.
+    return bool(_DICTIONARY_VIEW_PREFIX.match(bare))
+
+
+def _is_safe_oracle_identifier(identifier: str) -> bool:
+    return bool(_SAFE_ORACLE_IDENTIFIER.fullmatch(identifier))
+
+
+_PROXY_USER_PATTERN = re.compile(
+    r"^(?P<proxy>[^\[\]]+)\[(?P<schema>[A-Za-z][A-Za-z0-9_$#]*)\]$",
+)
+_SAFE_ORACLE_IDENTIFIER = re.compile(r"^[A-Z][A-Z0-9_$#]*$")
+_IDENT = r'(?:"[^"]+"|[A-Za-z][A-Za-z0-9_$#]*)'
+_QUALIFIED_OR_BARE = rf"(?:{_IDENT}\s*\.\s*)?{_IDENT}"
+_SKIP_SCHEMA_QUALIFY_OBJECTS = frozenset({"DUAL"})
+_DICTIONARY_VIEW_PREFIX = re.compile(
+    r"^(?:USER|ALL|DBA|CDB|V\$|GV\$|X\$)_",
+)
+
+# First matching pattern wins. Each captures prefix + bare/qualified object name.
+_SCHEMA_QUALIFY_PATTERNS = (
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*CREATE\s+(?:OR\s+REPLACE\s+)?"
+        rf"(?:UNIQUE\s+|BITMAP\s+)?(?:GLOBAL\s+TEMPORARY\s+)?"
+        rf"(?:TABLE|VIEW|MATERIALIZED\s+VIEW|SEQUENCE|SYNONYM|INDEX|"
+        rf"TRIGGER|PROCEDURE|FUNCTION|PACKAGE(?:\s+BODY)?|TYPE(?:\s+BODY)?)\s+)"
+        rf"(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*DROP\s+"
+        rf"(?:TABLE|VIEW|MATERIALIZED\s+VIEW|SEQUENCE|SYNONYM|INDEX|"
+        rf"TRIGGER|PROCEDURE|FUNCTION|PACKAGE(?:\s+BODY)?|TYPE(?:\s+BODY)?)\s+)"
+        rf"(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*(?:TRUNCATE\s+TABLE|ALTER\s+TABLE)\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*INSERT\s+INTO\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*UPDATE\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*DELETE\s+FROM\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*MERGE\s+INTO\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*SELECT\b.+?\bFROM\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+)
+_INDEX_ON_PATTERN = re.compile(
+    rf"(?is)(?P<prefix>\bON\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+)
+
 def rows_from_mcp_payload(payload: object) -> tuple[Mapping[str, object], ...]:
     """Extract row mappings from common SQLcl MCP fake/live payload shapes."""
     return _rows_from_payload(payload, depth=0)
@@ -356,6 +546,8 @@ def _parse_database_context(rows: Sequence[Mapping[str, object]]) -> DatabaseCon
     row = rows[0] if rows else {}
     return DatabaseContext(
         current_user=_optional_text(row, "current_user"),
+        current_schema=_optional_text(row, "current_schema"),
+        proxy_user=_optional_text(row, "proxy_user"),
         db_name=_optional_text(row, "db_name"),
         container_name=_optional_text(row, "container_name"),
         cdb_name=_optional_text(row, "cdb_name"),

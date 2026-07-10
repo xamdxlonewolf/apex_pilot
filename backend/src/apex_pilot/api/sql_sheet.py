@@ -45,6 +45,7 @@ class SqlSheetRunResult:
     rows: tuple[Mapping[str, object], ...]
     raw_text: str | None
     executed: bool
+    schema_name: str | None = None
 
 
 def classification_to_dict(classification: SqlSafetyClassification) -> dict[str, Any]:
@@ -89,9 +90,12 @@ class SqlSheetService:
         *,
         confirmed: bool = False,
         skip_destructive_prompt: bool = False,
+        classify_sql_text: str | None = None,
     ) -> SqlSheetRunResult:
         """Classify SQL, enforce confirmation policy, then run through MCP."""
-        classification = self.classify(sql_text)
+        # When callers prefix ALTER SESSION for schema switching, classify the
+        # user-authored statement only so mixed-statement policy does not fire.
+        classification = self.classify(classify_sql_text or sql_text)
         if classification.decision is SafetyDecision.BLOCK:
             raise SqlSheetBlockedError(
                 "SQL is blocked by safety policy: " + "; ".join(classification.reasons)

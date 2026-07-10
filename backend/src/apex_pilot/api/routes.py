@@ -75,10 +75,39 @@ class DatabaseContextResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     current_user: str | None
+    current_schema: str | None = None
+    proxy_user: str | None = None
     db_name: str | None
     container_name: str | None
     cdb_name: str | None
     host: str | None
+
+
+class SessionContextResponse(BaseModel):
+    """Connected session context plus suggested working schema."""
+
+    model_config = ConfigDict(frozen=True)
+
+    connection_name: str | None = None
+    database_context: DatabaseContextResponse
+    suggested_schema: str | None = None
+
+
+class SetSchemaBody(BaseModel):
+    """Request body for setting CURRENT_SCHEMA."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_name: str = Field(min_length=1)
+
+
+class SetSchemaResponse(BaseModel):
+    """Response after setting CURRENT_SCHEMA."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_name: str
+    connection_name: str | None = None
 
 
 class SchemaObjectCountResponse(BaseModel):
@@ -183,6 +212,7 @@ class SqlRunBody(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     sql: str = Field(min_length=1)
+    schema_name: str | None = None
     confirmed: bool = False
     skip_destructive_prompt: bool = False
 
@@ -194,6 +224,7 @@ class SqlRunResponse(BaseModel):
 
     classification: SqlClassificationResponse
     connection_name: str | None = None
+    schema_name: str | None = None
     rows: list[dict[str, object]] = Field(default_factory=list)
     raw_text: str | None = None
     executed: bool
@@ -461,6 +492,50 @@ async def summarize_schema(
 
 
 @router.get(
+    "/session/context",
+    response_model=SessionContextResponse,
+    tags=["schema"],
+    dependencies=[Depends(require_bearer_token)],
+)
+async def get_session_context(request: Request) -> SessionContextResponse:
+    """Return live session user/schema context for the connected MCP session."""
+    runtime = _runtime_from_request(request)
+    try:
+        context = await runtime.fetch_database_context()
+    except TimeoutError as error:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Timed out reading Oracle session context. Enter a schema and click Load.",
+        ) from error
+    except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
+        raise _mcp_http_error(error) from error
+    return SessionContextResponse(
+        connection_name=runtime.opened_connection_name(),
+        database_context=DatabaseContextResponse.model_validate(context.to_dict()),
+        suggested_schema=runtime.suggested_schema(context),
+    )
+
+
+@router.post(
+    "/session/schema",
+    response_model=SetSchemaResponse,
+    tags=["schema"],
+    dependencies=[Depends(require_bearer_token)],
+)
+async def set_session_schema(body: SetSchemaBody, request: Request) -> SetSchemaResponse:
+    """Set CURRENT_SCHEMA on the primary MCP session."""
+    runtime = _runtime_from_request(request)
+    try:
+        schema_name = await runtime.set_current_schema(body.schema_name)
+    except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
+        raise _mcp_http_error(error) from error
+    return SetSchemaResponse(
+        schema_name=schema_name,
+        connection_name=runtime.opened_connection_name(),
+    )
+
+
+@router.get(
     "/activity",
     response_model=ActivityResponse,
     tags=["activity"],
@@ -509,6 +584,7 @@ async def run_sql_sheet(body: SqlRunBody, request: Request) -> SqlRunResponse:
     try:
         result = await runtime.run_sql_sheet(
             body.sql,
+            schema_name=body.schema_name,
             confirmed=body.confirmed,
             skip_destructive_prompt=body.skip_destructive_prompt,
         )
@@ -531,6 +607,7 @@ async def run_sql_sheet(body: SqlRunBody, request: Request) -> SqlRunResponse:
             classification_to_dict(result.classification)
         ),
         connection_name=result.connection_name,
+        schema_name=result.schema_name,
         rows=[dict(row) for row in result.rows],
         raw_text=result.raw_text,
         executed=result.executed,

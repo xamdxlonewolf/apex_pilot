@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChatPane } from "./ChatPane";
 import { FileTree } from "./FileTree";
@@ -14,11 +14,13 @@ import {
 import {
   type ProfileLayoutPrefs,
   loadProfileLayout,
+  loadProjectDefaults,
   loadProjectTabs,
   saveProfileLayout,
+  saveProjectDefaults,
   saveProjectTabs,
 } from "./prefs";
-import { type FileTreeNode, readTextFile } from "./projectFs";
+import { type FileTreeNode, joinPath, readTextFile } from "./projectFs";
 
 type WorkspaceTab = Readonly<{
   id: string;
@@ -37,13 +39,42 @@ type IdeWorkspaceProps = Readonly<{
   connectedConnection: string | null;
   selectedConnection: string;
   onSelectedConnectionChange: (name: string) => void;
-  onConnect: () => void;
+  onConnect: (connectionName?: string) => Promise<void> | void;
   isConnecting: boolean;
   profileId: string | null;
   onActivityRefresh: () => Promise<void>;
   sqlDirty: boolean;
   onSqlDirtyChange: (dirty: boolean) => void;
 }>;
+
+const defaultSchemaFromManifest = (openedProject: OpenedProject): string | null => {
+  const manifest = openedProject.manifest as {
+    defaultEnvironment?: string;
+    environments?: ReadonlyArray<{ name?: string; defaultSchema?: string }>;
+  };
+  const environments = manifest.environments ?? [];
+  const defaultEnvName = manifest.defaultEnvironment;
+  const preferred =
+    environments.find((env) => env.name === defaultEnvName) ?? environments[0] ?? null;
+  const schema = preferred?.defaultSchema?.trim();
+  return schema ? schema.toUpperCase() : null;
+};
+
+const defaultConnectionFromMappings = (openedProject: OpenedProject): string | null => {
+  const manifest = openedProject.manifest as {
+    defaultEnvironment?: string;
+  };
+  const defaultEnv = manifest.defaultEnvironment;
+  if (defaultEnv) {
+    const mapped = openedProject.environment_mappings.find(
+      (item) => item.environment_name === defaultEnv,
+    );
+    if (mapped?.sqlcl_connection_name) {
+      return mapped.sqlcl_connection_name;
+    }
+  }
+  return openedProject.environment_mappings[0]?.sqlcl_connection_name ?? null;
+};
 
 export const IdeWorkspace = ({
   backendConfig,
@@ -64,6 +95,10 @@ export const IdeWorkspace = ({
   const [layout, setLayout] = useState<ProfileLayoutPrefs>(() => loadProfileLayout(profileId));
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [workingSchema, setWorkingSchema] = useState("");
+  const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const autoConnectKey = useRef<string | null>(null);
 
   useEffect(() => {
     setLayout(loadProfileLayout(profileId));
@@ -71,6 +106,7 @@ export const IdeWorkspace = ({
 
   useEffect(() => {
     const saved = loadProjectTabs(openedProject.project.project_id);
+    const defaults = loadProjectDefaults(openedProject.project.project_id);
     const restored: WorkspaceTab[] =
       saved.openTabs.length > 0
         ? saved.openTabs.map((tab) => ({
@@ -86,7 +122,23 @@ export const IdeWorkspace = ({
           ];
     setTabs(restored);
     setActiveTabId(saved.activeTabId ?? restored[0]?.id ?? null);
-  }, [openedProject.project.project_id]);
+
+    const schema =
+      defaults.schemaName ??
+      defaultSchemaFromManifest(openedProject) ??
+      null;
+    setProjectSchemaOverride(schema);
+    setWorkingSchema(schema ?? "");
+
+    const connection =
+      defaults.connectionName ??
+      defaultConnectionFromMappings(openedProject) ??
+      "";
+    if (connection) {
+      onSelectedConnectionChange(connection);
+    }
+    autoConnectKey.current = null;
+  }, [openedProject, onSelectedConnectionChange]);
 
   useEffect(() => {
     if (!profileId) {
@@ -106,6 +158,61 @@ export const IdeWorkspace = ({
       activeTabId,
     });
   }, [activeTabId, openedProject.project.project_id, tabs]);
+
+  useEffect(() => {
+    if (!isBackendOnline || isConnecting || connections.length === 0) {
+      return;
+    }
+    const defaults = loadProjectDefaults(openedProject.project.project_id);
+    const targetConnection =
+      defaults.connectionName ?? defaultConnectionFromMappings(openedProject);
+    if (!targetConnection) {
+      return;
+    }
+    const key = `${openedProject.project.project_id}:${targetConnection}`;
+    if (autoConnectKey.current === key) {
+      return;
+    }
+    if (connectedConnection === targetConnection) {
+      autoConnectKey.current = key;
+      return;
+    }
+    autoConnectKey.current = key;
+    if (selectedConnection !== targetConnection) {
+      onSelectedConnectionChange(targetConnection);
+    }
+    void onConnect(targetConnection);
+  }, [
+    connections.length,
+    connectedConnection,
+    isBackendOnline,
+    isConnecting,
+    onConnect,
+    onSelectedConnectionChange,
+    openedProject,
+    selectedConnection,
+  ]);
+
+  const persistWorkspaceDefaults = (connectionName: string | null, schemaName: string | null) => {
+    saveProjectDefaults(openedProject.project.project_id, {
+      connectionName,
+      schemaName: schemaName?.trim() ? schemaName.trim().toUpperCase() : null,
+    });
+  };
+
+  const handleWorkingSchemaChange = (
+    schema: string,
+    options: Readonly<{ persist?: boolean }> = {},
+  ) => {
+    const next = schema.toUpperCase();
+    setWorkingSchema(next);
+    // Login auto-detect must not overwrite a project schema override (or invent one).
+    if (options.persist === false) {
+      return;
+    }
+    setProjectSchemaOverride(next || null);
+    persistWorkspaceDefaults((connectedConnection ?? selectedConnection) || null, next || null);
+  };
 
   const openOrFocus = (tab: WorkspaceTab) => {
     setTabs((current) => (current.some((item) => item.id === tab.id) ? current : [...current, tab]));
@@ -150,34 +257,51 @@ export const IdeWorkspace = ({
 
   const saveSchemaSummary = async (summary: SchemaSummary) => {
     const defaultName = `${summary.schema_name.toLowerCase()}-schema-summary.json`;
+    const defaultPath = joinPath(openedProject.project.root_path, defaultName);
+    persistWorkspaceDefaults(
+      (connectedConnection ?? selectedConnection) || null,
+      summary.schema_name,
+    );
+    setProjectSchemaOverride(summary.schema_name);
+    setWorkingSchema(summary.schema_name);
+
     const runtime = window as Window & { __TAURI_INTERNALS__?: unknown };
-    if (runtime.__TAURI_INTERNALS__) {
-      try {
-        const { save } = await import("@tauri-apps/plugin-dialog");
-        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-        const target = await save({
-          defaultPath: `${openedProject.project.root_path}/${defaultName}`,
-          filters: [{ name: "JSON", extensions: ["json"] }],
-        });
-        if (typeof target === "string") {
-          await writeTextFile(target, JSON.stringify(summary, null, 2));
-        }
-        return;
-      } catch {
-        // Fall through to prompt fallback.
-      }
+    if (!runtime.__TAURI_INTERNALS__) {
+      setSaveMessage(
+        "Save to project needs the Tauri desktop shell (not browser Vite). Defaults were still saved for reconnect.",
+      );
+      return;
     }
-    const target = window.prompt("Save schema summary path", defaultName);
-    if (target) {
-      console.info("Schema summary (copy manually in browser mode):", summary);
-      window.alert(`Browser mode cannot write files. Intended path: ${target}`);
+
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      const target = await save({
+        defaultPath,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (typeof target !== "string") {
+        setSaveMessage("Save cancelled. Project connection/schema defaults were still updated.");
+        return;
+      }
+      await writeTextFile(target, JSON.stringify(summary, null, 2));
+      setSaveMessage(`Saved schema summary to ${target}`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setSaveMessage(`Could not write schema summary file: ${detail}`);
     }
   };
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
 
   return (
-    <div className="ide-workspace" style={{ ["--left-width" as string]: `${layout.leftWidth}px`, ["--right-width" as string]: `${layout.rightWidth}px` }}>
+    <div
+      className="ide-workspace"
+      style={{
+        ["--left-width" as string]: `${layout.leftWidth}px`,
+        ["--right-width" as string]: `${layout.rightWidth}px`,
+      }}
+    >
       <FileTree
         rootPath={openedProject.project.root_path}
         showJunk={layout.showJunkFiles}
@@ -239,26 +363,34 @@ export const IdeWorkspace = ({
           </label>
           <button
             type="button"
-            onClick={onConnect}
+            onClick={() => void onConnect()}
             disabled={!isBackendOnline || isConnecting || !selectedConnection}
             aria-busy={isConnecting}
           >
-            {isConnecting ? "Connecting…" : connectedConnection ? "Reconnect" : "Connect"}
+            {isConnecting
+              ? "Connecting…"
+              : connectedConnection === selectedConnection
+                ? "Connected · Reconnect"
+                : connectedConnection
+                  ? "Switch connection"
+                  : "Connect"}
           </button>
-          <label className="chrome-check">
-            <input
-              type="checkbox"
-              checked={layout.skipDestructiveSqlPrompt}
-              onChange={(event) =>
-                setLayout((current) => ({
-                  ...current,
-                  skipDestructiveSqlPrompt: event.target.checked,
-                }))
-              }
-            />
-            Skip destructive SQL prompts
-          </label>
+          <span
+            className={
+              connectedConnection
+                ? "connection-state connection-state--ok"
+                : "connection-state"
+            }
+            role="status"
+          >
+            {isConnecting
+              ? `Connecting to ${selectedConnection}…`
+              : connectedConnection
+                ? `Connected: ${connectedConnection}${workingSchema ? ` · schema ${workingSchema}` : ""}`
+                : "Not connected"}
+          </span>
         </div>
+        {saveMessage ? <p className="pane-muted connection-strip-message">{saveMessage}</p> : null}
 
         <div className="pane-body">
           {activeTab?.kind === "schema" ? (
@@ -266,6 +398,9 @@ export const IdeWorkspace = ({
               backendConfig={backendConfig}
               connectedConnection={connectedConnection}
               isBackendOnline={isBackendOnline}
+              projectSchemaOverride={projectSchemaOverride}
+              workingSchema={workingSchema}
+              onWorkingSchemaChange={handleWorkingSchemaChange}
               onActivityRefresh={onActivityRefresh}
               onSaveSummary={(summary) => void saveSchemaSummary(summary)}
             />
@@ -274,6 +409,7 @@ export const IdeWorkspace = ({
             <SqlSheet
               backendConfig={backendConfig}
               connectedConnection={connectedConnection}
+              workingSchema={workingSchema}
               isBackendOnline={isBackendOnline}
               skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
               dirty={sqlDirty}

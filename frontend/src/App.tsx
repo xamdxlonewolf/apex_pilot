@@ -148,15 +148,19 @@ export const App = () => {
     });
   }, [connectedConnection, isBackendOnline, refreshActivity]);
 
-  const connectSelectedConnection = async () => {
-    if (isConnecting || !selectedConnection) {
+  const connectSelectedConnection = async (connectionName?: string) => {
+    const target = (connectionName ?? selectedConnection).trim();
+    if (isConnecting || !target) {
       setConnectionMessage("Select a SQLcl saved connection first.");
       return;
     }
+    if (connectionName && connectionName !== selectedConnection) {
+      setSelectedConnection(connectionName);
+    }
     setIsConnecting(true);
-    setConnectionMessage(`Connecting to ${selectedConnection}.`);
+    setConnectionMessage(`Connecting to ${target}.`);
     try {
-      const response = await connectSavedConnection(selectedConnection, backendConfig);
+      const response = await connectSavedConnection(target, backendConfig);
       setConnectedConnection(response.connection_name);
       setConnectionMessage(`Connected to ${response.connection_name}.`);
       await refreshActivity();
@@ -293,7 +297,7 @@ export const App = () => {
             connectedConnection={connectedConnection}
             selectedConnection={selectedConnection}
             onSelectedConnectionChange={setSelectedConnection}
-            onConnect={() => void connectSelectedConnection()}
+            onConnect={(connectionName) => connectSelectedConnection(connectionName)}
             isConnecting={isConnecting}
             profileId={profileId}
             onActivityRefresh={refreshActivity}

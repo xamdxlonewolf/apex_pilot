@@ -381,6 +381,15 @@ def _classify_alter(tokens: Sequence[str]) -> SqlStatementClassification:
             reasons=(f"ALTER {tokens[1]} is security-sensitive and blocked for agent execution.",),
         )
 
+    if len(tokens) >= 5 and tokens[1] == "SESSION" and tokens[2] == "SET" and tokens[3] == "CURRENT_SCHEMA":
+        return _statement(
+            decision=SafetyDecision.ALLOW,
+            access=SqlRequestAccess.READ_ONLY,
+            category=SafetyCategory.READ_ONLY,
+            operation=SqlOperation.ALTER,
+            reasons=("ALTER SESSION SET CURRENT_SCHEMA is allowed for workspace schema switching.",),
+        )
+
     if len(tokens) > 3 and tokens[1] == "TABLE" and tokens[3] == "ADD":
         return _statement(
             decision=SafetyDecision.ALLOW,

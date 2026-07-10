@@ -215,16 +215,31 @@ def _payload_from_result(tool_name: str, result: dict[str, Any]) -> object:
     if isinstance(content, list) and len(content) == 1:
         first = content[0]
         if isinstance(first, dict) and isinstance(first.get("text"), str):
+            text = first["text"]
             try:
-                return json.loads(first["text"])
+                decoded = json.loads(text)
             except json.JSONDecodeError:
                 if tool_name == "connections_list":
-                    return [line.strip() for line in first["text"].splitlines() if line.strip()]
+                    return _connection_names_from_text(text)
                 if tool_name == "sql_run":
-                    return _csv_rows_from_text(first["text"])
+                    return _csv_rows_from_text(text)
                 return result
+            if tool_name == "connections_list" and isinstance(decoded, str):
+                return _connection_names_from_text(decoded)
+            return decoded
 
     return result
+
+
+def _connection_names_from_text(text: str) -> list[str]:
+    """Split SQLcl connections_list text on newlines and/or commas."""
+    names: list[str] = []
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        for part in line.split(","):
+            name = part.strip()
+            if name:
+                names.append(name)
+    return names
 
 
 def _csv_rows_from_text(text: str) -> list[dict[str, object]]:

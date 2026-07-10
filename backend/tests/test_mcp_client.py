@@ -47,6 +47,40 @@ def test_connections_list_text_payload_is_parsed_as_connection_names() -> None:
     assert payload == ["dev", "prod"]
 
 
+def test_connections_list_comma_separated_text_is_split() -> None:
+    """Some SQLcl builds return all saved names on one comma-separated line."""
+    payload = _payload_from_result(
+        "connections_list",
+        {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "mcobb_test_oracle_db, mcobb_test_oracle_db_apex_pilot",
+                },
+            ],
+        },
+    )
+
+    assert payload == ["mcobb_test_oracle_db", "mcobb_test_oracle_db_apex_pilot"]
+
+
+def test_connections_list_json_string_payload_is_split() -> None:
+    """JSON-decoded string payloads are also split into discrete names."""
+    payload = _payload_from_result(
+        "connections_list",
+        {
+            "content": [
+                {
+                    "type": "text",
+                    "text": '"dev, prod"',
+                },
+            ],
+        },
+    )
+
+    assert payload == ["dev", "prod"]
+
+
 def test_sql_run_csv_text_payload_is_parsed_as_rows() -> None:
     """Current SQLcl returns `sql_run` rows as CSV text content."""
     payload = _payload_from_result(

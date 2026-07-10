@@ -30,6 +30,8 @@ export type ConnectResponse = Readonly<{
 
 export type DatabaseContext = Readonly<{
   current_user: string | null;
+  current_schema?: string | null;
+  proxy_user?: string | null;
   db_name: string | null;
   container_name: string | null;
   cdb_name: string | null;
@@ -214,10 +216,35 @@ export type SqlClassification = Readonly<{
 export type SqlRunResult = Readonly<{
   classification: SqlClassification;
   connection_name: string | null;
+  schema_name?: string | null;
   rows: ReadonlyArray<Record<string, unknown>>;
   raw_text: string | null;
   executed: boolean;
 }>;
+
+export type SessionContext = Readonly<{
+  connection_name: string | null;
+  database_context: DatabaseContext;
+  suggested_schema: string | null;
+}>;
+
+export const getSessionContext = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<SessionContext> => apiFetch("/session/context", {}, config);
+
+export const setSessionSchema = async (
+  schemaName: string,
+  config: BackendConfig = getBackendConfig(),
+): Promise<{ schema_name: string; connection_name: string | null }> =>
+  apiFetch(
+    "/session/schema",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schema_name: schemaName }),
+    },
+    config,
+  );
 
 export const classifySql = async (
   sql: string,
@@ -236,6 +263,7 @@ export const classifySql = async (
 export const runSql = async (
   body: Readonly<{
     sql: string;
+    schema_name?: string | null;
     confirmed?: boolean;
     skip_destructive_prompt?: boolean;
   }>,
