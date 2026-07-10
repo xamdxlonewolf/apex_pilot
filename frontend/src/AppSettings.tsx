@@ -1,0 +1,256 @@
+import { type FormEvent, useEffect, useState } from "react";
+
+import {
+  type BackendConfig,
+  type LocalProfile,
+  createProfile,
+} from "./backend";
+import {
+  type ProfileLayoutPrefs,
+  defaultProfileLayout,
+  loadProfileLayout,
+  saveProfileLayout,
+} from "./prefs";
+
+type AppSettingsProps = Readonly<{
+  backendConfig: BackendConfig;
+  profiles: LocalProfile[];
+  selectedProfileId: string;
+  onProfilesChange: (profiles: LocalProfile[], selectedProfileId: string) => void;
+  onClose: () => void;
+}>;
+
+export const AppSettings = ({
+  backendConfig,
+  profiles,
+  selectedProfileId,
+  onProfilesChange,
+  onClose,
+}: AppSettingsProps) => {
+  const [activeProfileId, setActiveProfileId] = useState(selectedProfileId);
+  const [layout, setLayout] = useState<ProfileLayoutPrefs>(() =>
+    loadProfileLayout(selectedProfileId || null),
+  );
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [showCreateProfile, setShowCreateProfile] = useState(profiles.length === 0);
+
+  useEffect(() => {
+    setActiveProfileId(selectedProfileId);
+    setLayout(loadProfileLayout(selectedProfileId || null));
+  }, [selectedProfileId]);
+
+  const activeProfile = profiles.find((profile) => profile.profile_id === activeProfileId) ?? null;
+
+  const persistLayout = (next: ProfileLayoutPrefs) => {
+    setLayout(next);
+    if (activeProfileId) {
+      saveProfileLayout(activeProfileId, next);
+    }
+  };
+
+  const handleSelectProfile = (profileId: string) => {
+    setActiveProfileId(profileId);
+    onProfilesChange(profiles, profileId);
+    setLayout(loadProfileLayout(profileId));
+    setMessage("Active profile updated.");
+  };
+
+  const handleCreateProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const profile = await createProfile(
+        {
+          display_name: displayName.trim(),
+          email: email.trim() || null,
+          username: username.trim() || null,
+        },
+        backendConfig,
+      );
+      const nextProfiles = [...profiles, profile];
+      saveProfileLayout(profile.profile_id, defaultProfileLayout());
+      onProfilesChange(nextProfiles, profile.profile_id);
+      setActiveProfileId(profile.profile_id);
+      setLayout(defaultProfileLayout());
+      setDisplayName("");
+      setEmail("");
+      setUsername("");
+      setShowCreateProfile(false);
+      setMessage(`Created profile ${profile.display_name}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create profile.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="funnel-screen" aria-label="Settings">
+      <h1>Settings</h1>
+      <p className="pane-muted">
+        Profile and app preferences for this machine. Project-specific mappings stay with each
+        project.
+      </p>
+
+      <section className="settings-section" aria-labelledby="settings-profile-heading">
+        <h2 id="settings-profile-heading">Local profile</h2>
+        {profiles.length > 0 ? (
+          <>
+            <label>
+              Active profile
+              <select
+                value={activeProfileId}
+                onChange={(event) => handleSelectProfile(event.target.value)}
+              >
+                {profiles.map((profile) => (
+                  <option key={profile.profile_id} value={profile.profile_id}>
+                    {profile.display_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {activeProfile ? (
+              <dl className="compact-dl settings-profile-meta">
+                <div>
+                  <dt>Display name</dt>
+                  <dd>{activeProfile.display_name}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{activeProfile.email || "—"}</dd>
+                </div>
+                <div>
+                  <dt>Username</dt>
+                  <dd>{activeProfile.username || "—"}</dd>
+                </div>
+              </dl>
+            ) : null}
+          </>
+        ) : (
+          <p className="pane-muted">No profiles yet. Create one below.</p>
+        )}
+        {!showCreateProfile ? (
+          <button
+            type="button"
+            className="chrome-button"
+            onClick={() => setShowCreateProfile(true)}
+          >
+            Add another profile
+          </button>
+        ) : (
+          <form className="stack-form" onSubmit={(event) => void handleCreateProfile(event)}>
+            <h3>New profile</h3>
+            <label>
+              Display name
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Email
+              <input value={email} onChange={(event) => setEmail(event.target.value)} />
+            </label>
+            <label>
+              Username
+              <input value={username} onChange={(event) => setUsername(event.target.value)} />
+            </label>
+            <div className="button-row">
+              <button type="submit" disabled={busy || !displayName.trim()}>
+                Create profile
+              </button>
+              {profiles.length > 0 ? (
+                <button
+                  type="button"
+                  className="chrome-button"
+                  onClick={() => setShowCreateProfile(false)}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          </form>
+        )}
+      </section>
+
+      <section className="settings-section" aria-labelledby="settings-app-heading">
+        <h2 id="settings-app-heading">App preferences</h2>
+        <p className="pane-muted">Stored for the active profile on this machine.</p>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={layout.skipDestructiveSqlPrompt}
+            onChange={(event) =>
+              persistLayout({
+                ...layout,
+                skipDestructiveSqlPrompt: event.target.checked,
+              })
+            }
+            disabled={!activeProfileId}
+          />
+          Skip destructive SQL sheet confirmation prompts
+        </label>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={layout.showJunkFiles}
+            onChange={(event) =>
+              persistLayout({
+                ...layout,
+                showJunkFiles: event.target.checked,
+              })
+            }
+            disabled={!activeProfileId}
+          />
+          Show junk / noise files in the project tree by default
+        </label>
+        <div className="settings-widths">
+          <label>
+            Left pane width (px)
+            <input
+              type="number"
+              min={180}
+              max={480}
+              value={layout.leftWidth}
+              disabled={!activeProfileId}
+              onChange={(event) =>
+                persistLayout({
+                  ...layout,
+                  leftWidth: Number(event.target.value) || layout.leftWidth,
+                })
+              }
+            />
+          </label>
+          <label>
+            Right pane width (px)
+            <input
+              type="number"
+              min={240}
+              max={640}
+              value={layout.rightWidth}
+              disabled={!activeProfileId}
+              onChange={(event) =>
+                persistLayout({
+                  ...layout,
+                  rightWidth: Number(event.target.value) || layout.rightWidth,
+                })
+              }
+            />
+          </label>
+        </div>
+      </section>
+
+      <div className="funnel-actions">
+        <button type="button" onClick={onClose}>
+          Done
+        </button>
+      </div>
+      {message ? <p className="pane-muted">{message}</p> : null}
+    </div>
+  );
+};

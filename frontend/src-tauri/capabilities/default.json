@@ -2,6 +2,35 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default permissions for the main Apex Pilot window.",
-  "windows": ["main"],
-  "permissions": ["core:default"]
+  "windows": ["main", "mcp-activity"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "fs:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-create",
+    "core:window:allow-close",
+    "core:window:allow-set-title",
+    "core:window:allow-set-focus",
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "**" }]
+    }
+  ]
 }

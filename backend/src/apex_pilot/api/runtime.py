@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from apex_pilot.api.sql_sheet import SqlSheetRunResult, SqlSheetService
 from apex_pilot.events import ToolActivityEntry, ToolActivityLog
 from apex_pilot.mcp import (
     SqlclConnectionManager,
@@ -12,6 +13,7 @@ from apex_pilot.mcp import (
     ToolActivityMcpClient,
 )
 from apex_pilot.projects import OpenedProject, ProjectService
+from apex_pilot.safety import SqlSafetyClassification
 from apex_pilot.schema import SchemaIntelligenceService, SchemaSummary
 from apex_pilot.settings import BackendSettings, default_metadata_db_path
 from apex_pilot.storage import LocalMetadataStore
@@ -36,6 +38,7 @@ class ApexPilotRuntime:
         activity_client = ToolActivityMcpClient(tool_client, self._activity_log)
         self._connection_manager = SqlclConnectionManager(activity_client)
         self._schema_service = SchemaIntelligenceService(self._connection_manager.primary_session)
+        self._sql_sheet = SqlSheetService(self._connection_manager.primary_session)
         self._sqlcl_config = sqlcl_config or SqlclMcpConfig()
         self._metadata_store = metadata_store
         self._owns_metadata_store = owns_metadata_store
@@ -111,6 +114,24 @@ class ApexPilotRuntime:
     async def summarize_schema(self, schema_name: str, *, refresh: bool = False) -> SchemaSummary:
         """Return a schema summary through guarded MCP dictionary queries."""
         return await self._schema_service.summarize_schema(schema_name, refresh=refresh)
+
+    def classify_sql(self, sql_text: str) -> SqlSafetyClassification:
+        """Classify SQL sheet text without executing it."""
+        return self._sql_sheet.classify(sql_text)
+
+    async def run_sql_sheet(
+        self,
+        sql_text: str,
+        *,
+        confirmed: bool = False,
+        skip_destructive_prompt: bool = False,
+    ) -> SqlSheetRunResult:
+        """Classify and execute SQL sheet text through the primary MCP session."""
+        return await self._sql_sheet.run(
+            sql_text,
+            confirmed=confirmed,
+            skip_destructive_prompt=skip_destructive_prompt,
+        )
 
     def activity_entries(self, *, connection_name: str | None = None) -> tuple[ToolActivityEntry, ...]:
         """Return recorded MCP tool activity, optionally filtered by connection."""
