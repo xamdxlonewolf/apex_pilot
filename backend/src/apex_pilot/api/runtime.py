@@ -153,8 +153,9 @@ class ApexPilotRuntime:
         active_schema: str | None = None
         executable_sql = sql_text
         if schema_name:
-            # Bundle schema switch with the user statement so SQLcl MCP cannot
-            # drop session state between separate tool calls.
+            # Qualify unqualified objects with the working schema. SQLcl MCP
+            # sql_run often executes only the first statement, so ALTER SESSION
+            # prefixes are unreliable for DDL.
             active_schema = normalize_dictionary_identifier(schema_name)
             executable_sql = self._schema_service.sql_with_current_schema(
                 active_schema,

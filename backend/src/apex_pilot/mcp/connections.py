@@ -191,17 +191,43 @@ class SqlclConnectionManager:
 
 
 def _connection_entries(payload: object) -> Sequence[object]:
+    if isinstance(payload, str):
+        return _split_connection_name_text(payload)
+
     if isinstance(payload, Mapping):
         for key in ("connections", "items"):
             value = payload.get(key)
+            if isinstance(value, str):
+                return _split_connection_name_text(value)
             if isinstance(value, Sequence) and not isinstance(value, str):
-                return value
+                return _expand_connection_sequence(value)
 
     if isinstance(payload, Sequence) and not isinstance(payload, str):
-        return payload
+        return _expand_connection_sequence(payload)
 
     msg = "SQLcl MCP list-connections returned an unsupported payload shape."
     raise SqlclConnectionError(msg)
+
+
+def _expand_connection_sequence(entries: Sequence[object]) -> list[object]:
+    """Flatten entries that may themselves be comma-separated name strings."""
+    expanded: list[object] = []
+    for entry in entries:
+        if isinstance(entry, str) and ("," in entry or "\n" in entry):
+            expanded.extend(_split_connection_name_text(entry))
+        else:
+            expanded.append(entry)
+    return expanded
+
+
+def _split_connection_name_text(text: str) -> list[str]:
+    names: list[str] = []
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        for part in line.split(","):
+            name = part.strip()
+            if name:
+                names.append(name)
+    return names
 
 
 def _parse_connection_entry(entry: object) -> SqlclSavedConnection:

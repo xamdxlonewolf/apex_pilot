@@ -69,6 +69,27 @@ def test_session_lists_sqlcl_saved_connections() -> None:
     asyncio.run(run_test())
 
 
+def test_session_lists_comma_separated_connection_string() -> None:
+    """Comma-joined connection name strings are expanded into discrete options."""
+
+    async def run_test() -> None:
+        client = FakeToolClient(
+            {
+                LIST_CONNECTIONS_TOOL: "mcobb_admin, mcobb_apex_pilot",
+            },
+        )
+        session = SqlclMcpSession.primary(client)
+
+        connections = await session.list_saved_connections()
+
+        assert connections == (
+            SqlclSavedConnection(name="mcobb_admin"),
+            SqlclSavedConnection(name="mcobb_apex_pilot"),
+        )
+
+    asyncio.run(run_test())
+
+
 def test_connect_uses_saved_connection_name_only() -> None:
     """Connecting passes only a saved SQLcl connection name to MCP."""
 

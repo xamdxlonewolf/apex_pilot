@@ -285,16 +285,14 @@ class SchemaIntelligenceService:
         return normalized_schema
 
     def sql_with_current_schema(self, schema_name: str, sql_text: str) -> str:
-        """Prefix user SQL with ALTER SESSION so schema switch and query share one MCP call."""
-        normalized_schema = normalize_dictionary_identifier(schema_name)
-        if not _is_safe_oracle_identifier(normalized_schema):
-            msg = f"Schema name `{schema_name}` is not a safe Oracle identifier."
-            raise SchemaIntelligenceError(msg)
-        trimmed = sql_text.strip()
-        if not trimmed:
-            msg = "SQL text cannot be empty."
-            raise SchemaIntelligenceError(msg)
-        return f"ALTER SESSION SET CURRENT_SCHEMA = {normalized_schema};\n{trimmed}"
+        """Rewrite user SQL so unqualified objects target the working schema.
+
+        SQLcl MCP ``sql_run`` commonly executes only the first statement in a
+        multi-statement string, so prefixing ``ALTER SESSION`` is unreliable.
+        Qualifying the primary object (``CREATE TABLE APEX_PILOT.T ...``) keeps
+        DDL/DML in one tool call and lands objects in the intended schema.
+        """
+        return qualify_sql_for_schema(schema_name, sql_text)
 
     async def list_object_dependencies(
         self,
@@ -375,6 +373,64 @@ def suggested_schema_from_context(context: DatabaseContext) -> str | None:
     return None
 
 
+def qualify_sql_for_schema(schema_name: str, sql_text: str) -> str:
+    """Prefix unqualified primary objects with ``schema.`` for common SQL forms."""
+    normalized_schema = normalize_dictionary_identifier(schema_name)
+    if not _is_safe_oracle_identifier(normalized_schema):
+        msg = f"Schema name `{schema_name}` is not a safe Oracle identifier."
+        raise SchemaIntelligenceError(msg)
+    trimmed = sql_text.strip()
+    if not trimmed:
+        msg = "SQL text cannot be empty."
+        raise SchemaIntelligenceError(msg)
+
+    rewritten = trimmed
+    for pattern in _SCHEMA_QUALIFY_PATTERNS:
+        rewritten, count = pattern.subn(
+            lambda match: _qualify_match(match, normalized_schema),
+            rewritten,
+            count=1,
+        )
+        if count:
+            break
+
+    # CREATE INDEX ... ON table — also qualify the ON target when still bare.
+    rewritten = _INDEX_ON_PATTERN.sub(
+        lambda match: _qualify_index_on(match, normalized_schema),
+        rewritten,
+        count=1,
+    )
+    return rewritten
+
+
+def _qualify_match(match: re.Match[str], schema: str) -> str:
+    prefix = match.group("prefix")
+    name = match.group("name")
+    if _is_already_qualified(name) or _should_skip_object(name):
+        return match.group(0)
+    return f"{prefix}{schema}.{name}"
+
+
+def _qualify_index_on(match: re.Match[str], schema: str) -> str:
+    prefix = match.group("prefix")
+    name = match.group("name")
+    if _is_already_qualified(name) or _should_skip_object(name):
+        return match.group(0)
+    return f"{prefix}{schema}.{name}"
+
+
+def _is_already_qualified(name: str) -> bool:
+    return "." in name
+
+
+def _should_skip_object(name: str) -> bool:
+    bare = name.strip().strip('"').upper()
+    if bare in _SKIP_SCHEMA_QUALIFY_OBJECTS:
+        return True
+    # Data-dictionary / fixed views are owned by SYS; never rewrite as schema.obj.
+    return bool(_DICTIONARY_VIEW_PREFIX.match(bare))
+
+
 def _is_safe_oracle_identifier(identifier: str) -> bool:
     return bool(_SAFE_ORACLE_IDENTIFIER.fullmatch(identifier))
 
@@ -383,7 +439,50 @@ _PROXY_USER_PATTERN = re.compile(
     r"^(?P<proxy>[^\[\]]+)\[(?P<schema>[A-Za-z][A-Za-z0-9_$#]*)\]$",
 )
 _SAFE_ORACLE_IDENTIFIER = re.compile(r"^[A-Z][A-Z0-9_$#]*$")
+_IDENT = r'(?:"[^"]+"|[A-Za-z][A-Za-z0-9_$#]*)'
+_QUALIFIED_OR_BARE = rf"(?:{_IDENT}\s*\.\s*)?{_IDENT}"
+_SKIP_SCHEMA_QUALIFY_OBJECTS = frozenset({"DUAL"})
+_DICTIONARY_VIEW_PREFIX = re.compile(
+    r"^(?:USER|ALL|DBA|CDB|V\$|GV\$|X\$)_",
+)
 
+# First matching pattern wins. Each captures prefix + bare/qualified object name.
+_SCHEMA_QUALIFY_PATTERNS = (
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*CREATE\s+(?:OR\s+REPLACE\s+)?"
+        rf"(?:UNIQUE\s+|BITMAP\s+)?(?:GLOBAL\s+TEMPORARY\s+)?"
+        rf"(?:TABLE|VIEW|MATERIALIZED\s+VIEW|SEQUENCE|SYNONYM|INDEX|"
+        rf"TRIGGER|PROCEDURE|FUNCTION|PACKAGE(?:\s+BODY)?|TYPE(?:\s+BODY)?)\s+)"
+        rf"(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*DROP\s+"
+        rf"(?:TABLE|VIEW|MATERIALIZED\s+VIEW|SEQUENCE|SYNONYM|INDEX|"
+        rf"TRIGGER|PROCEDURE|FUNCTION|PACKAGE(?:\s+BODY)?|TYPE(?:\s+BODY)?)\s+)"
+        rf"(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*(?:TRUNCATE\s+TABLE|ALTER\s+TABLE)\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*INSERT\s+INTO\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*UPDATE\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*DELETE\s+FROM\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*MERGE\s+INTO\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+    re.compile(
+        rf"(?is)^(?P<prefix>\s*SELECT\b.+?\bFROM\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+    ),
+)
+_INDEX_ON_PATTERN = re.compile(
+    rf"(?is)(?P<prefix>\bON\s+)(?P<name>{_QUALIFIED_OR_BARE})",
+)
 
 def rows_from_mcp_payload(payload: object) -> tuple[Mapping[str, object], ...]:
     """Extract row mappings from common SQLcl MCP fake/live payload shapes."""

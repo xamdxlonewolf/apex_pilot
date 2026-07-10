@@ -134,7 +134,9 @@ export const SqlSheet = ({
           </button>
           <span className="pane-muted">
             {connectedConnection
-              ? `Will run on ${connectedConnection}${workingSchema ? ` as CURRENT_SCHEMA ${workingSchema}` : " (no schema set — using login schema)"}`
+              ? workingSchema
+                ? `Will run on ${connectedConnection}; unqualified objects target ${workingSchema}`
+                : `Will run on ${connectedConnection} (no schema set — objects land in login schema)`
               : "Connect a SQLcl saved connection to run SQL."}
           </span>
         </div>
