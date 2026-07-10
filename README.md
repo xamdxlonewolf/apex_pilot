@@ -89,7 +89,7 @@ Work is split into small reviewable PRs:
 6. SQL safety classifier.
 7. Schema intelligence.
 8. First desktop vertical slice.
-9. Local project and storage foundation (`9A`), project wizard (`9B`), then agent core.
+9. Local project and storage foundation (`9A`), project wizard (`9B`), desktop shell (`9B.1`), then agent core.
 10. Skill installer.
 11. Skill runtime.
 12. Approval workflow.
@@ -114,7 +114,7 @@ uv run pyright
 
 The current backend exposes `GET /health` plus bearer-protected local routes for
 project wizard/preflight, profiles, projects, saved connections, connect, schema
-summary, and MCP tool activity.
+summary, SQL sheet classify/run, and MCP tool activity.
 
 The backend also contains SQLcl MCP preflight and lifecycle primitives. They
 validate SQLcl 25.2+, Java availability, and optional `TNS_ADMIN` configuration

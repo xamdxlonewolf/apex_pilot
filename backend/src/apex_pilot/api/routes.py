@@ -8,6 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from apex_pilot import __version__
 from apex_pilot.api.auth import require_bearer_token
 from apex_pilot.api.runtime import ApexPilotRuntime
+from apex_pilot.api.sql_sheet import (
+    SqlSheetBlockedError,
+    SqlSheetConfirmationRequiredError,
+    SqlSheetError,
+    classification_to_dict,
+)
 from apex_pilot.mcp import SqlclConnectionError, SqlclMcpError
 from apex_pilot.projects import (
     CreateProjectRequest,
@@ -134,6 +140,63 @@ class ActivityResponse(BaseModel):
 
     entries: list[ActivityEntryResponse]
     active_session_id: str | None = None
+
+
+class SqlClassifyBody(BaseModel):
+    """SQL sheet classify request."""
+
+    model_config = ConfigDict(frozen=True)
+
+    sql: str = Field(min_length=1)
+
+
+class SqlStatementClassificationResponse(BaseModel):
+    """One statement classification."""
+
+    model_config = ConfigDict(frozen=True)
+
+    decision: str
+    access: str
+    category: str
+    operation: str
+    reasons: list[str]
+    requires_preview: bool = False
+
+
+class SqlClassificationResponse(BaseModel):
+    """SQL safety classification payload."""
+
+    model_config = ConfigDict(frozen=True)
+
+    decision: str
+    access: str
+    category: str
+    operation: str
+    reasons: list[str]
+    requires_preview: bool = False
+    statements: list[SqlStatementClassificationResponse] = Field(default_factory=list)
+
+
+class SqlRunBody(BaseModel):
+    """SQL sheet execute request."""
+
+    model_config = ConfigDict(frozen=True)
+
+    sql: str = Field(min_length=1)
+    confirmed: bool = False
+    skip_destructive_prompt: bool = False
+
+
+class SqlRunResponse(BaseModel):
+    """SQL sheet execute response."""
+
+    model_config = ConfigDict(frozen=True)
+
+    classification: SqlClassificationResponse
+    connection_name: str | None = None
+    rows: list[dict[str, object]] = Field(default_factory=list)
+    raw_text: str | None = None
+    executed: bool
 
 
 class PrerequisiteGuideResponse(BaseModel):
@@ -415,6 +478,62 @@ def list_activity(
             for entry in runtime.activity_entries(connection_name=connection)
         ],
         active_session_id=runtime.active_activity_session_id(),
+    )
+
+
+@router.post(
+    "/sql/classify",
+    response_model=SqlClassificationResponse,
+    tags=["sql"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def classify_sql_sheet(body: SqlClassifyBody, request: Request) -> SqlClassificationResponse:
+    """Classify SQL sheet text without executing it."""
+    runtime = _runtime_from_request(request)
+    try:
+        classification = runtime.classify_sql(body.sql)
+    except SqlSheetError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    return SqlClassificationResponse.model_validate(classification_to_dict(classification))
+
+
+@router.post(
+    "/sql/run",
+    response_model=SqlRunResponse,
+    tags=["sql"],
+    dependencies=[Depends(require_bearer_token)],
+)
+async def run_sql_sheet(body: SqlRunBody, request: Request) -> SqlRunResponse:
+    """Classify and execute SQL through the primary SQLcl MCP session."""
+    runtime = _runtime_from_request(request)
+    try:
+        result = await runtime.run_sql_sheet(
+            body.sql,
+            confirmed=body.confirmed,
+            skip_destructive_prompt=body.skip_destructive_prompt,
+        )
+    except SqlSheetConfirmationRequiredError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": str(error),
+                "classification": classification_to_dict(error.classification),
+            },
+        ) from error
+    except SqlSheetBlockedError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except SqlSheetError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
+        raise _mcp_http_error(error) from error
+    return SqlRunResponse(
+        classification=SqlClassificationResponse.model_validate(
+            classification_to_dict(result.classification)
+        ),
+        connection_name=result.connection_name,
+        rows=[dict(row) for row in result.rows],
+        raw_text=result.raw_text,
+        executed=result.executed,
     )
 
 

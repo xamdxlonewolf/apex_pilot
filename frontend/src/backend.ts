@@ -112,6 +112,7 @@ export class BackendApiError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    readonly detail?: unknown,
   ) {
     super(message);
   }
@@ -192,6 +193,63 @@ export const listActivity = async (
   const query = params.toString();
   return apiFetch(`/activity${query ? `?${query}` : ""}`, {}, options.config);
 };
+
+export type SqlClassification = Readonly<{
+  decision: "allow" | "prompt" | "block";
+  access: "read_only" | "data_change";
+  category: string;
+  operation: string;
+  reasons: string[];
+  requires_preview: boolean;
+  statements: ReadonlyArray<{
+    decision: string;
+    access: string;
+    category: string;
+    operation: string;
+    reasons: string[];
+    requires_preview: boolean;
+  }>;
+}>;
+
+export type SqlRunResult = Readonly<{
+  classification: SqlClassification;
+  connection_name: string | null;
+  rows: ReadonlyArray<Record<string, unknown>>;
+  raw_text: string | null;
+  executed: boolean;
+}>;
+
+export const classifySql = async (
+  sql: string,
+  config: BackendConfig = getBackendConfig(),
+): Promise<SqlClassification> =>
+  apiFetch(
+    "/sql/classify",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sql }),
+    },
+    config,
+  );
+
+export const runSql = async (
+  body: Readonly<{
+    sql: string;
+    confirmed?: boolean;
+    skip_destructive_prompt?: boolean;
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<SqlRunResult> =>
+  apiFetch(
+    "/sql/run",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
 
 export type PrerequisiteGuide = Readonly<{
   title: string;
@@ -411,7 +469,8 @@ const apiFetch = async <Payload>(
   });
 
   if (!response.ok) {
-    throw new BackendApiError(await errorMessageFromResponse(response), response.status);
+    const { message, detail } = await errorPayloadFromResponse(response);
+    throw new BackendApiError(message, response.status, detail);
   }
 
   if (response.status === 204) {
@@ -426,15 +485,25 @@ const apiFetch = async <Payload>(
   return JSON.parse(text) as Payload;
 };
 
-const errorMessageFromResponse = async (response: Response): Promise<string> => {
+const errorPayloadFromResponse = async (
+  response: Response,
+): Promise<{ message: string; detail?: unknown }> => {
   try {
     const payload = (await response.json()) as { detail?: unknown };
     if (typeof payload.detail === "string") {
-      return payload.detail;
+      return { message: payload.detail, detail: payload.detail };
+    }
+    if (payload.detail && typeof payload.detail === "object") {
+      const detailObject = payload.detail as { message?: unknown };
+      const message =
+        typeof detailObject.message === "string"
+          ? detailObject.message
+          : `Backend request returned HTTP ${response.status}`;
+      return { message, detail: payload.detail };
     }
   } catch {
     // Fall back to the status message below when the backend returns non-JSON.
   }
 
-  return `Backend request returned HTTP ${response.status}`;
+  return { message: `Backend request returned HTTP ${response.status}` };
 };
