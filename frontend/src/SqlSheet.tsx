@@ -19,6 +19,7 @@ type SqlLogEntry = Readonly<{
 type SqlSheetProps = Readonly<{
   backendConfig: BackendConfig;
   connectedConnection: string | null;
+  workingSchema: string;
   isBackendOnline: boolean;
   skipDestructivePrompt: boolean;
   dirty: boolean;
@@ -29,6 +30,7 @@ type SqlSheetProps = Readonly<{
 export const SqlSheet = ({
   backendConfig,
   connectedConnection,
+  workingSchema,
   isBackendOnline,
   skipDestructivePrompt,
   dirty,
@@ -57,6 +59,7 @@ export const SqlSheet = ({
       const payload = await runSql(
         {
           sql: text,
+          schema_name: workingSchema.trim() || null,
           confirmed,
           skip_destructive_prompt: skipDestructivePrompt,
         },
@@ -131,7 +134,7 @@ export const SqlSheet = ({
           </button>
           <span className="pane-muted">
             {connectedConnection
-              ? `Connection: ${connectedConnection}`
+              ? `Will run on ${connectedConnection}${workingSchema ? ` as CURRENT_SCHEMA ${workingSchema}` : " (no schema set — using login schema)"}`
               : "Connect a SQLcl saved connection to run SQL."}
           </span>
         </div>

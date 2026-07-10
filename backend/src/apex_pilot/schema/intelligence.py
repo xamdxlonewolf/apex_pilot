@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -15,6 +16,8 @@ _MAX_PAYLOAD_UNWRAP_DEPTH = 6
 
 DATABASE_CONTEXT_SQL = """
 SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') AS current_user,
+       SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS current_schema,
+       SYS_CONTEXT('USERENV', 'PROXY_USER') AS proxy_user,
        SYS_CONTEXT('USERENV', 'DB_NAME') AS db_name,
        SYS_CONTEXT('USERENV', 'CON_NAME') AS container_name,
        SYS_CONTEXT('USERENV', 'CDB_NAME') AS cdb_name,
@@ -82,6 +85,8 @@ class DatabaseContext:
     """Current Oracle database/session context."""
 
     current_user: str | None
+    current_schema: str | None
+    proxy_user: str | None
     db_name: str | None
     container_name: str | None
     cdb_name: str | None
@@ -91,6 +96,8 @@ class DatabaseContext:
         """Return a JSON-serializable context payload."""
         return {
             "current_user": self.current_user,
+            "current_schema": self.current_schema,
+            "proxy_user": self.proxy_user,
             "db_name": self.db_name,
             "container_name": self.container_name,
             "cdb_name": self.cdb_name,
@@ -209,7 +216,7 @@ class SchemaIntelligenceService:
             cached = self._summary_cache[cache_key]
             return replace(cached, cache_age_seconds=_age_seconds(cached.captured_at, now))
 
-        database_context_rows = await self._run_read_only_sql(DATABASE_CONTEXT_SQL)
+        database_context = await self.fetch_database_context()
         object_count_rows = await self._run_read_only_sql(
             SCHEMA_OBJECT_COUNTS_SQL,
             {"schema_name": normalized_schema},
@@ -224,12 +231,50 @@ class SchemaIntelligenceService:
             schema_name=normalized_schema,
             captured_at=now,
             cache_age_seconds=0.0,
-            database_context=_parse_database_context(database_context_rows),
+            database_context=database_context,
             object_counts=tuple(_parse_object_count(row) for row in object_count_rows),
             tables=tuple(_parse_table(row) for row in table_rows),
         )
         self._summary_cache[cache_key] = summary
         return summary
+
+    async def fetch_database_context(self) -> DatabaseContext:
+        """Return the live Oracle session user/schema context."""
+        rows = await self._run_read_only_sql(DATABASE_CONTEXT_SQL)
+        return _parse_database_context(rows)
+
+    async def set_current_schema(self, schema_name: str) -> str:
+        """Set CURRENT_SCHEMA for the primary MCP session.
+
+        Uses a single ALTER SESSION statement. Avoids multi-statement verify
+        round-trips that can hang some SQLcl MCP sessions. SQL sheet work still
+        prefixes ALTER SESSION per statement via sql_with_current_schema.
+        """
+        normalized_schema = normalize_dictionary_identifier(schema_name)
+        if not _is_safe_oracle_identifier(normalized_schema):
+            msg = f"Schema name `{schema_name}` is not a safe Oracle identifier."
+            raise SchemaIntelligenceError(msg)
+        await self._session.call_tool(
+            RUN_SQL_TOOL,
+            {
+                "sql": f"ALTER SESSION SET CURRENT_SCHEMA = {normalized_schema}",
+                "binds": {},
+            },
+            access=SqlRequestAccess.READ_ONLY,
+        )
+        return normalized_schema
+
+    def sql_with_current_schema(self, schema_name: str, sql_text: str) -> str:
+        """Prefix user SQL with ALTER SESSION so schema switch and query share one MCP call."""
+        normalized_schema = normalize_dictionary_identifier(schema_name)
+        if not _is_safe_oracle_identifier(normalized_schema):
+            msg = f"Schema name `{schema_name}` is not a safe Oracle identifier."
+            raise SchemaIntelligenceError(msg)
+        trimmed = sql_text.strip()
+        if not trimmed:
+            msg = "SQL text cannot be empty."
+            raise SchemaIntelligenceError(msg)
+        return f"ALTER SESSION SET CURRENT_SCHEMA = {normalized_schema};\n{trimmed}"
 
     async def list_object_dependencies(
         self,
@@ -294,6 +339,28 @@ def normalize_dictionary_identifier(identifier: str) -> str:
     return normalized.upper()
 
 
+def suggested_schema_from_context(context: DatabaseContext) -> str | None:
+    """Prefer CURRENT_SCHEMA, then proxy bracket form, then SESSION_USER."""
+    if context.current_schema:
+        return context.current_schema.upper()
+    if context.current_user:
+        proxy_match = _PROXY_USER_PATTERN.fullmatch(context.current_user.strip())
+        if proxy_match:
+            return proxy_match.group("schema").upper()
+        return context.current_user.upper()
+    return None
+
+
+def _is_safe_oracle_identifier(identifier: str) -> bool:
+    return bool(_SAFE_ORACLE_IDENTIFIER.fullmatch(identifier))
+
+
+_PROXY_USER_PATTERN = re.compile(
+    r"^(?P<proxy>[^\[\]]+)\[(?P<schema>[A-Za-z][A-Za-z0-9_$#]*)\]$",
+)
+_SAFE_ORACLE_IDENTIFIER = re.compile(r"^[A-Z][A-Z0-9_$#]*$")
+
+
 def rows_from_mcp_payload(payload: object) -> tuple[Mapping[str, object], ...]:
     """Extract row mappings from common SQLcl MCP fake/live payload shapes."""
     return _rows_from_payload(payload, depth=0)
@@ -356,6 +423,8 @@ def _parse_database_context(rows: Sequence[Mapping[str, object]]) -> DatabaseCon
     row = rows[0] if rows else {}
     return DatabaseContext(
         current_user=_optional_text(row, "current_user"),
+        current_schema=_optional_text(row, "current_schema"),
+        proxy_user=_optional_text(row, "proxy_user"),
         db_name=_optional_text(row, "db_name"),
         container_name=_optional_text(row, "container_name"),
         cdb_name=_optional_text(row, "cdb_name"),

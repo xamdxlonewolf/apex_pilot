@@ -471,7 +471,7 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /reconnect/i })).toBeEnabled();
+      expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
     });
     expect(screen.getByLabelText("Status bar")).toHaveTextContent(/db: dev/i);
   });
@@ -561,6 +561,30 @@ describe("App", () => {
             new Response(JSON.stringify({ connection_name: "dev", role: "primary" })),
           );
         }
+        if (url.endsWith("/session/context")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                connection_name: "dev",
+                database_context: {
+                  current_user: "APP",
+                  current_schema: "APP",
+                  proxy_user: null,
+                  db_name: "ORCL",
+                  container_name: null,
+                  cdb_name: null,
+                  host: null,
+                },
+                suggested_schema: "APP",
+              }),
+            ),
+          );
+        }
+        if (url.endsWith("/session/schema") && init?.method === "POST") {
+          return Promise.resolve(
+            new Response(JSON.stringify({ schema_name: "APP", connection_name: "dev" })),
+          );
+        }
         if (url.includes("/schema/summary?")) {
           return summaryPromise;
         }
@@ -573,12 +597,13 @@ describe("App", () => {
     expect(await screen.findByLabelText("Connection")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /reconnect/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText("Schema"), { target: { value: "APP" } });
-    fireEvent.click(screen.getByRole("button", { name: "Load" }));
+    // After connect, schema auto-selects from session context and loads summary.
     expect(await screen.findByRole("button", { name: /loading/i })).toBeDisabled();
+    expect(screen.getByLabelText("Schema")).toHaveValue("APP");
+    expect(screen.getByText(/db connected: dev/i)).toBeInTheDocument();
 
     resolveSummary?.(
       new Response(
@@ -587,6 +612,8 @@ describe("App", () => {
           connection_name: "dev",
           database_context: {
             current_user: "APP",
+            current_schema: "APP",
+            proxy_user: null,
             db_name: "ORCL",
             container_name: null,
             cdb_name: null,
@@ -603,6 +630,8 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Load" })).toBeEnabled();
     });
-    expect(await screen.findByText(/loaded app/i)).toBeInTheDocument();
+    expect(await screen.findByText(/browsing schema app/i)).toBeInTheDocument();
+    expect(screen.getByText(/db connected: dev/i)).toBeInTheDocument();
+    expect(screen.getByText(/browsing: app/i)).toBeInTheDocument();
   });
 });

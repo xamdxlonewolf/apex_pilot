@@ -14,7 +14,13 @@ from apex_pilot.mcp import (
 )
 from apex_pilot.projects import OpenedProject, ProjectService
 from apex_pilot.safety import SqlSafetyClassification
-from apex_pilot.schema import SchemaIntelligenceService, SchemaSummary
+from apex_pilot.schema import (
+    DatabaseContext,
+    SchemaIntelligenceService,
+    SchemaSummary,
+    normalize_dictionary_identifier,
+    suggested_schema_from_context,
+)
 from apex_pilot.settings import BackendSettings, default_metadata_db_path
 from apex_pilot.storage import LocalMetadataStore
 
@@ -100,6 +106,10 @@ class ApexPilotRuntime:
         """Clear the currently opened project without deleting local registration."""
         self._opened_project = None
 
+    def opened_connection_name(self) -> str | None:
+        """Return the active primary MCP connection name, if any."""
+        return self._connection_manager.primary_session.connection_name
+
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
         return await self._connection_manager.list_saved_connections()
@@ -115,6 +125,18 @@ class ApexPilotRuntime:
         """Return a schema summary through guarded MCP dictionary queries."""
         return await self._schema_service.summarize_schema(schema_name, refresh=refresh)
 
+    async def fetch_database_context(self) -> DatabaseContext:
+        """Return live Oracle session context for the connected MCP session."""
+        return await self._schema_service.fetch_database_context()
+
+    async def set_current_schema(self, schema_name: str) -> str:
+        """Set CURRENT_SCHEMA on the primary MCP session."""
+        return await self._schema_service.set_current_schema(schema_name)
+
+    def suggested_schema(self, context: DatabaseContext) -> str | None:
+        """Derive the preferred working schema from session context."""
+        return suggested_schema_from_context(context)
+
     def classify_sql(self, sql_text: str) -> SqlSafetyClassification:
         """Classify SQL sheet text without executing it."""
         return self._sql_sheet.classify(sql_text)
@@ -123,14 +145,36 @@ class ApexPilotRuntime:
         self,
         sql_text: str,
         *,
+        schema_name: str | None = None,
         confirmed: bool = False,
         skip_destructive_prompt: bool = False,
     ) -> SqlSheetRunResult:
         """Classify and execute SQL sheet text through the primary MCP session."""
-        return await self._sql_sheet.run(
-            sql_text,
+        active_schema: str | None = None
+        executable_sql = sql_text
+        if schema_name:
+            # Bundle schema switch with the user statement so SQLcl MCP cannot
+            # drop session state between separate tool calls.
+            active_schema = normalize_dictionary_identifier(schema_name)
+            executable_sql = self._schema_service.sql_with_current_schema(
+                active_schema,
+                sql_text,
+            )
+        result = await self._sql_sheet.run(
+            executable_sql,
             confirmed=confirmed,
             skip_destructive_prompt=skip_destructive_prompt,
+            classify_sql_text=sql_text,
+        )
+        if active_schema is None:
+            return result
+        return SqlSheetRunResult(
+            classification=result.classification,
+            connection_name=result.connection_name,
+            rows=result.rows,
+            raw_text=result.raw_text,
+            executed=result.executed,
+            schema_name=active_schema,
         )
 
     def activity_entries(self, *, connection_name: str | None = None) -> tuple[ToolActivityEntry, ...]:

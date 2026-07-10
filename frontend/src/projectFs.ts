@@ -92,8 +92,13 @@ export const readTextFile = async (filePath: string): Promise<string> => {
   if (!isTauri()) {
     throw new Error("Reading project files requires the Tauri desktop shell.");
   }
-  const { readTextFile: read } = await import("@tauri-apps/plugin-fs");
-  return read(filePath);
+  try {
+    const { readTextFile: read } = await import("@tauri-apps/plugin-fs");
+    return await read(filePath);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not read file (${filePath}): ${detail}`);
+  }
 };
 
 type DirEntry = Readonly<{ name: string; isDirectory: boolean }>;

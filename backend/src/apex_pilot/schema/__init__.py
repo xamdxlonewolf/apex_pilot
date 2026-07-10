@@ -10,6 +10,7 @@ from apex_pilot.schema.intelligence import (
     SchemaTable,
     normalize_dictionary_identifier,
     rows_from_mcp_payload,
+    suggested_schema_from_context,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "SchemaTable",
     "normalize_dictionary_identifier",
     "rows_from_mcp_payload",
+    "suggested_schema_from_context",
 ]

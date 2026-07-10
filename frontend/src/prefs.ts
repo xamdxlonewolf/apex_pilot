@@ -19,8 +19,14 @@ export type ProjectTabState = Readonly<{
   activeTabId: string | null;
 }>;
 
+export type ProjectWorkspaceDefaults = Readonly<{
+  connectionName: string | null;
+  schemaName: string | null;
+}>;
+
 const PROFILE_KEY = "apex-pilot.profile-layout";
 const projectKey = (projectId: string) => `apex-pilot.project-tabs.${projectId}`;
+const projectDefaultsKey = (projectId: string) => `apex-pilot.project-defaults.${projectId}`;
 
 export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   leftWidth: 260,
@@ -63,4 +69,46 @@ export const loadProjectTabs = (projectId: string): ProjectTabState => {
 
 export const saveProjectTabs = (projectId: string, state: ProjectTabState): void => {
   localStorage.setItem(projectKey(projectId), JSON.stringify(state));
+};
+
+export const loadProjectDefaults = (projectId: string): ProjectWorkspaceDefaults => {
+  try {
+    const raw = localStorage.getItem(projectDefaultsKey(projectId));
+    if (!raw) {
+      return { connectionName: null, schemaName: null };
+    }
+    const parsed = JSON.parse(raw) as Partial<ProjectWorkspaceDefaults>;
+    return {
+      connectionName: parsed.connectionName ?? null,
+      schemaName: parsed.schemaName ?? null,
+    };
+  } catch {
+    return { connectionName: null, schemaName: null };
+  }
+};
+
+export const saveProjectDefaults = (
+  projectId: string,
+  defaults: ProjectWorkspaceDefaults,
+): void => {
+  localStorage.setItem(projectDefaultsKey(projectId), JSON.stringify(defaults));
+};
+
+/** Prefer CURRENT_SCHEMA, then proxy user[SCHEMA], then SESSION_USER. */
+export const schemaFromSessionUser = (
+  currentUser: string | null | undefined,
+  currentSchema?: string | null,
+): string | null => {
+  if (currentSchema?.trim()) {
+    return currentSchema.trim().toUpperCase();
+  }
+  if (!currentUser?.trim()) {
+    return null;
+  }
+  const trimmed = currentUser.trim();
+  const proxyMatch = /^([^[\]]+)\[([A-Za-z][A-Za-z0-9_$#]*)\]$/.exec(trimmed);
+  if (proxyMatch?.[2]) {
+    return proxyMatch[2].toUpperCase();
+  }
+  return trimmed.toUpperCase();
 };
