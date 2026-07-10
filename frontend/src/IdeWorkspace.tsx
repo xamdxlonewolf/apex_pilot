@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ChatPane } from "./ChatPane";
 import { FileTree } from "./FileTree";
@@ -46,6 +46,14 @@ type IdeWorkspaceProps = Readonly<{
   sqlDirty: boolean;
   onSqlDirtyChange: (dirty: boolean) => void;
 }>;
+
+// Survives StrictMode remounts; component refs alone do not.
+const autoConnectStarted = new Set<string>();
+
+/** Test-only: clear auto-connect dedupe so cases can re-trigger. */
+export const resetAutoConnectGuardsForTests = (): void => {
+  autoConnectStarted.clear();
+};
 
 const defaultSchemaFromManifest = (openedProject: OpenedProject): string | null => {
   const manifest = openedProject.manifest as {
@@ -98,7 +106,6 @@ export const IdeWorkspace = ({
   const [workingSchema, setWorkingSchema] = useState("");
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const autoConnectKey = useRef<string | null>(null);
 
   useEffect(() => {
     setLayout(loadProfileLayout(profileId));
@@ -137,7 +144,6 @@ export const IdeWorkspace = ({
     if (connection) {
       onSelectedConnectionChange(connection);
     }
-    autoConnectKey.current = null;
   }, [openedProject, onSelectedConnectionChange]);
 
   useEffect(() => {
@@ -170,14 +176,14 @@ export const IdeWorkspace = ({
       return;
     }
     const key = `${openedProject.project.project_id}:${targetConnection}`;
-    if (autoConnectKey.current === key) {
+    if (autoConnectStarted.has(key)) {
       return;
     }
     if (connectedConnection === targetConnection) {
-      autoConnectKey.current = key;
+      autoConnectStarted.add(key);
       return;
     }
-    autoConnectKey.current = key;
+    autoConnectStarted.add(key);
     if (selectedConnection !== targetConnection) {
       onSelectedConnectionChange(targetConnection);
     }

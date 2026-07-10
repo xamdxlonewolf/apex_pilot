@@ -38,6 +38,15 @@ const statusLabel = (status: BackendStatus): string => {
   }
 };
 
+// Survives React StrictMode remounts (component refs reset). Concurrent SQLcl
+// MCP connect calls return "Unsupported Connection" and kill the stdio session.
+let connectInFlight = false;
+
+/** Test-only: clear the sync connect lock between cases. */
+export const resetConnectGuardsForTests = (): void => {
+  connectInFlight = false;
+};
+
 export const App = () => {
   const [backendConfig, setBackendConfig] = useState<BackendConfig>(() => getBackendConfig());
   const [backendStatus, setBackendStatus] = useState<BackendStatus>(() =>
@@ -148,30 +157,38 @@ export const App = () => {
     });
   }, [connectedConnection, isBackendOnline, refreshActivity]);
 
-  const connectSelectedConnection = async (connectionName?: string) => {
-    const target = (connectionName ?? selectedConnection).trim();
-    if (isConnecting || !target) {
-      setConnectionMessage("Select a SQLcl saved connection first.");
-      return;
-    }
-    if (connectionName && connectionName !== selectedConnection) {
-      setSelectedConnection(connectionName);
-    }
-    setIsConnecting(true);
-    setConnectionMessage(`Connecting to ${target}.`);
-    try {
-      const response = await connectSavedConnection(target, backendConfig);
-      setConnectedConnection(response.connection_name);
-      setConnectionMessage(`Connected to ${response.connection_name}.`);
-      await refreshActivity();
-    } catch (error) {
-      setConnectedConnection(null);
-      setConnectionMessage(error instanceof Error ? error.message : "Could not connect.");
-      await refreshActivity();
-    } finally {
-      setIsConnecting(false);
-    }
-  };
+  const connectSelectedConnection = useCallback(
+    async (connectionName?: string) => {
+      const target = (connectionName ?? selectedConnection).trim();
+      if (!target) {
+        setConnectionMessage("Select a SQLcl saved connection first.");
+        return;
+      }
+      if (connectInFlight) {
+        return;
+      }
+      connectInFlight = true;
+      if (connectionName && connectionName !== selectedConnection) {
+        setSelectedConnection(connectionName);
+      }
+      setIsConnecting(true);
+      setConnectionMessage(`Connecting to ${target}.`);
+      try {
+        const response = await connectSavedConnection(target, backendConfig);
+        setConnectedConnection(response.connection_name);
+        setConnectionMessage(`Connected to ${response.connection_name}.`);
+        await refreshActivity();
+      } catch (error) {
+        setConnectedConnection(null);
+        setConnectionMessage(error instanceof Error ? error.message : "Could not connect.");
+        await refreshActivity();
+      } finally {
+        connectInFlight = false;
+        setIsConnecting(false);
+      }
+    },
+    [backendConfig, refreshActivity, selectedConnection],
+  );
 
   const openMcp = async () => {
     const openedNative = await openMcpActivityWindow();
@@ -297,7 +314,7 @@ export const App = () => {
             connectedConnection={connectedConnection}
             selectedConnection={selectedConnection}
             onSelectedConnectionChange={setSelectedConnection}
-            onConnect={(connectionName) => connectSelectedConnection(connectionName)}
+            onConnect={connectSelectedConnection}
             isConnecting={isConnecting}
             profileId={profileId}
             onActivityRefresh={refreshActivity}

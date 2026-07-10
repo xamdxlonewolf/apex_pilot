@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
+
 from apex_pilot.api.sql_sheet import SqlSheetRunResult, SqlSheetService
 from apex_pilot.events import ToolActivityEntry, ToolActivityLog
 from apex_pilot.mcp import (
     SqlclConnectionManager,
     SqlclMcpConfig,
+    SqlclMcpError,
     SqlclMcpSdkClient,
     SqlclMcpToolClient,
     SqlclSavedConnection,
@@ -23,6 +28,14 @@ from apex_pilot.schema import (
 )
 from apex_pilot.settings import BackendSettings, default_metadata_db_path
 from apex_pilot.storage import LocalMetadataStore
+
+_T = TypeVar("_T")
+
+_MCP_SESSION_DEAD_MARKERS = (
+    "connection closed",
+    "broken pipe",
+    "closedresourceerror",
+)
 
 
 class ApexPilotRuntime:
@@ -50,6 +63,7 @@ class ApexPilotRuntime:
         self._owns_metadata_store = owns_metadata_store
         self._project_service = project_service
         self._opened_project: OpenedProject | None = None
+        self._mcp_lock = asyncio.Lock()
 
     @classmethod
     def live(cls, settings: BackendSettings) -> ApexPilotRuntime:
@@ -112,14 +126,17 @@ class ApexPilotRuntime:
 
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
-        return await self._connection_manager.list_saved_connections()
+        return await self._with_mcp_recovery(self._connection_manager.list_saved_connections)
 
     async def connect(self, connection_name: str) -> str:
         """Connect the primary MCP session by saved connection name."""
         # Tag future activity with this connection before the MCP connect call so
         # reconnects keep prior history for the same saved connection name.
         self._activity_log.set_active_connection(connection_name)
-        return await self._connection_manager.connect(connection_name)
+        async with self._mcp_lock:
+            return await self._with_mcp_recovery(
+                lambda: self._connection_manager.connect(connection_name),
+            )
 
     async def summarize_schema(self, schema_name: str, *, refresh: bool = False) -> SchemaSummary:
         """Return a schema summary through guarded MCP dictionary queries."""
@@ -189,3 +206,19 @@ class ApexPilotRuntime:
     def sqlcl_config(self) -> SqlclMcpConfig:
         """Return the SQLcl MCP configuration used by this runtime."""
         return self._sqlcl_config
+
+    async def _with_mcp_recovery(self, operation: Callable[[], Awaitable[_T]]) -> _T:
+        """Run an MCP operation once, restarting a dead managed client on transport failure."""
+        try:
+            return await operation()
+        except SqlclMcpError as error:
+            if self._managed_client is None or not _looks_like_dead_mcp_session(error):
+                raise
+            await self._managed_client.stop()
+            await self._managed_client.start()
+            return await operation()
+
+
+def _looks_like_dead_mcp_session(error: Exception) -> bool:
+    message = str(error).casefold()
+    return any(marker in message for marker in _MCP_SESSION_DEAD_MARKERS)

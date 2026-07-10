@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { App } from "./App";
+import { App, resetConnectGuardsForTests } from "./App";
+import { resetAutoConnectGuardsForTests } from "./IdeWorkspace";
 
 const projectApiResponse = (url: string): Response | null => {
   if (url.includes("/preflight")) {
@@ -54,6 +55,8 @@ describe("App", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     localStorage.clear();
+    resetConnectGuardsForTests();
+    resetAutoConnectGuardsForTests();
   });
 
   it("renders the dense IDE chrome without backend configuration", async () => {
@@ -371,6 +374,114 @@ describe("App", () => {
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
     expect(screen.getByLabelText("Tools")).toBeInTheDocument();
     expect(screen.getByLabelText("Connection")).toBeInTheDocument();
+  });
+
+  it("ignores a second connect while one is already in flight", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    let resolveConnect: ((value: Response) => void) | undefined;
+    const connectPromise = new Promise<Response>((resolve) => {
+      resolveConnect = resolve;
+    });
+    const opened = {
+      project: {
+        project_id: "proj-guard",
+        profile_id: "profile-1",
+        name: "Demo",
+        root_path: "C:/tmp/demo",
+        retention_days: 365,
+        created_at: "2026-07-09T00:00:00+00:00",
+        updated_at: "2026-07-09T00:00:00+00:00",
+      },
+      manifest: {},
+      environment_mappings: [],
+      apex_workspace_mappings: [],
+      unmapped_environments: [],
+      preflight: { ready: true, blocking_ids: [], checks: [] },
+    };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes("/preflight")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ ready: true, blocking_ids: [], checks: [] })),
+        );
+      }
+      if (url.endsWith("/profiles")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              profiles: [
+                {
+                  profile_id: "profile-1",
+                  display_name: "Dev",
+                  email: null,
+                  username: null,
+                  created_at: "2026-07-09T00:00:00+00:00",
+                  updated_at: "2026-07-09T00:00:00+00:00",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url.endsWith("/projects") || url.includes("/projects?")) {
+        return Promise.resolve(new Response(JSON.stringify({ projects: [opened.project] })));
+      }
+      if (url.endsWith("/projects/current")) {
+        return Promise.resolve(new Response(JSON.stringify(opened)));
+      }
+      if (url.endsWith("/health")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: "ok",
+              service: "apex-pilot-backend",
+              version: "0.1.0",
+            }),
+          ),
+        );
+      }
+      if (
+        url.endsWith("/connections") &&
+        (!init || init.method === undefined || init.method === "GET")
+      ) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              connections: [{ name: "dev", display_name: "Development" }],
+            }),
+          ),
+        );
+      }
+      if (url.endsWith("/connections/dev/connect") && init?.method === "POST") {
+        return connectPromise;
+      }
+      return Promise.resolve(new Response(JSON.stringify({ entries: [], active_session_id: null })));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByLabelText("Connection")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(screen.getByRole("button", { name: /connecting/i }));
+
+    const connectCalls = fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        typeof url === "string" &&
+        url.endsWith("/connections/dev/connect") &&
+        init?.method === "POST",
+    );
+    expect(connectCalls).toHaveLength(1);
+
+    resolveConnect?.(
+      new Response(JSON.stringify({ connection_name: "dev", role: "primary" })),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
+    });
   });
 
   it("connects from the workspace connection strip", async () => {
