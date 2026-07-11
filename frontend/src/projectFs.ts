@@ -23,11 +23,22 @@ const JUNK_DIR_NAMES = new Set([
   ".git",
   "node_modules",
   "__pycache__",
+  ".pytest_cache",
   ".venv",
   "venv",
+  ".cache",
+  ".next",
+  ".nuxt",
+  ".svelte-kit",
+  ".parcel-cache",
+  ".turbo",
+  ".output",
   "dist",
   "build",
+  "out",
   "target",
+  "tmp",
+  "temp",
   ".idea",
   ".vscode",
   ".cursor",
@@ -58,11 +69,17 @@ export const isRootApexExportSql = (name: string, depth: number): boolean =>
   depth === 0 && /^f\d+\.sql$/i.test(name);
 
 export const isJunkEntry = (name: string, kind: "dir" | "file"): boolean => {
+  const dotClutter = name.startsWith(".") && name !== "." && name !== "..";
   const lower = name.toLowerCase();
   if (kind === "dir") {
-    return JUNK_DIR_NAMES.has(lower);
+    return dotClutter || JUNK_DIR_NAMES.has(lower);
   }
-  return JUNK_FILE_NAMES.has(lower) || lower.endsWith(".pyc") || lower.endsWith(".pyo");
+  return (
+    dotClutter ||
+    JUNK_FILE_NAMES.has(lower) ||
+    lower.endsWith(".pyc") ||
+    lower.endsWith(".pyo")
+  );
 };
 
 export const joinPath = (root: string, ...parts: string[]): string => {

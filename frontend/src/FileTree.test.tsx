@@ -21,6 +21,8 @@ describe("projectFs Explorer helpers", () => {
     expect(defaultProfileLayout().showJunkFiles).toBe(false);
     expect(isJunkEntry("node_modules", "dir")).toBe(true);
     expect(isJunkEntry(".DS_Store", "file")).toBe(true);
+    expect(isJunkEntry(".cache", "dir")).toBe(true);
+    expect(isJunkEntry(".env", "file")).toBe(true);
     expect(isRootApexExportSql("f191.sql", 0)).toBe(true);
     expect(isRootApexExportSql("f191.sql", 1)).toBe(false);
 
@@ -32,6 +34,8 @@ describe("projectFs Explorer helpers", () => {
           { name: "README.md", kind: "file" },
           { name: "node_modules", kind: "dir" },
           { name: ".DS_Store", kind: "file" },
+          { name: ".cache", kind: "dir" },
+          { name: ".env", kind: "file" },
         ],
       }),
     );
@@ -44,9 +48,11 @@ describe("projectFs Explorer helpers", () => {
 
     const withJunk = await listDirectory("/demo", { depth: 0, showJunk: true });
     expect(withJunk.map((node) => node.name)).toEqual([
+      ".cache",
       "apex",
       "node_modules",
       ".DS_Store",
+      ".env",
       "f191.sql",
       "README.md",
     ]);
@@ -65,6 +71,7 @@ describe("FileTree browser fallback", () => {
           { name: "apex", kind: "dir" },
           { name: "f42.sql", kind: "file" },
           { name: "src", kind: "dir" },
+          { name: ".env", kind: "file" },
           { name: "node_modules", kind: "dir" },
         ],
         "C:/tmp/demo/src": [{ name: "main.ts", kind: "file" }],
@@ -86,9 +93,11 @@ describe("FileTree browser fallback", () => {
     expect(await screen.findByText("apex")).toBeInTheDocument();
     expect(screen.getByText("APEX export")).toBeInTheDocument();
     expect(screen.getByText("f42.sql")).toBeInTheDocument();
-    expect(screen.getByText("protected")).toBeInTheDocument();
+    expect(screen.getAllByText("protected")).toHaveLength(2);
+    expect(screen.getAllByText("read-only")).toHaveLength(2);
     expect(screen.getByText("src")).toBeInTheDocument();
     expect(screen.queryByText("node_modules")).not.toBeInTheDocument();
+    expect(screen.queryByText(".env")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("src"));
     expect(await screen.findByText("main.ts")).toBeInTheDocument();
@@ -111,6 +120,7 @@ describe("FileTree browser fallback", () => {
       browserFsFromTree({
         "/proj": [
           { name: "README.md", kind: "file" },
+          { name: ".env", kind: "file" },
           { name: "node_modules", kind: "dir" },
         ],
       }),
@@ -127,6 +137,7 @@ describe("FileTree browser fallback", () => {
 
     expect(await screen.findByText("README.md")).toBeInTheDocument();
     expect(screen.queryByText("node_modules")).not.toBeInTheDocument();
+    expect(screen.queryByText(".env")).not.toBeInTheDocument();
 
     rerender(
       <FileTree
@@ -140,6 +151,7 @@ describe("FileTree browser fallback", () => {
     await waitFor(() => {
       expect(screen.getByText("node_modules")).toBeInTheDocument();
     });
+    expect(screen.getByText(".env")).toBeInTheDocument();
     expect(screen.getByText("junk")).toBeInTheDocument();
   });
 });

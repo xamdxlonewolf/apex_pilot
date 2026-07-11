@@ -16,6 +16,13 @@ type TreeBranchProps = Readonly<{
   onOpenFile: (node: FileTreeNode) => void;
 }>;
 
+const ProtectedMarkers = () => (
+  <>
+    <em>protected</em>
+    <em>read-only</em>
+  </>
+);
+
 const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
   const [nodes, setNodes] = useState<FileTreeNode[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -64,6 +71,7 @@ const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
                 <span aria-hidden="true">{expanded[node.path] ? "▾" : "▸"}</span>
                 <span>{node.name}</span>
                 {node.protected ? <em>APEX export</em> : null}
+                {node.protected ? <ProtectedMarkers /> : null}
                 {node.junk ? <em>junk</em> : null}
               </button>
               {expanded[node.path] ? (
@@ -80,11 +88,15 @@ const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
               type="button"
               className="file-tree-button"
               onClick={() => onOpenFile(node)}
-              title={node.protected ? "APEX export file — do not edit as ordinary project noise" : node.path}
+              title={
+                node.protected
+                  ? "Protected APEX export artifact — read-only preview."
+                  : node.path
+              }
             >
               <span aria-hidden="true">·</span>
               <span>{node.name}</span>
-              {node.protected ? <em>protected</em> : null}
+              {node.protected ? <ProtectedMarkers /> : null}
             </button>
           )}
         </li>
