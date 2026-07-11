@@ -52,6 +52,17 @@ export const ProjectMappings = ({
       <p className="pane-muted">
         Logical environments stay in apex-pilot.json. SQLcl connection names stay local.
       </p>
+      {connections.length === 0 ? (
+        <p className="pane-muted" role="status">
+          No SQLcl saved connections were returned. Create or import them in SQLcl, then refresh —
+          Apex Pilot does not invent connection names.
+        </p>
+      ) : null}
+      {environmentNames.length === 0 ? (
+        <p className="pane-muted" role="status">
+          No environments to map yet. Add environments in apex-pilot.json for this project.
+        </p>
+      ) : null}
       <ul className="mapping-list" aria-label="Environment mappings">
         {environmentNames.map((environmentName) => (
           <li key={environmentName}>

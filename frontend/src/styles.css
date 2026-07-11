@@ -1307,9 +1307,151 @@ button:disabled {
   height: 100%;
 }
 
-.funnel-screen h1 {
+.funnel-screen h1,
+.dialog-chrome-title,
+.wizard-chrome-title {
   margin: 0 0 8px;
   font-size: 1.6rem;
+}
+
+.dialog-chrome,
+.wizard-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(100%, 45rem);
+  max-width: 720px;
+  animation: dialog-chrome-enter var(--motion-dialog) var(--motion-ease-standard);
+}
+
+.dialog-chrome-header,
+.wizard-chrome-header {
+  display: grid;
+  gap: 6px;
+}
+
+.dialog-chrome-description,
+.wizard-chrome-description {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dialog-chrome-body,
+.wizard-chrome-body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+}
+
+.dialog-chrome-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--chrome-border);
+}
+
+.dialog-chrome-footer-secondary,
+.dialog-chrome-footer-primary,
+.wizard-chrome-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dialog-chrome-footer-primary {
+  margin-left: auto;
+}
+
+.wizard-chrome-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-step {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  color: var(--muted);
+  background: var(--panel-2);
+  font-size: 0.78rem;
+}
+
+.wizard-step--current {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgb(79 140 255 / 12%);
+}
+
+.wizard-step--done {
+  color: var(--ok);
+}
+
+.wizard-step-index {
+  display: inline-flex;
+  width: 1.1rem;
+  height: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #141518;
+  font-weight: 700;
+}
+
+.wizard-chrome-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--chrome-border);
+}
+
+.wizard-step-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.wizard-summary {
+  margin-bottom: 8px;
+}
+
+@keyframes dialog-chrome-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-chrome,
+  .wizard-chrome {
+    animation: none;
+  }
 }
 
 .compact-dl {

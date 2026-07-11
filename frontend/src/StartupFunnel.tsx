@@ -16,13 +16,18 @@ import {
   listProjects,
   openProject,
 } from "./backend";
-import { pickDirectory } from "./projectFs";
 import { AppSettings } from "./AppSettings";
+import { ConnectionWizard } from "./ConnectionWizard";
+import { DialogChrome } from "./DialogChrome";
+import { pickDirectory } from "./projectFs";
+import { StubBadge, StubMessage } from "./StubSurface";
+import { WizardChrome } from "./WizardChrome";
+
 export { ProjectMappings } from "./ProjectMappings";
 
 export type FunnelPhase = "booting" | "preflight" | "profile" | "picker" | "wizard";
 
-export type WizardMode = "new" | "open" | "clone" | "settings";
+export type WizardMode = "new" | "open" | "clone" | "settings" | "connection";
 
 type StartupFunnelProps = Readonly<{
   backendConfig: BackendConfig;
@@ -40,6 +45,14 @@ const retentionOptions = [
   { label: "90 days", days: 90, indefinite: false },
   { label: "365 days", days: 365, indefinite: false },
   { label: "Indefinite", days: null, indefinite: true },
+] as const;
+
+const PROJECT_WIZARD_STEPS = [
+  "Project Details",
+  "Location",
+  "Git",
+  "Connection",
+  "Summary",
 ] as const;
 
 const FIRST_LAUNCH_KEY = "apex-pilot.first-launch-complete";
@@ -62,6 +75,7 @@ export const StartupFunnel = ({
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [projectStepIndex, setProjectStepIndex] = useState(0);
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -148,6 +162,12 @@ export const StartupFunnel = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backendConfig, isBackendOnline, openedProject?.project.project_id, wizardMode]);
 
+  useEffect(() => {
+    if (wizardMode === "new") {
+      setProjectStepIndex(0);
+    }
+  }, [wizardMode]);
+
   const ensureProfile = async (): Promise<string> => {
     if (selectedProfileId) {
       return selectedProfileId;
@@ -204,8 +224,7 @@ export const StartupFunnel = ({
     }
   };
 
-  const handleCreateProject = async (event: FormEvent) => {
-    event.preventDefault();
+  const runCreateProject = async () => {
     setBusy(true);
     try {
       const profileId = await ensureProfile();
@@ -302,6 +321,44 @@ export const StartupFunnel = ({
     }
   };
 
+  const retentionSelect = (
+    <label>
+      Retention
+      <select
+        value={retentionIndefinite ? "indefinite" : String(retentionDays)}
+        onChange={(event) => {
+          const value = event.target.value;
+          if (value === "indefinite") {
+            setRetentionIndefinite(true);
+            setRetentionDays(null);
+            return;
+          }
+          setRetentionIndefinite(false);
+          setRetentionDays(Number(value));
+        }}
+      >
+        {retentionOptions.map((option) => (
+          <option key={option.label} value={option.indefinite ? "indefinite" : String(option.days)}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const canAdvanceProjectStep = (): boolean => {
+    if (projectStepIndex === 0) {
+      return Boolean(projectName.trim());
+    }
+    if (projectStepIndex === 1) {
+      return Boolean(rootPath.trim());
+    }
+    return true;
+  };
+
+  const canFinishProject =
+    Boolean(projectName.trim()) && Boolean(rootPath.trim()) && !busy;
+
   if (openedProject && !wizardMode) {
     return null;
   }
@@ -329,25 +386,36 @@ export const StartupFunnel = ({
   if (phase === "preflight" && !wizardMode) {
     const ready = Boolean(preflight?.ready);
     return (
-      <div className="funnel-screen" aria-label="Preflight">
-        <h1>Prerequisite check</h1>
-        <p>
-          Apex Pilot checks Git, SQLcl, Java, Python, MCP smoke, and manifest load before project
-          work. Project menu actions stay disabled until you finish this step.
-        </p>
-        <div className={`funnel-callout${ready ? " funnel-callout--ready" : ""}`} role="status">
-          {ready ? (
-            <p>
-              All required checks passed. Click <strong>Continue to profile setup</strong> below to
-              proceed.
-            </p>
-          ) : (
-            <p>
-              Fix any missing or failed checks below, then click <strong>Re-check</strong>. Continue
-              unlocks when prerequisites are ready.
-            </p>
-          )}
-        </div>
+      <DialogChrome
+        title="Prerequisite check"
+        description="Apex Pilot checks Git, SQLcl, Java, Python, MCP smoke, and manifest load before project work. Project menu actions stay disabled until you finish this step."
+        aria-label="Preflight"
+        banner={
+          <div className={`funnel-callout${ready ? " funnel-callout--ready" : ""}`} role="status">
+            {ready ? (
+              <p>
+                All required checks passed. Click <strong>Continue to profile setup</strong> below to
+                proceed.
+              </p>
+            ) : (
+              <p>
+                Fix any missing or failed checks below, then click <strong>Re-check</strong>. Continue
+                unlocks when prerequisites are ready.
+              </p>
+            )}
+          </div>
+        }
+        secondaryAction={
+          <button type="button" className="chrome-button" onClick={() => void refreshBootstrap()}>
+            Re-check
+          </button>
+        }
+        primaryAction={
+          <button type="button" disabled={!ready} onClick={continueAfterPreflight}>
+            Continue to profile setup
+          </button>
+        }
+      >
         {preflight ? (
           <ul className="preflight-list" aria-label="Preflight checks">
             {preflight.checks.map((check) => (
@@ -375,19 +443,11 @@ export const StartupFunnel = ({
         ) : (
           <p>Loading preflight…</p>
         )}
-        <div className="funnel-actions">
-          <button type="button" disabled={!ready} onClick={continueAfterPreflight}>
-            Continue to profile setup
-          </button>
-          <button type="button" className="chrome-button" onClick={() => void refreshBootstrap()}>
-            Re-check
-          </button>
-        </div>
         {!ready ? (
           <p className="pane-muted">Continue stays disabled until every blocking check is ready.</p>
         ) : null}
         {message ? <p className="pane-muted">{message}</p> : null}
-      </div>
+      </DialogChrome>
     );
   }
 
@@ -413,17 +473,45 @@ export const StartupFunnel = ({
     );
   }
 
+  if (wizardMode === "connection") {
+    return <ConnectionWizard onCancel={() => onWizardModeChange(null)} />;
+  }
+
   if (phase === "profile") {
     return (
-      <div className="funnel-screen" aria-label="Profile setup">
-        <h1>Create a local profile</h1>
-        <div className="funnel-callout funnel-callout--ready" role="status">
-          <p>
-            Project menus stay disabled until you create or select a profile. This identifies your
-            local workspace preferences.
-          </p>
-        </div>
-        <form className="stack-form" onSubmit={(event) => void handleCreateProfile(event)}>
+      <DialogChrome
+        title="Create a local profile"
+        description="Project menus stay disabled until you create or select a profile. This identifies your local workspace preferences."
+        aria-label="Profile setup"
+        secondaryAction={
+          profiles.length > 0 ? (
+            <button
+              type="button"
+              className="chrome-button"
+              onClick={() => {
+                onWizardModeChange(null);
+                goPhase(openedProject ? "workspace" : "picker");
+              }}
+            >
+              Done
+            </button>
+          ) : null
+        }
+        primaryAction={
+          <button
+            type="submit"
+            form="profile-setup-form"
+            disabled={busy || !displayName.trim()}
+          >
+            Create profile
+          </button>
+        }
+      >
+        <form
+          id="profile-setup-form"
+          className="stack-form"
+          onSubmit={(event) => void handleCreateProfile(event)}
+        >
           <label>
             Display name
             <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
@@ -454,107 +542,179 @@ export const StartupFunnel = ({
               </select>
             </label>
           ) : null}
-          <div className="button-row">
-            <button type="submit" disabled={busy || !displayName.trim()}>
-              Create profile
-            </button>
-            {profiles.length > 0 ? (
-              <button
-                type="button"
-                className="chrome-button"
-                onClick={() => {
-                  onWizardModeChange(null);
-                  goPhase(openedProject ? "workspace" : "picker");
-                }}
-              >
-                Done
-              </button>
-            ) : null}
-          </div>
         </form>
         {message ? <p className="pane-muted">{message}</p> : null}
-      </div>
+      </DialogChrome>
     );
   }
 
   if (wizardMode === "new") {
+    const step = PROJECT_WIZARD_STEPS[projectStepIndex] ?? PROJECT_WIZARD_STEPS[0];
     return (
-      <div className="funnel-screen" aria-label="New project">
-        <h1>New project</h1>
-        <form className="stack-form" onSubmit={(event) => void handleCreateProject(event)}>
-          <label>
-            Project name
-            <input value={projectName} onChange={(event) => setProjectName(event.target.value)} required />
-          </label>
-          <label>
-            Folder path
-            <div className="path-row">
-              <input value={rootPath} onChange={(event) => setRootPath(event.target.value)} required />
-              <button type="button" className="chrome-button" onClick={() => void pickRoot(setRootPath)}>
-                Browse…
-              </button>
+      <WizardChrome
+        title="New project"
+        description="Create a local Apex Pilot project. Backend create/open/clone contracts stay unchanged."
+        steps={PROJECT_WIZARD_STEPS}
+        activeStepIndex={projectStepIndex}
+        busy={busy}
+        canFinish={canFinishProject}
+        onCancel={() => onWizardModeChange(null)}
+        onBack={() => setProjectStepIndex((current) => Math.max(0, current - 1))}
+        onNext={() => {
+          if (!canAdvanceProjectStep()) {
+            setMessage(
+              projectStepIndex === 0
+                ? "Enter a project name to continue."
+                : "Choose a folder path to continue.",
+            );
+            return;
+          }
+          setMessage("");
+          setProjectStepIndex((current) =>
+            Math.min(PROJECT_WIZARD_STEPS.length - 1, current + 1),
+          );
+        }}
+        onFinish={() => void runCreateProject()}
+      >
+        <div className="wizard-step-panel" aria-label={step}>
+          {projectStepIndex === 0 ? (
+            <div className="stack-form">
+              <label>
+                Project name
+                <input
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Description
+                <input
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </label>
+              {retentionSelect}
             </div>
-          </label>
-          <label>
-            Description
-            <input value={description} onChange={(event) => setDescription(event.target.value)} />
-          </label>
-          <label>
-            Retention
-            <select
-              value={retentionIndefinite ? "indefinite" : String(retentionDays)}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value === "indefinite") {
-                  setRetentionIndefinite(true);
-                  setRetentionDays(null);
-                  return;
-                }
-                setRetentionIndefinite(false);
-                setRetentionDays(Number(value));
-              }}
-            >
-              {retentionOptions.map((option) => (
-                <option
-                  key={option.label}
-                  value={option.indefinite ? "indefinite" : String(option.days)}
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="checkbox-row">
-            <input type="checkbox" checked={initGit} onChange={(event) => setInitGit(event.target.checked)} />
-            Initialize Git repository
-          </label>
-          <label>
-            Optional APEX workspace hint
-            <input value={apexWorkspaceHint} onChange={(event) => setApexWorkspaceHint(event.target.value)} />
-          </label>
-          <label>
-            Optional APEX app id
-            <input value={apexAppId} onChange={(event) => setApexAppId(event.target.value)} />
-          </label>
-          <div className="button-row">
-            <button type="submit" disabled={busy}>
-              Create project
-            </button>
-            <button type="button" className="chrome-button" onClick={() => onWizardModeChange(null)}>
-              Cancel
-            </button>
-          </div>
-        </form>
-        {message ? <p className="pane-muted">{message}</p> : null}
-      </div>
+          ) : null}
+          {projectStepIndex === 1 ? (
+            <div className="stack-form">
+              <label>
+                Folder path
+                <div className="path-row">
+                  <input
+                    value={rootPath}
+                    onChange={(event) => setRootPath(event.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="chrome-button"
+                    onClick={() => void pickRoot(setRootPath)}
+                  >
+                    Browse…
+                  </button>
+                </div>
+              </label>
+            </div>
+          ) : null}
+          {projectStepIndex === 2 ? (
+            <div className="stack-form">
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={initGit}
+                  onChange={(event) => setInitGit(event.target.checked)}
+                />
+                Initialize Git repository
+              </label>
+              <p className="pane-muted">
+                Remote clone stays on Clone Remote. Credentials stay with OS helpers / SSH agent.
+              </p>
+            </div>
+          ) : null}
+          {projectStepIndex === 3 ? (
+            <div className="wizard-step-panel">
+              <div className="pane-header">
+                <strong>Connection (optional)</strong>
+                <span className="stub-chrome-trailing">
+                  <StubBadge />
+                </span>
+              </div>
+              <StubMessage secondary="Environment → SQLcl mappings are configured after the project opens." />
+              <p className="pane-muted">
+                Optional APEX hints can be set on Summary. Existing SQLcl saved connections are
+                selected from the Context Bar once connected.
+              </p>
+            </div>
+          ) : null}
+          {projectStepIndex === 4 ? (
+            <div className="stack-form">
+              <dl className="compact-dl wizard-summary">
+                <div>
+                  <dt>Name</dt>
+                  <dd>{projectName.trim() || "—"}</dd>
+                </div>
+                <div>
+                  <dt>Path</dt>
+                  <dd>{rootPath.trim() || "—"}</dd>
+                </div>
+                <div>
+                  <dt>Git</dt>
+                  <dd>{initGit ? "Initialize" : "Skip"}</dd>
+                </div>
+                <div>
+                  <dt>Retention</dt>
+                  <dd>
+                    {retentionIndefinite
+                      ? "Indefinite"
+                      : retentionDays
+                        ? `${retentionDays} days`
+                        : "—"}
+                  </dd>
+                </div>
+              </dl>
+              <label>
+                Optional APEX workspace hint
+                <input
+                  value={apexWorkspaceHint}
+                  onChange={(event) => setApexWorkspaceHint(event.target.value)}
+                />
+              </label>
+              <label>
+                Optional APEX app id
+                <input value={apexAppId} onChange={(event) => setApexAppId(event.target.value)} />
+              </label>
+            </div>
+          ) : null}
+          {message ? <p className="pane-muted">{message}</p> : null}
+        </div>
+      </WizardChrome>
     );
   }
 
   if (wizardMode === "open") {
     return (
-      <div className="funnel-screen" aria-label="Open project">
-        <h1>Open project</h1>
-        <form className="stack-form" onSubmit={(event) => void handleImportPath(event)}>
+      <DialogChrome
+        title="Open project"
+        description="Choose an existing folder that already has apex-pilot.json."
+        aria-label="Open project"
+        secondaryAction={
+          <button type="button" className="chrome-button" onClick={() => onWizardModeChange(null)}>
+            Cancel
+          </button>
+        }
+        primaryAction={
+          <button type="submit" form="open-project-form" disabled={busy || !rootPath.trim()}>
+            Open folder
+          </button>
+        }
+      >
+        <form
+          id="open-project-form"
+          className="stack-form"
+          onSubmit={(event) => void handleImportPath(event)}
+        >
           <label>
             Existing folder with apex-pilot.json
             <div className="path-row">
@@ -564,26 +724,38 @@ export const StartupFunnel = ({
               </button>
             </div>
           </label>
-          <div className="button-row">
-            <button type="submit" disabled={busy}>
-              Open folder
-            </button>
-            <button type="button" className="chrome-button" onClick={() => onWizardModeChange(null)}>
-              Cancel
-            </button>
-          </div>
         </form>
         {message ? <p className="pane-muted">{message}</p> : null}
-      </div>
+      </DialogChrome>
     );
   }
 
   if (wizardMode === "clone") {
     return (
-      <div className="funnel-screen" aria-label="Clone remote">
-        <h1>Clone remote</h1>
-        <p>Uses installed Git only. Credentials stay with OS helpers / SSH agent.</p>
-        <form className="stack-form" onSubmit={(event) => void handleClone(event)}>
+      <DialogChrome
+        title="Clone remote"
+        description="Uses installed Git only. Credentials stay with OS helpers / SSH agent."
+        aria-label="Clone remote"
+        secondaryAction={
+          <button type="button" className="chrome-button" onClick={() => onWizardModeChange(null)}>
+            Cancel
+          </button>
+        }
+        primaryAction={
+          <button
+            type="submit"
+            form="clone-project-form"
+            disabled={busy || !remoteUrl.trim() || !cloneParent.trim()}
+          >
+            Clone and open
+          </button>
+        }
+      >
+        <form
+          id="clone-project-form"
+          className="stack-form"
+          onSubmit={(event) => void handleClone(event)}
+        >
           <label>
             Remote URL
             <input value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} required />
@@ -591,30 +763,32 @@ export const StartupFunnel = ({
           <label>
             Clone into parent folder
             <div className="path-row">
-              <input value={cloneParent} onChange={(event) => setCloneParent(event.target.value)} required />
-              <button type="button" className="chrome-button" onClick={() => void pickRoot(setCloneParent)}>
+              <input
+                value={cloneParent}
+                onChange={(event) => setCloneParent(event.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="chrome-button"
+                onClick={() => void pickRoot(setCloneParent)}
+              >
                 Browse…
               </button>
             </div>
           </label>
-          <div className="button-row">
-            <button type="submit" disabled={busy}>
-              Clone and open
-            </button>
-            <button type="button" className="chrome-button" onClick={() => onWizardModeChange(null)}>
-              Cancel
-            </button>
-          </div>
         </form>
         {message ? <p className="pane-muted">{message}</p> : null}
-      </div>
+      </DialogChrome>
     );
   }
 
   return (
-    <div className="funnel-screen" aria-label="Recent projects">
-      <h1>Apex Pilot</h1>
-      <p>Open a recent project or start a new one.</p>
+    <DialogChrome
+      title="Apex Pilot"
+      description="Open a recent project or start a new one."
+      aria-label="Recent projects"
+    >
       <div className="button-row" role="toolbar" aria-label="Project menu">
         <button type="button" onClick={() => onWizardModeChange("new")} disabled={!isBackendOnline || busy}>
           New Project
@@ -622,8 +796,20 @@ export const StartupFunnel = ({
         <button type="button" onClick={() => onWizardModeChange("open")} disabled={!isBackendOnline || busy}>
           Open Project
         </button>
-        <button type="button" onClick={() => onWizardModeChange("clone")} disabled={!isBackendOnline || busy}>
+        <button
+          type="button"
+          onClick={() => onWizardModeChange("clone")}
+          disabled={!isBackendOnline || busy}
+        >
           Clone Remote
+        </button>
+        <button
+          type="button"
+          className="chrome-button"
+          onClick={() => onWizardModeChange("connection")}
+          disabled={busy}
+        >
+          New Connection
         </button>
       </div>
       <p className="pane-muted">
@@ -649,6 +835,6 @@ export const StartupFunnel = ({
         <p className="pane-muted">No recent projects yet.</p>
       )}
       {message ? <p className="pane-muted">{message}</p> : null}
-    </div>
+    </DialogChrome>
   );
 };
