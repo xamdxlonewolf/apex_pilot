@@ -20,17 +20,14 @@ bun cli.ts kickoff "Implement GitHub issues #30 through #42 for Apex Pilot Missi
 
 Or act as root planner on `main` after ensuring the key is present.
 
-## Done
+## Done / on main
 
 | Issue | Status | PR |
 |-------|--------|----|
 | #29 Minimal command palette | Merged / closed | https://github.com/xamdxlonewolf/apex_pilot/pull/46 |
+| #30 partial (browser FS + FileTree tests + CommandPalette fix) | Merged to `main` (issue still open to finish) | https://github.com/xamdxlonewolf/apex_pilot/pull/47 |
 
-## In progress
-
-| Issue | Branch | Notes |
-|-------|--------|-------|
-| #30 Explorer project files | `cursor/30-explorer-project-files-d499` | Browser FS fallback + `FileTree.test.tsx` started; also fixes CommandPalette `inputRef` bug left on main from #46 |
+**Start orchestrate from `main` (`5a74a46`+).** Finish #30 acceptance on a new worker branch off main, then continue #31–#42.
 
 ## Remaining (dependency order)
 
