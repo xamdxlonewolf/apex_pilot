@@ -54,3 +54,17 @@ Planned backend modules are `api`, `agent`, `mcp`, `skills`, `safety`, `schema`,
 For this foundation phase, verify Markdown renders cleanly. Future code PRs
 should add and run the relevant backend, frontend, and contract checks described
 in `CONTRIBUTING.md`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
