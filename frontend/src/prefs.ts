@@ -21,7 +21,7 @@ export type ProfileLayoutPrefs = Readonly<{
   showConsole: boolean;
   showJunkFiles: boolean;
   skipDestructiveSqlPrompt: boolean;
-  rightTools: ReadonlyArray<"schema" | "sql" | "files" | "mappings">;
+  rightTools: ReadonlyArray<"schema" | "files" | "mappings">;
 }>;
 
 export type DensityMode = "compact" | "default" | "comfortable";
@@ -49,15 +49,19 @@ export const togglePanelVisibility = (
   return { ...prefs, [key]: !prefs[key] };
 };
 
+export type WorkspaceTabKind = "mission" | "sql" | "schema" | "file" | "mappings";
+
 export type ProjectTabState = Readonly<{
   openTabs: ReadonlyArray<{
     id: string;
-    kind: "schema" | "sql" | "file" | "mappings";
+    kind: WorkspaceTabKind;
     title: string;
     path?: string;
     schemaName?: string;
   }>;
   activeTabId: string | null;
+  activeCenterTabId?: string | null;
+  activeInspectorTabId?: string | null;
 }>;
 
 export type ProjectWorkspaceDefaults = Readonly<{
@@ -85,7 +89,7 @@ export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   showConsole: false,
   showJunkFiles: false,
   skipDestructiveSqlPrompt: false,
-  rightTools: ["schema", "sql", "mappings"],
+  rightTools: ["schema", "mappings"],
 });
 
 export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs => {

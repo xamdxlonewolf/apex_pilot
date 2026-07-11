@@ -534,6 +534,42 @@ describe("App", () => {
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
   });
 
+  it("hosts SQL Editor in center workspace tabs only and never in the Inspector", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const mission = await screen.findByRole("region", { name: "Mission" });
+    const inspector = screen.getByRole("region", { name: "Inspector" });
+
+    const centerTabs = within(mission).getByRole("tablist", {
+      name: "Center workspace tabs",
+    });
+    expect(within(centerTabs).getByRole("tab", { name: "Mission" })).toBeInTheDocument();
+    expect(within(centerTabs).getByRole("tab", { name: "SQL Editor" })).toBeInTheDocument();
+
+    const inspectorTabs = within(inspector).getByRole("tablist", {
+      name: "Inspector tabs",
+    });
+    expect(within(inspectorTabs).queryByRole("tab", { name: /SQL/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
+    expect(within(inspector).queryByLabelText(/^SQL$/)).not.toBeInTheDocument();
+
+    fireEvent.click(within(centerTabs).getByRole("tab", { name: "SQL Editor" }));
+    expect(within(mission).getByLabelText("SQL sheet")).toBeInTheDocument();
+    expect(within(mission).getByLabelText("SQL")).toBeInTheDocument();
+    expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
+
+    fireEvent.click(within(centerTabs).getByRole("tab", { name: "Mission" }));
+    expect(within(mission).getByLabelText("Mission composer")).toBeInTheDocument();
+    expect(within(mission).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
+  });
+
   it("switches workspace density via settings and persists the profile preference", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",

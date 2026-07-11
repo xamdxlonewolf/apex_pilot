@@ -733,6 +733,13 @@ button:disabled {
   overflow: auto;
 }
 
+.mission-surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
 .pane-muted,
 .chrome-label {
   color: var(--muted);

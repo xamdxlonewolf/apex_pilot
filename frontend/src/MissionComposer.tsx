@@ -16,7 +16,7 @@ export const MissionComposer = ({ projectName }: MissionComposerProps) => {
   return (
     <StubSurface
       title="Mission"
-      className="ide-pane ide-pane--center"
+      className="mission-surface"
       bodyClassName="mission-pane-body"
       secondary={secondary}
       actions={
