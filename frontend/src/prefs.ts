@@ -14,6 +14,7 @@ export type ProfileLayoutPrefs = Readonly<{
   leftWidth: number;
   rightWidth: number;
   consoleHeight: number;
+  density: DensityMode;
   showExplorer: boolean;
   showMission: boolean;
   showInspector: boolean;
@@ -22,6 +23,8 @@ export type ProfileLayoutPrefs = Readonly<{
   skipDestructiveSqlPrompt: boolean;
   rightTools: ReadonlyArray<"schema" | "sql" | "files" | "mappings">;
 }>;
+
+export type DensityMode = "compact" | "default" | "comfortable";
 
 export const panelVisibilityKey = (
   panel: PanelId,
@@ -65,11 +68,16 @@ export type ProjectWorkspaceDefaults = Readonly<{
 const PROFILE_KEY = "apex-pilot.profile-layout";
 const projectKey = (projectId: string) => `apex-pilot.project-tabs.${projectId}`;
 const projectDefaultsKey = (projectId: string) => `apex-pilot.project-defaults.${projectId}`;
+const densityModes: readonly DensityMode[] = ["compact", "default", "comfortable"];
+
+const sanitizeDensity = (value: unknown): DensityMode =>
+  typeof value === "string" && densityModes.includes(value as DensityMode) ? (value as DensityMode) : "default";
 
 export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   leftWidth: EXPLORER_DEFAULT_WIDTH,
   rightWidth: INSPECTOR_DEFAULT_WIDTH,
   consoleHeight: CONSOLE_DEFAULT_HEIGHT,
+  density: "default",
   // Spec §20 startup: Explorer/Mission/Inspector expanded; bottom console collapsed.
   showExplorer: true,
   showMission: true,
@@ -98,6 +106,7 @@ export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs 
       leftWidth: clampExplorerWidth(merged.leftWidth),
       rightWidth: clampInspectorWidth(merged.rightWidth),
       consoleHeight: clampConsoleHeight(merged.consoleHeight),
+      density: sanitizeDensity(merged.density),
     };
   } catch {
     return defaultProfileLayout();

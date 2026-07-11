@@ -23,6 +23,16 @@
   --bad: #f07178;
   --left-width: 260px;
   --right-width: 360px;
+  --motion-hover: 100ms;
+  --motion-expand: 150ms;
+  --motion-collapse: 150ms;
+  --motion-dialog: 180ms;
+  --motion-notification: 180ms;
+  --motion-resize: 0ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --focus-outline-color: var(--accent);
+  --focus-outline-offset: 2px;
+  --focus-outline-width: 2px;
 }
 
 * {
@@ -57,6 +67,11 @@ textarea {
   border-radius: 4px;
   color: var(--text);
   background: #141518;
+  transition:
+    color var(--motion-hover) linear,
+    background-color var(--motion-hover) linear,
+    border-color var(--motion-hover) linear,
+    box-shadow var(--motion-hover) linear;
 }
 
 button {
@@ -77,9 +92,13 @@ button:disabled {
 }
 
 /* Spec §148 / §178 — always-visible keyboard focus (shell gate; UI-7 polishes tokens). */
-:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+:focus-visible {
+  outline: var(--focus-outline-width) solid var(--focus-outline-color);
+  outline-offset: var(--focus-outline-offset);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .chrome-button,
@@ -252,6 +271,26 @@ button:disabled {
 }
 
 .ide-workspace {
+  --toolbar-gap: 6px;
+  --toolbar-min-height: 40px;
+  --toolbar-padding: 4px 8px;
+  --toolbar-button-min-height: 28px;
+  --toolbar-button-padding: 4px 10px;
+  --context-gap: 12px;
+  --context-min-height: 36px;
+  --context-padding: 4px 10px;
+  --context-control-padding: 3px 6px;
+  --context-field-font-size: 0.8rem;
+  --context-label-font-size: 0.7rem;
+  --health-pill-height: 22px;
+  --pane-header-min-height: 34px;
+  --pane-header-padding: 4px 8px;
+  --pane-body-padding: 8px;
+  --tab-padding: 4px 8px;
+  --tree-row-height: 30px;
+  --tree-row-padding: 3px 4px;
+  --list-row-height: 30px;
+  --list-row-padding: 8px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
@@ -262,30 +301,84 @@ button:disabled {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
+.ide-workspace[data-density="compact"] {
+  --toolbar-gap: 4px;
+  --toolbar-min-height: 36px;
+  --toolbar-padding: 3px 8px;
+  --toolbar-button-min-height: 24px;
+  --toolbar-button-padding: 3px 8px;
+  --context-gap: 10px;
+  --context-min-height: 32px;
+  --context-padding: 3px 10px;
+  --context-control-padding: 2px 5px;
+  --context-field-font-size: 0.76rem;
+  --context-label-font-size: 0.66rem;
+  --health-pill-height: 20px;
+  --pane-header-min-height: 30px;
+  --pane-header-padding: 3px 8px;
+  --pane-body-padding: 6px;
+  --tab-padding: 3px 8px;
+  --tree-row-height: 26px;
+  --tree-row-padding: 2px 4px;
+  --list-row-height: 26px;
+  --list-row-padding: 6px;
+}
+
+.ide-workspace[data-density="comfortable"] {
+  --toolbar-gap: 8px;
+  --toolbar-min-height: 44px;
+  --toolbar-padding: 6px 10px;
+  --toolbar-button-min-height: 32px;
+  --toolbar-button-padding: 5px 12px;
+  --context-gap: 14px;
+  --context-min-height: 40px;
+  --context-padding: 5px 10px;
+  --context-control-padding: 4px 8px;
+  --context-field-font-size: 0.84rem;
+  --context-label-font-size: 0.72rem;
+  --health-pill-height: 24px;
+  --pane-header-min-height: 38px;
+  --pane-header-padding: 5px 9px;
+  --pane-body-padding: 10px;
+  --tab-padding: 5px 10px;
+  --tree-row-height: 34px;
+  --tree-row-padding: 5px 6px;
+  --list-row-height: 34px;
+  --list-row-padding: 10px;
+}
+
+.ide-workspace[data-motion="reduced"] {
+  --motion-hover: 0ms;
+  --motion-expand: 0ms;
+  --motion-collapse: 0ms;
+  --motion-dialog: 0ms;
+  --motion-notification: 0ms;
+}
+
 .ide-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--toolbar-gap, 6px);
   align-items: center;
-  min-height: 40px;
-  padding: 4px 8px;
+  min-height: var(--toolbar-min-height, 40px);
+  padding: var(--toolbar-padding, 4px 8px);
   border-bottom: 1px solid var(--chrome-border);
   background: var(--chrome);
 }
 
 .ide-toolbar .chrome-button {
-  min-height: 28px;
-  padding: 4px 10px;
+  min-height: var(--toolbar-button-min-height, 28px);
+  padding: var(--toolbar-button-padding, 4px 10px);
   font-weight: 500;
 }
 
 .ide-context-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--context-gap, 12px);
   align-items: center;
-  min-height: 36px;
-  padding: 4px 10px;
+  min-height: var(--context-min-height, 36px);
+  padding: var(--context-padding, 4px 10px);
   border-bottom: 1px solid var(--chrome-border);
   background: var(--panel-2);
 }
@@ -295,12 +388,12 @@ button:disabled {
   gap: 6px;
   align-items: center;
   color: var(--text);
-  font-size: 0.8rem;
+  font-size: var(--context-field-font-size, 0.8rem);
 }
 
 .context-label {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--context-label-font-size, 0.7rem);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -310,7 +403,7 @@ button:disabled {
 .context-field input {
   min-width: 8rem;
   max-width: 14rem;
-  padding: 3px 6px;
+  padding: var(--context-control-padding, 3px 6px);
 }
 
 .context-health {
@@ -323,7 +416,7 @@ button:disabled {
 .health-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
+  min-height: var(--health-pill-height, 22px);
   padding: 0 8px;
   border: 1px solid var(--chrome-border);
   border-radius: 3px;
@@ -366,6 +459,10 @@ button:disabled {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  transition:
+    border-color var(--motion-collapse) var(--motion-ease-standard),
+    background-color var(--motion-collapse) var(--motion-ease-standard),
+    opacity var(--motion-collapse) linear;
 }
 
 .ide-region--explorer,
@@ -386,6 +483,9 @@ button:disabled {
   display: grid;
   grid-template-rows: 4px var(--console-height, 220px);
   min-height: 0;
+  transition:
+    opacity var(--motion-expand) var(--motion-ease-standard),
+    background-color var(--motion-expand) var(--motion-ease-standard);
 }
 
 .ide-region--console {
@@ -426,6 +526,19 @@ button:disabled {
 .panel-splitter:hover,
 .panel-splitter:focus {
   background: rgb(79 140 255 / 35%);
+}
+
+.activity-tree-item,
+.activity-status,
+.health-pill,
+.status-pill,
+.tab,
+.file-tree-button {
+  transition:
+    color var(--motion-hover) linear,
+    background-color var(--motion-hover) linear,
+    border-color var(--motion-expand) var(--motion-ease-standard),
+    opacity var(--motion-expand) linear;
 }
 
 .workspace-empty {
@@ -584,8 +697,8 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 34px;
-  padding: 4px 8px;
+  min-height: var(--pane-header-min-height, 34px);
+  padding: var(--pane-header-padding, 4px 8px);
   border-bottom: 1px solid var(--chrome-border);
   background: var(--panel-2);
 }
@@ -598,7 +711,7 @@ button:disabled {
 .pane-body {
   flex: 1;
   min-height: 0;
-  padding: 8px;
+  padding: var(--pane-body-padding, 8px);
   overflow: auto;
 }
 
@@ -635,7 +748,8 @@ button:disabled {
   gap: 6px;
   align-items: center;
   width: 100%;
-  padding: 3px 4px;
+  min-height: var(--tree-row-height, 30px);
+  padding: var(--tree-row-padding, 3px 4px);
   border: 0;
   border-radius: 3px;
   color: var(--text);
@@ -690,7 +804,7 @@ button:disabled {
 }
 
 .tab {
-  padding: 4px 8px;
+  padding: var(--tab-padding, 4px 8px);
   border: 0;
   border-radius: 3px 3px 0 0;
   color: var(--muted);
@@ -818,7 +932,8 @@ button:disabled {
   gap: 8px;
   align-items: center;
   justify-content: space-between;
-  padding: 8px;
+  min-height: var(--list-row-height, 30px);
+  padding: var(--list-row-padding, 8px);
   border: 1px solid var(--chrome-border);
   border-radius: 4px;
   background: var(--panel-2);
@@ -1093,6 +1208,7 @@ td {
   border-right: 2px solid var(--accent);
   border-bottom: 2px solid var(--accent);
   transform: rotate(-45deg);
+  transition: transform var(--motion-collapse) var(--motion-ease-standard);
 }
 
 .activity-tree-item details[open] > summary .activity-tree-chevron,

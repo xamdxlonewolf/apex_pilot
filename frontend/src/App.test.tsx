@@ -3,6 +3,84 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App, resetConnectGuardsForTests } from "./App";
 import { resetAutoConnectGuardsForTests } from "./IdeWorkspace";
 
+const profileFixture = {
+  profile_id: "profile-1",
+  display_name: "Dev",
+  email: null,
+  username: null,
+  created_at: "2026-07-09T00:00:00+00:00",
+  updated_at: "2026-07-09T00:00:00+00:00",
+};
+
+const openedProjectFixture = {
+  project: {
+    project_id: "proj-1",
+    profile_id: "profile-1",
+    name: "Demo",
+    root_path: "C:/tmp/demo",
+    retention_days: 365,
+    created_at: "2026-07-09T00:00:00+00:00",
+    updated_at: "2026-07-09T00:00:00+00:00",
+  },
+  manifest: {
+    defaultEnvironment: "dev",
+    environments: [{ name: "dev", defaultSchema: "HR" }],
+  },
+  environment_mappings: [],
+  apex_workspace_mappings: [],
+  unmapped_environments: ["dev"],
+  preflight: {
+    ready: true,
+    blocking_ids: [],
+    checks: [],
+  },
+};
+
+const workspaceFetch = (opened = openedProjectFixture) =>
+  vi.fn((url: string, init?: RequestInit) => {
+    if (url.includes("/preflight")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ ready: true, blocking_ids: [], checks: [] })),
+      );
+    }
+    if (url.endsWith("/profiles")) {
+      return Promise.resolve(new Response(JSON.stringify({ profiles: [profileFixture] })));
+    }
+    if (url.endsWith("/projects") || url.includes("/projects?")) {
+      return Promise.resolve(new Response(JSON.stringify({ projects: [opened.project] })));
+    }
+    if (url.endsWith("/projects/current")) {
+      return Promise.resolve(new Response(JSON.stringify(opened)));
+    }
+    if (url.endsWith("/health")) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            status: "ok",
+            service: "apex-pilot-backend",
+            version: "0.1.0",
+          }),
+        ),
+      );
+    }
+    if (
+      url.endsWith("/connections") &&
+      (!init || init.method === undefined || init.method === "GET")
+    ) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            connections: [{ name: "dev", display_name: "Development" }],
+          }),
+        ),
+      );
+    }
+    if (url.includes("/activity")) {
+      return Promise.resolve(new Response(JSON.stringify({ entries: [], active_session_id: null })));
+    }
+    return Promise.resolve(new Response(JSON.stringify({})));
+  });
+
 const projectApiResponse = (url: string): Response | null => {
   if (url.includes("/preflight")) {
     return new Response(
@@ -420,6 +498,62 @@ describe("App", () => {
     expect(screen.getByLabelText("Chat")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+  });
+
+  it("switches workspace density via settings and persists the profile preference", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem("apex-pilot.profile-layout.profile-1", JSON.stringify({ density: "compact" }));
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const contextBar = await screen.findByRole("region", { name: "Context Bar" });
+    const shell = contextBar.closest(".ide-workspace");
+    expect(shell).toHaveAttribute("data-density", "compact");
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
+    fireEvent.change(await screen.findByLabelText("Active profile"), {
+      target: { value: "profile-1" },
+    });
+    const densitySelect = await screen.findByLabelText("Density");
+    fireEvent.change(densitySelect, { target: { value: "comfortable" } });
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    const contextBarAfterSave = await screen.findByRole("region", { name: "Context Bar" });
+    const shellAfterSave = contextBarAfterSave.closest(".ide-workspace");
+    expect(shellAfterSave).toHaveAttribute("data-density", "comfortable");
+    expect(
+      JSON.parse(localStorage.getItem("apex-pilot.profile-layout.profile-1") ?? "{}").density,
+    ).toBe("comfortable");
+  });
+
+  it("flags reduced-motion mode on the workspace shell", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const contextBar = await screen.findByRole("region", { name: "Context Bar" });
+    expect(contextBar.closest(".ide-workspace")).toHaveAttribute("data-motion", "reduced");
   });
 
   it("toggles Explorer, Mission, Inspector, and Developer Console from View menu and shortcuts", async () => {
