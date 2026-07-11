@@ -218,6 +218,10 @@
     {
       "at": "2026-07-11T21:55:45.613Z",
       "message": "issue-31-explorer-multi-section: spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…"
+    },
+    {
+      "at": "2026-07-11T21:55:56.241Z",
+      "message": "issue-38-mcp-activity-console: spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…"
     }
   ]
 }
