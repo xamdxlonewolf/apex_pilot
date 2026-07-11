@@ -32,12 +32,12 @@
       "agentId": "bc-584342b8-7880-4fe3-9d4a-e1c8b3d0d966",
       "runId": "run-0151f99d-db0d-46e7-8fec-0289413f1776",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-32-mission-composer-stub.md",
       "startedAt": "2026-07-11T21:42:34.193Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:42:37.010Z",
+      "finishedAt": "2026-07-11T21:47:55.905Z",
+      "lastUpdate": "2026-07-11T21:47:55.905Z",
       "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
@@ -59,13 +59,13 @@
       "handoffPath": "handoffs/issue-37-developer-console-scaffold.md",
       "startedAt": "2026-07-11T21:42:37.419Z",
       "finishedAt": "2026-07-11T21:46:27.421Z",
-      "lastUpdate": "2026-07-11T21:46:27.422Z",
+      "lastUpdate": "2026-07-11T21:46:28.296Z",
       "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": "unit-test-verified"
     },
     {
       "name": "issue-41-density-modes-motion",
@@ -122,6 +122,10 @@
     {
       "at": "2026-07-11T21:42:16.823Z",
       "message": "issue-41-density-modes-motion: respawned by self-planner (was error)"
+    },
+    {
+      "at": "2026-07-11T21:46:28.297Z",
+      "message": "issue-37-developer-console-scaffold: verification self-reported (unit-test-verified)"
     }
   ]
 }
