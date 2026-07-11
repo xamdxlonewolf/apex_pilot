@@ -302,11 +302,11 @@
       "finishedAt": "2026-07-11T23:33:08.448Z",
       "lastUpdate": "2026-07-11T23:33:11.265Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 60,
       "failureMode": null,
-      "verification": "live-ui-verified",
-      "attempts": 1
+      "verification": "live-ui-verified"
     }
   ],
   "attention": [

@@ -1,60 +1,35 @@
 # Orchestrate handoff — issues 29–42
 
-## Progress update (root planner run, agent bc-177fa387…e356)
+## COMPLETE (root planner run, agent bc-177fa387…e356)
 
 Root-planner workspace lives at `.orchestrate/ui-overhaul/` (`plan.json` +
-`state.json` + `handoffs/`). `CURSOR_API_KEY` **was** present this run.
+`state.json` + `handoffs/`). **All of #30–#42 are implemented, tested, and
+merged to `main`.** Final `main` frontend tree: `cd frontend && pnpm test` →
+70 passing (14 files), `pnpm typecheck` → clean.
 
-**Wave A complete and merged to `main`:**
+| Wave | Issues (PRs) |
+|------|--------------|
+| A | #30 (PR #51), #32 (#49), #37 (#48), #41 (#50) |
+| B | #34 (#52), #31 (#53), #38 (#54) |
+| C | #36 (#55), #35 (#56), #42 (#57) |
+| D | #33 (#58), #39 (#59) |
+| E | #40 (#60) |
 
-| Issue | PR | Status |
-|-------|----|--------|
-| #30 Explorer project files | #51 | merged |
-| #32 Mission composer Stub | #49 | merged |
-| #37 Developer Console scaffold | #48 | merged |
-| #41 Density modes + motion | #50 | merged |
+All 13 PRs merged. Workers ran TDD; each opened its own draft PR against
+`main`; the planner verified `pnpm test`/`pnpm typecheck` on each merged result
+and resolved cross-branch conflicts in `IdeWorkspace.tsx` / `prefs.ts` /
+`App.test.tsx` (center-tab + Inspector restructures were the hot spots).
 
-All four handed off `success` / `unit-test-verified`; merged sequentially into
-`main` (one trivial import conflict in `IdeWorkspace.tsx` resolved). Merged tree
-is green: `cd frontend && pnpm test` → 31 passing, `pnpm typecheck` → clean.
-
-**BLOCKED — Cursor account spend limit.** Round 2 (#34←#32, #31←#30, #38←#37)
-failed at spawn with:
-
-```
-[usage_limit_exceeded] Usage-based pricing required. Background Agent requires
-at least $2 remaining until your hard limit. Enable usage-based pricing and set
-a Spend Limit.
-```
-
-Wave A consumed the remaining budget. This is a deterministic account/billing
-gate (not transient); no code fix applies. **Action for Michael:** enable
-usage-based pricing / raise the Spend Limit for the account behind
-`CURSOR_API_KEY` at https://cursor.com/dashboard (Billing / Integrations).
-
-**Resume after billing is fixed** (from repo root, `bun` on PATH):
-
-```bash
-CLI=<orchestrate>/scripts/cli.ts
-# reset the three billing-failed tasks, then run the loop
-for t in issue-34-sql-editor-center issue-31-explorer-multi-section issue-38-mcp-activity-console; do
-  bun $CLI respawn .orchestrate/ui-overhaul "$t" --source local-cli
-done
-bun $CLI run --root .orchestrate/ui-overhaul
-```
-
-Then merge each PR into `main` after `cd frontend && pnpm test && pnpm typecheck`
-pass, and stage the remaining rounds in `plan.json`:
-- R2b: #33 (←#32,#34, serialized after #34 to avoid center-region conflict)
-- R3: #35 (←#34), #36 (←#31,#34), #42 (←#30,#31)
-- R4: #39 (←#36)
-- R5: #40 (←#39)
-
-Set `"model": "gpt-5.3-codex-high-fast"` on every worker: the orchestrate
-skill's `MODEL_CATALOG` default (`gpt-5.5` with `reasoning=high;fast=true`) is
-stale — the backend `/v1/models` requires a `context` param, so the default is
-rejected as `invalid_model`. Validated slugs: `gpt-5.3-codex-high-fast`,
-`claude-opus-4-8`.
+### Notes for future orchestrate runs
+- The orchestrate skill's `MODEL_CATALOG` default (`gpt-5.5`
+  `reasoning=high;fast=true`) is **stale** — the live backend `/v1/models`
+  requires a `context` param, so the bare default is rejected as
+  `invalid_model`. Set `tasks[].model` explicitly. Validated slugs seen this
+  run: `gpt-5.3-codex-high-fast`, `claude-opus-4-8`, and `grok-4.5` (bare slug
+  → backend default `effort=high;fast=true`). Wave A used codex; waves B–E used
+  `grok-4.5` per operator request.
+- A mid-run `usage_limit_exceeded` spend-limit gate briefly blocked spawns after
+  Wave A; resolved once usage-based pricing was enabled.
 
 ## Blocker for `/orchestrate`
 
