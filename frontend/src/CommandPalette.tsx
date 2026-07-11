@@ -87,7 +87,6 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
           Command Palette
         </h2>
         <input
-          ref={inputRef}
           className="command-palette-input"
           type="search"
           role="combobox"
