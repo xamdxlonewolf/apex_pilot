@@ -173,17 +173,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-07-11T22:20:05.147Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-07-11T22:20:05.147Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     },
     {
       "name": "issue-35-center-editor-stubs",
@@ -337,6 +338,10 @@
     {
       "at": "2026-07-11T22:12:30.878Z",
       "message": "issue-38-mcp-activity-console: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-07-11T22:20:04.756Z",
+      "message": "issue-36-inspector-panel: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
