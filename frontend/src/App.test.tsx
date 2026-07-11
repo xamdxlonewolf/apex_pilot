@@ -274,7 +274,7 @@ describe("App", () => {
     expect(await screen.findByLabelText("MCP Activity")).toBeInTheDocument();
   });
 
-  it("keeps chat send disabled in the workspace shell", async () => {
+  it("exposes Mission Control chrome and region identities when a project is open", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",
       bearerToken: "test-token",
@@ -289,7 +289,10 @@ describe("App", () => {
         created_at: "2026-07-09T00:00:00+00:00",
         updated_at: "2026-07-09T00:00:00+00:00",
       },
-      manifest: {},
+      manifest: {
+        defaultEnvironment: "dev",
+        environments: [{ name: "dev", defaultSchema: "HR" }],
+      },
       environment_mappings: [],
       apex_workspace_mappings: [],
       unmapped_environments: ["dev"],
@@ -369,11 +372,27 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByLabelText("Chat")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Toolbar" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Context Bar" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Connection")).toBeInTheDocument();
+    expect(screen.getByLabelText("Working Schema")).toBeInTheDocument();
+    expect(screen.getByLabelText("Environment")).toHaveTextContent(/dev/i);
+    expect(screen.getByLabelText("Backend health")).toHaveTextContent(/online/i);
+    expect(screen.getByLabelText("MCP health")).toBeInTheDocument();
+    expect(screen.getByLabelText("Connection health")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
+    expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
+    expect(screen.getByText("Stub")).toBeInTheDocument();
+    expect(screen.getByText("Not implemented yet")).toBeInTheDocument();
+
+    // Interim Mission content still hosts chat until Mission tickets land.
+    expect(screen.getByLabelText("Chat")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
-    expect(screen.getByLabelText("Tools")).toBeInTheDocument();
-    expect(screen.getByLabelText("Connection")).toBeInTheDocument();
   });
 
   it("ignores a second connect while one is already in flight", async () => {

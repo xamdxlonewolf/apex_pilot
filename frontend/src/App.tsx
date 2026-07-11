@@ -307,6 +307,7 @@ export const App = () => {
         {projectOpen && openedProject ? (
           <IdeWorkspace
             backendConfig={backendConfig}
+            backendStatus={backendStatus}
             isBackendOnline={isBackendOnline}
             connections={connections}
             openedProject={openedProject}
@@ -317,7 +318,10 @@ export const App = () => {
             onConnect={connectSelectedConnection}
             isConnecting={isConnecting}
             profileId={profileId}
+            activityCount={activityEntries.length}
+            activeActivitySessionId={activeActivitySessionId}
             onActivityRefresh={refreshActivity}
+            onOpenMcp={() => void openMcp()}
             sqlDirty={sqlDirty}
             onSqlDirtyChange={setSqlDirty}
           />
