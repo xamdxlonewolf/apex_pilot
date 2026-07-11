@@ -6,5 +6,6 @@ Working assets for [Wayfinder: Apex Pilot desktop UI overhaul](https://github.co
 | --- | --- |
 | `design-spec-surface-inventory.md` | Primary research answer for issue #15 |
 | `current-ui-adr-vs-design-spec.md` | Primary research answer for issue #16 |
+| `roadmap-gap-scan.md` | Primary research answer for issue #17 |
 | `design-spec-heading-toc.md` | Full Design Spec heading TOC |
 | `design-spec-body-fragments.md` | Recovered body fragments only |
