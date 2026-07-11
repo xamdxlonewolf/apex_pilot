@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
+import { CommandPalette } from "./CommandPalette";
+import { matchCommandPaletteShortcut, type CommandPaletteAction } from "./commandPalette";
 import { McpActivityWindow, openMcpActivityWindow } from "./McpActivityWindow";
 import { IdeWorkspace } from "./IdeWorkspace";
 import { matchPanelToggleShortcut } from "./panelLayout";
@@ -98,6 +106,7 @@ export const App = () => {
   const [shellPhase, setShellPhase] = useState("booting");
   const [layoutProfileId, setLayoutProfileId] = useState<string | null>(null);
   const [layout, setLayout] = useState<ProfileLayoutPrefs>(() => loadProfileLayout(null));
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   if (profileId !== layoutProfileId) {
     setLayoutProfileId(profileId);
@@ -235,12 +244,12 @@ export const App = () => {
     [backendConfig, refreshActivity, selectedConnection],
   );
 
-  const openMcp = async () => {
+  const openMcp = useCallback(async () => {
     const openedNative = await openMcpActivityWindow();
     if (!openedNative) {
       setMcpOpen(true);
     }
-  };
+  }, []);
 
   const togglePanel = useCallback(
     (panel: Parameters<typeof togglePanelVisibility>[1]) => {
@@ -252,8 +261,108 @@ export const App = () => {
     [canTogglePanels],
   );
 
+  const commandActions = useMemo((): CommandPaletteAction[] => {
+    const actions: CommandPaletteAction[] = [
+      {
+        id: "toggle-explorer",
+        label: "View: Toggle Explorer",
+        shortcut: "Ctrl+B",
+        enabled: canTogglePanels,
+        run: () => togglePanel("explorer"),
+      },
+      {
+        id: "toggle-mission",
+        label: "View: Toggle Mission",
+        shortcut: "Ctrl+Shift+M",
+        enabled: canTogglePanels,
+        run: () => togglePanel("mission"),
+      },
+      {
+        id: "toggle-inspector",
+        label: "View: Toggle Inspector",
+        shortcut: "Ctrl+Shift+I",
+        enabled: canTogglePanels,
+        run: () => togglePanel("inspector"),
+      },
+      {
+        id: "toggle-console",
+        label: "View: Toggle Developer Console",
+        shortcut: "Ctrl+`",
+        enabled: canTogglePanels,
+        run: () => togglePanel("console"),
+      },
+      {
+        id: "open-mcp-activity",
+        label: "View: MCP Activity",
+        enabled: canOpenMcp,
+        run: () => {
+          void openMcp();
+        },
+      },
+      {
+        id: "project-new",
+        label: "Project: New…",
+        enabled: canUseProjectMenus,
+        run: () => setWizardMode("new"),
+      },
+      {
+        id: "project-open",
+        label: "Project: Open…",
+        enabled: canUseProjectMenus,
+        run: () => setWizardMode("open"),
+      },
+      {
+        id: "project-recent",
+        label: "Project: Recent",
+        enabled: canUseProjectMenus,
+        run: () => {
+          if (openedProject) {
+            setRequestClose(true);
+            return;
+          }
+          setWizardMode(null);
+        },
+      },
+      {
+        id: "project-close",
+        label: "Project: Close",
+        enabled: Boolean(openedProject) && !setupLocked,
+        run: () => setRequestClose(true),
+      },
+      {
+        id: "project-settings",
+        label: "Project: Settings",
+        enabled: canOpenSettings,
+        run: () => setWizardMode("settings"),
+      },
+    ];
+    return actions;
+  }, [
+    canTogglePanels,
+    canOpenMcp,
+    canUseProjectMenus,
+    canOpenSettings,
+    openedProject,
+    setupLocked,
+    togglePanel,
+    openMcp,
+  ]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (matchCommandPaletteShortcut(event)) {
+        event.preventDefault();
+        setCommandPaletteOpen((open) => !open);
+        return;
+      }
+      if (commandPaletteOpen && event.key === "Escape") {
+        event.preventDefault();
+        setCommandPaletteOpen(false);
+        return;
+      }
+      if (commandPaletteOpen) {
+        return;
+      }
       const panel = matchPanelToggleShortcut(event);
       if (!panel || !canTogglePanels) {
         return;
@@ -263,7 +372,7 @@ export const App = () => {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canTogglePanels, togglePanel]);
+  }, [canTogglePanels, togglePanel, commandPaletteOpen]);
 
   const onMenubarKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === "ArrowRight") {
@@ -494,6 +603,13 @@ export const App = () => {
         entries={activityEntries}
         connectionName={connectedConnection}
         activeSessionId={activeActivitySessionId}
+      />
+
+      <CommandPalette
+        key={commandPaletteOpen ? "open" : "closed"}
+        open={commandPaletteOpen}
+        actions={commandActions}
+        onClose={() => setCommandPaletteOpen(false)}
       />
     </div>
   );
