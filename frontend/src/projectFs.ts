@@ -8,6 +8,17 @@ export type FileTreeNode = Readonly<{
   junk: boolean;
 }>;
 
+/** In-memory directory listing used when Tauri FS is unavailable (Vite/jsdom tests). */
+export type BrowserFsEntry = Readonly<{
+  name: string;
+  kind: "dir" | "file";
+}>;
+
+export type BrowserProjectFs = Readonly<{
+  list: (dirPath: string) => Promise<ReadonlyArray<BrowserFsEntry>> | ReadonlyArray<BrowserFsEntry>;
+  readText?: (filePath: string) => Promise<string> | string;
+}>;
+
 const JUNK_DIR_NAMES = new Set([
   ".git",
   "node_modules",
@@ -25,8 +36,21 @@ const JUNK_DIR_NAMES = new Set([
 
 const JUNK_FILE_NAMES = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 
+let browserProjectFs: BrowserProjectFs | null = null;
+
 const isTauri = (): boolean =>
-  typeof window !== "undefined" && Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+  typeof window !== "undefined" &&
+  Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+
+/** Install a browser/jsdom filesystem adapter for Vite-only Explorer tests. */
+export const installBrowserProjectFs = (adapter: BrowserProjectFs | null): void => {
+  browserProjectFs = adapter;
+};
+
+/** Test helper: clear the browser FS adapter between cases. */
+export const resetBrowserProjectFsForTests = (): void => {
+  browserProjectFs = null;
+};
 
 export const isApexExportFolderName = (name: string): boolean => name.toLowerCase() === "apex";
 
@@ -90,6 +114,9 @@ export const listDirectory = async (
 
 export const readTextFile = async (filePath: string): Promise<string> => {
   if (!isTauri()) {
+    if (browserProjectFs?.readText) {
+      return await browserProjectFs.readText(filePath);
+    }
     throw new Error("Reading project files requires the Tauri desktop shell.");
   }
   try {
@@ -97,7 +124,9 @@ export const readTextFile = async (filePath: string): Promise<string> => {
     return await read(filePath);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Could not read file (${filePath}): ${detail}`);
+    throw new Error(`Could not read file (${filePath}): ${detail}`, {
+      cause: error,
+    });
   }
 };
 
@@ -105,7 +134,14 @@ type DirEntry = Readonly<{ name: string; isDirectory: boolean }>;
 
 const readDirEntries = async (dirPath: string): Promise<DirEntry[]> => {
   if (!isTauri()) {
-    return [];
+    if (!browserProjectFs) {
+      return [];
+    }
+    const entries = await browserProjectFs.list(dirPath);
+    return entries.map((entry) => ({
+      name: entry.name,
+      isDirectory: entry.kind === "dir",
+    }));
   }
   const { readDir } = await import("@tauri-apps/plugin-fs");
   const entries = await readDir(dirPath);
@@ -114,3 +150,17 @@ const readDirEntries = async (dirPath: string): Promise<DirEntry[]> => {
     isDirectory: Boolean(entry.isDirectory),
   }));
 };
+
+/** Build a simple path→children map adapter for browser/jsdom Explorer tests. */
+export const browserFsFromTree = (
+  tree: Readonly<Record<string, ReadonlyArray<BrowserFsEntry>>>,
+  files: Readonly<Record<string, string>> = {},
+): BrowserProjectFs => ({
+  list: (dirPath) => tree[dirPath] ?? [],
+  readText: (filePath) => {
+    if (filePath in files) {
+      return files[filePath];
+    }
+    throw new Error(`Missing browser fixture file: ${filePath}`);
+  },
+});
