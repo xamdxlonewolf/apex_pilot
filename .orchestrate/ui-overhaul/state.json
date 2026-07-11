@@ -10,16 +10,16 @@
       "agentId": "bc-647ee49b-7f28-40e9-ad8b-0931cbd14235",
       "runId": "run-cd9c213d-2f17-49cb-bf13-86d466ee2b87",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-30-explorer-project-files.md",
       "startedAt": "2026-07-11T21:42:31.071Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:42:33.859Z",
+      "finishedAt": "2026-07-11T21:50:36.932Z",
+      "lastUpdate": "2026-07-11T21:50:36.932Z",
       "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
-      "prNumber": null,
+      "prNumber": 51,
       "failureMode": null,
       "verification": null
     },
@@ -81,13 +81,13 @@
       "handoffPath": "handoffs/issue-41-density-modes-motion.md",
       "startedAt": "2026-07-11T21:42:40.678Z",
       "finishedAt": "2026-07-11T21:50:17.586Z",
-      "lastUpdate": "2026-07-11T21:50:17.586Z",
+      "lastUpdate": "2026-07-11T21:50:18.472Z",
       "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": "unit-test-verified"
     }
   ],
   "attention": [
@@ -130,6 +130,10 @@
     {
       "at": "2026-07-11T21:47:58.734Z",
       "message": "issue-32-mission-composer-stub: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-07-11T21:50:18.472Z",
+      "message": "issue-41-density-modes-motion: verification self-reported (unit-test-verified)"
     }
   ]
 }
