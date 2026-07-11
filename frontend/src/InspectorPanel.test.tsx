@@ -32,6 +32,10 @@ describe("InspectorPanel", () => {
     expect(within(checklist).getByText("Checklist")).toBeInTheDocument();
     expect(within(checklist).getByText("Stub")).toBeInTheDocument();
 
+    expect(within(panel).queryByRole("region", { name: "Mappings preferences" })).not.toBeInTheDocument();
+    expect(within(panel).queryByText("Mappings")).not.toBeInTheDocument();
+    expect(within(panel).queryByLabelText("Project mappings")).not.toBeInTheDocument();
+
     expect(panel).not.toHaveTextContent(/\bGap\b/);
     expect(panel).not.toHaveTextContent(/\bDS-/);
     expect(panel).not.toHaveTextContent(/\bUI-\d+/);

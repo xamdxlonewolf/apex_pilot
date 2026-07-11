@@ -140,6 +140,7 @@ type IdeWorkspaceProps = Readonly<{
   onMcpFocusHandled: () => void;
   onActivityRefresh: () => Promise<void>;
   onOpenMcp: () => void;
+  onOpenMappings: () => void;
   sqlDirty: boolean;
   onSqlDirtyChange: (dirty: boolean) => void;
   openCenterEditorKind?: CenterEditorStubKind | null;
@@ -275,6 +276,7 @@ export const IdeWorkspace = ({
   onMcpFocusHandled,
   onActivityRefresh,
   onOpenMcp,
+  onOpenMappings,
   sqlDirty,
   onSqlDirtyChange,
   openCenterEditorKind = null,
@@ -660,6 +662,14 @@ export const IdeWorkspace = ({
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="chrome-button context-mappings-button"
+          onClick={onOpenMappings}
+          title="Environment and APEX workspace mappings"
+        >
+          Mappings
+        </button>
         <label className="context-field" htmlFor="workspace-working-schema">
           <span className="context-label">Working Schema</span>
           <input

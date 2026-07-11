@@ -406,6 +406,11 @@ button:disabled {
   padding: var(--context-control-padding, 3px 6px);
 }
 
+.context-mappings-button {
+  align-self: end;
+  margin-bottom: 1px;
+}
+
 .context-health {
   display: inline-flex;
   flex-wrap: wrap;

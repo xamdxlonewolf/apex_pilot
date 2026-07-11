@@ -398,6 +398,12 @@ export const App = () => {
         enabled: canOpenSettings,
         run: () => setWizardMode("settings"),
       },
+      {
+        id: "project-mappings",
+        label: "Project: Environment mappings",
+        enabled: canOpenSettings && Boolean(openedProject),
+        run: () => setWizardMode("settings"),
+      },
       ...CENTER_EDITOR_STUB_KINDS.map(
         (kind): CommandPaletteAction => ({
           id: `editor-open-${kind}`,
@@ -641,6 +647,7 @@ export const App = () => {
             onMcpFocusHandled={handleMcpFocusHandled}
             onActivityRefresh={refreshActivity}
             onOpenMcp={() => void openMcp()}
+            onOpenMappings={() => setWizardMode("settings")}
             sqlDirty={sqlDirty}
             onSqlDirtyChange={setSqlDirty}
             openCenterEditorKind={openCenterEditorKind}

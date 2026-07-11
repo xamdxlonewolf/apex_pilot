@@ -58,13 +58,6 @@ export const InspectorPanel = ({
             bodyClassName="inspector-section-body"
           />
         </section>
-        <section className="inspector-section" role="region" aria-label="Mappings preferences">
-          <StubSurface
-            title="Mappings"
-            secondary="Environment mappings move to connection and preferences UX."
-            bodyClassName="inspector-section-body"
-          />
-        </section>
       </div>
     </div>
   );

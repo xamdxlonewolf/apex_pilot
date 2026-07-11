@@ -676,11 +676,120 @@ describe("App", () => {
     expect(within(inspector).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("tab", { name: /SQL/i })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("tab", { name: /^mappings$/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("region", { name: "Mappings preferences" })).not.toBeInTheDocument();
     expect(within(inspector).queryByLabelText("Project mappings")).not.toBeInTheDocument();
+    expect(within(inspector).queryByText("Mappings")).not.toBeInTheDocument();
     expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("button", { name: /^Run$/i })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("button", { name: /^Execute$/i })).not.toBeInTheDocument();
+  });
+
+  it("hosts Environment mappings in Settings preferences UX, not the Inspector", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal(
+      "fetch",
+      workspaceFetch({
+        ...openedProjectFixture,
+        environment_mappings: [],
+        unmapped_environments: ["dev"],
+      }),
+    );
+
+    render(<App />);
+
+    const contextBar = await screen.findByRole("region", { name: "Context Bar" });
+    expect(within(contextBar).getByRole("button", { name: /^Mappings$/i })).toBeInTheDocument();
+
+    const inspector = screen.getByRole("region", { name: "Inspector" });
+    expect(within(inspector).queryByLabelText("Project mappings")).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("region", { name: "Mappings preferences" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(contextBar).getByRole("button", { name: /^Mappings$/i }));
+
+    const settings = await screen.findByLabelText("Settings");
+    expect(within(settings).getByRole("heading", { name: /Environment mappings/i })).toBeInTheDocument();
+    expect(within(settings).getByLabelText("Project mappings")).toBeInTheDocument();
+    const mappingList = within(settings).getByRole("list", { name: "Environment mappings" });
+    expect(within(mappingList).getByText("dev")).toBeInTheDocument();
+    expect(within(mappingList).getByRole("button", { name: /Save mapping/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
+    const settingsFromMenu = await screen.findByLabelText("Settings");
+    expect(within(settingsFromMenu).getByLabelText("Project mappings")).toBeInTheDocument();
+  });
+
+  it("persists profile layout panel visibility across workspace remounts", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.profile-layout.profile-1",
+      JSON.stringify({
+        showExplorer: false,
+        showInspector: false,
+        showConsole: true,
+        leftWidth: 340,
+        rightWidth: 420,
+      }),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    const { unmount } = render(<App />);
+
+    expect(await screen.findByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
+
+    unmount();
+    render(<App />);
+
+    expect(await screen.findByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
+    expect(
+      JSON.parse(localStorage.getItem("apex-pilot.profile-layout.profile-1") ?? "{}").showExplorer,
+    ).toBe(false);
+  });
+
+  it("restores project-scoped center tabs for Mission Control arrangement", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.project-tabs.proj-1",
+      JSON.stringify({
+        openTabs: [
+          { id: "mission", kind: "mission", title: "Mission" },
+          { id: "sql", kind: "sql", title: "SQL Editor" },
+          { id: "stub:package", kind: "package", title: "Package Editor" },
+          { id: "mappings", kind: "mappings", title: "Mappings" },
+        ],
+        activeTabId: "stub:package",
+        activeCenterTabId: "stub:package",
+      }),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const mission = await screen.findByRole("region", { name: "Mission" });
+    const centerTabs = within(mission).getByRole("tablist", {
+      name: "Center workspace tabs",
+    });
+    expect(within(centerTabs).getByRole("tab", { name: "Package Editor" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(centerTabs).queryByRole("tab", { name: /^Mappings$/i })).not.toBeInTheDocument();
+    expect(within(mission).getByTestId("stub-surface")).toHaveTextContent("Package Editor");
   });
 
   it("prompts on Close Project when editors are dirty and returns to the recent-projects picker", async () => {

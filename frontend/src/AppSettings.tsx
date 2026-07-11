@@ -3,6 +3,8 @@ import { type FormEvent, useState } from "react";
 import {
   type BackendConfig,
   type LocalProfile,
+  type OpenedProject,
+  type SavedConnection,
   createProfile,
 } from "./backend";
 import {
@@ -18,11 +20,15 @@ import {
   loadProfileLayout,
   saveProfileLayout,
 } from "./prefs";
+import { ProjectMappings } from "./ProjectMappings";
 
 type AppSettingsProps = Readonly<{
   backendConfig: BackendConfig;
   profiles: LocalProfile[];
   selectedProfileId: string;
+  connections: SavedConnection[];
+  openedProject: OpenedProject | null;
+  onOpenedProjectChange: (project: OpenedProject | null) => void;
   onProfilesChange: (profiles: LocalProfile[], selectedProfileId: string) => void;
   onClose: () => void;
 }>;
@@ -37,6 +43,9 @@ export const AppSettings = ({
   backendConfig,
   profiles,
   selectedProfileId,
+  connections,
+  openedProject,
+  onOpenedProjectChange,
   onProfilesChange,
   onClose,
 }: AppSettingsProps) => {
@@ -105,8 +114,8 @@ export const AppSettings = ({
     <div className="funnel-screen" aria-label="Settings">
       <h1>Settings</h1>
       <p className="pane-muted">
-        Profile and app preferences for this machine. Project-specific mappings stay with each
-        project.
+        Profile and app preferences for this machine. Environment → SQLcl / APEX mappings stay with
+        the open project.
       </p>
 
       <section className="settings-section" aria-labelledby="settings-profile-heading">
@@ -279,6 +288,23 @@ export const AppSettings = ({
             />
           </label>
         </div>
+      </section>
+
+      <section className="settings-section" aria-labelledby="settings-mappings-heading">
+        <h2 id="settings-mappings-heading">Environment mappings</h2>
+        {openedProject ? (
+          <ProjectMappings
+            backendConfig={backendConfig}
+            connections={connections}
+            openedProject={openedProject}
+            onOpenedProjectChange={onOpenedProjectChange}
+          />
+        ) : (
+          <p className="pane-muted">
+            Open a project to map logical environments and APEX workspaces to local SQLcl saved
+            connections.
+          </p>
+        )}
       </section>
 
       <div className="funnel-actions">
