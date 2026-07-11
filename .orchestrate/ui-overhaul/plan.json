@@ -1,0 +1,84 @@
+{
+  "$schema": "/home/ubuntu/.cursor/plugins/cache/cursor-public/9333/a8145426e541afa424a403e3866496216c1b8142/skills/orchestrate/schemas/plan.schema.json",
+  "goal": "Implement Apex Pilot Mission Control UI issues #30 through #42 for repo https://github.com/xamdxlonewolf/apex_pilot. Each issue is its own worker with openPR: true. Respect blocked-by deps. Merge each PR into main after tests pass before dependents. Use /implement + TDD. Issue #29 already merged (PR #46). Partial #30 work landed via PR #47 — finish remaining #30–#42 from main. Wave order and acceptance in .scratch/ui-overhaul/orchestrate-handoff-29-42.md.",
+  "summary": "Implementing Apex Pilot Mission Control UI issues #30–#42 via orchestrate workers",
+  "rootSlug": "ui-overhaul",
+  "baseBranch": "main",
+  "prBase": "main",
+  "repoUrl": "https://github.com/xamdxlonewolf/apex_pilot",
+  "dispatcher": { "firstName": "Michael" },
+  "selfAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
+  "syncStateToGit": true,
+  "acceptanceCriteria": [
+    "Each issue #30–#42 shipped as its own draft PR against main",
+    "cd frontend && pnpm test && pnpm typecheck pass on every merged branch",
+    "Project invariants preserved: no edits to apex/ export folders or root f*.sql; no new SQL execution paths"
+  ],
+  "tasks": [
+    {
+      "name": "issue-30-explorer-project-files",
+      "type": "worker",
+      "openPR": true,
+      "scopedGoal": "Finish GitHub issue #30 (\"Explorer - project files\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 30 --repo xamdxlonewolf/apex_pilot` first to read the full acceptance criteria. Partial work already landed on main via PR #47 (browser FS fallback in `frontend/src/projectFs.ts`, `frontend/src/FileTree.tsx` + `frontend/src/FileTree.test.tsx`); build on it, do not revert it. Complete the remaining acceptance: (1) Explorer project-files section navigates local project files via Tauri FS with a browser fallback that works in Vite-only/jsdom tests; (2) junk files (e.g. node_modules, .git, dot-clutter, build artifacts) hidden by default with a toggle; (3) APEX export folders and root f*.sql files are PRESENTED as protected/read-only (shown but flagged, never hidden and never modified) so the non-touch invariants stay visible; (4) Vitest covers the files-region behavior under the browser fallback. Follow strict TDD: add/extend failing Vitest tests first, then implement. Follow the Stub convention in `frontend/src/StubSurface.tsx` and `frontend/src/stubConvention.ts` for any unfinished chrome (badge text \"Stub\", primary copy \"Not implemented yet\", no fake data, no Gap/DS-*/UI-* copy in UI). HARD INVARIANTS: never modify anything under `apex/` export folders or any root `f*.sql` file, and add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all must pass before you hand off.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**"],
+      "acceptance": [
+        "Explorer project-files section navigates project files (Tauri FS + browser fallback usable in Vite-only tests)",
+        "Junk files hidden by default",
+        "APEX export folders and root f*.sql presented as protected, never hidden and never modified",
+        "Vitest covers Explorer files-region behavior under browser fallback",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Confirm the Explorer files region hides junk by default and shows APEX export folders / root f*.sql with a protected/read-only marker."
+    },
+    {
+      "name": "issue-32-mission-composer-stub",
+      "type": "worker",
+      "openPR": true,
+      "scopedGoal": "Implement GitHub issue #32 (\"Mission - composer Stub\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 32 --repo xamdxlonewolf/apex_pilot` first for full acceptance criteria. The Mission Control shell is `frontend/src/IdeWorkspace.tsx`; the center region is `ide-region--mission`, which currently renders `frontend/src/ChatPane.tsx`. Replace the chat-app framing with a Mission surface whose primary content is a Mission composer that is PRESENT before Agent Core exists, with the send action DISABLED using honest Stub treatment (use `stubActionProps` / `StubSurface` from `frontend/src/StubSurface.tsx` + `frontend/src/stubConvention.ts`: badge \"Stub\", copy \"Not implemented yet\"). No fake agent success, no mock streaming, no chat-product framing. Own the Mission region and its Mission composer component; keep edits scoped to the Mission surface, do not restructure the Inspector, Console, or Explorer regions. Follow strict TDD: add failing Vitest assertions for (a) the center primary surface being Mission (not Chat), (b) the composer present with Stub treatment, (c) send disabled, then implement. Follow Stub conventions strictly. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts"],
+      "acceptance": [
+        "Center primary surface is Mission (not Chat product framing)",
+        "Mission composer present; send disabled with Stub treatment",
+        "No fake agent success or mock streaming on the Mission surface",
+        "Vitest asserts Mission region, Stub treatment, and disabled send",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- The center region renders a Mission composer with a disabled, Stub-badged send and no chat-product framing."
+    },
+    {
+      "name": "issue-37-developer-console-scaffold",
+      "type": "worker",
+      "openPR": true,
+      "scopedGoal": "Implement GitHub issue #37 (\"Developer Console scaffold\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 37 --repo xamdxlonewolf/apex_pilot` first for full acceptance criteria. The Mission Control shell is `frontend/src/IdeWorkspace.tsx`; the bottom region `ide-region--console` currently renders a single `StubSurface` (\"Developer Console\"). Build the bottom Developer Console so it hosts the Spec tab set: Problems, Output, MCP Activity, SQL History, Oracle Messages, and Tasks. Unfinished tabs must use Stub conventions (`frontend/src/StubSurface.tsx` + `frontend/src/stubConvention.ts`: badge \"Stub\", copy \"Not implemented yet\", no fake data). The existing working interim floating MCP path (View → MCP Activity, `frontend/src/McpActivityWindow.tsx`) must remain functional and must NOT be Stub-badged while it still works. Own the Console region and any new console component(s); keep edits scoped to the Console region of the shell, do not restructure Explorer/Mission/Inspector. Follow strict TDD: add failing Vitest assertions that the Console region hosts the tab set in the shell, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/ChatPane.tsx"],
+      "acceptance": [
+        "Bottom Developer Console hosts the Spec tab set (Problems, Output, MCP Activity, SQL History, Oracle Messages, Tasks)",
+        "Unfinished Console tabs use Stub conventions",
+        "Working interim floating MCP path is not Stub-badged",
+        "Vitest asserts Console region and tab hosting in the shell",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- The bottom Developer Console shows the six Spec tabs with honest Stub treatment for unfinished ones; floating MCP Activity still opens and is not Stub-badged."
+    },
+    {
+      "name": "issue-41-density-modes-motion",
+      "type": "worker",
+      "openPR": true,
+      "scopedGoal": "Implement GitHub issue #41 (\"Density modes + motion polish\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 41 --repo xamdxlonewolf/apex_pilot` first for full acceptance criteria. Add Compact and Comfortable density modes with a preference switcher, apply the Spec motion duration table and panel/timeline choreography, and land focus-token polish — all without violating the shell hard rules (no decorative motion, immediate resize, skeletons preferred over spinners, and prefers-reduced-motion must continue to be respected). The shell root `frontend/src/IdeWorkspace.tsx` already sets `data-density=\"default\"`; wire density to a persisted preference (see `frontend/src/prefs.ts`) and reflect it via a data attribute + CSS in `frontend/src/styles.css`. Add the density switcher into an existing preferences/settings surface (see `frontend/src/AppSettings.tsx`) rather than inventing a new region. Follow strict TDD: add failing Vitest assertions for density-mode switching observable in the shell (and reduced-motion respect), then implement. Keep edits scoped to density/motion/focus concerns; avoid restructuring region layout. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/ChatPane.tsx", "frontend/src/McpActivityWindow.tsx"],
+      "acceptance": [
+        "Compact and Comfortable density modes exist with a preference switcher",
+        "Spec motion durations / panel-timeline choreography applied without violating hard rules",
+        "Focus token polish lands (visible focus remains operable)",
+        "prefers-reduced-motion continues to be respected",
+        "Vitest covers density mode switching observable in the shell",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Switching density between Compact and Comfortable changes the shell density attribute and persists; reduced-motion still disables non-essential motion."
+    }
+  ]
+}
