@@ -1,0 +1,19 @@
+[
+  {"number": 26, "title": "Mission Control chrome + region scaffold", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/26", "blockers": []},
+  {"number": 27, "title": "Panel layout controls", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/27", "blockers": [26]},
+  {"number": 28, "title": "Stub surface convention", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/28", "blockers": [26]},
+  {"number": 29, "title": "Minimal command palette", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/29", "blockers": [26, 27]},
+  {"number": 30, "title": "Explorer - project files", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/30", "blockers": [26, 28]},
+  {"number": 31, "title": "Explorer - multi-section + schema home", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/31", "blockers": [30]},
+  {"number": 32, "title": "Mission - composer Stub", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/32", "blockers": [26, 28]},
+  {"number": 33, "title": "Mission - timeline and stage chrome", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/33", "blockers": [32]},
+  {"number": 34, "title": "SQL Editor to center workspace", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/34", "blockers": [26, 28]},
+  {"number": 35, "title": "Center editor stubs + dirty Close Project", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/35", "blockers": [34]},
+  {"number": 36, "title": "Inspector panel", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/36", "blockers": [26, 28, 31, 34]},
+  {"number": 37, "title": "Developer Console scaffold", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/37", "blockers": [26, 28]},
+  {"number": 38, "title": "MCP Activity to Console + Tauri e2e smoke", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/38", "blockers": [37]},
+  {"number": 39, "title": "Preferences, layout persistence and Mapping home", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/39", "blockers": [26, 28, 36]},
+  {"number": 40, "title": "Dialog and wizard chrome", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/40", "blockers": [39]},
+  {"number": 41, "title": "Density modes + motion polish", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/41", "blockers": [26, 27]},
+  {"number": 42, "title": "Quick Open", "url": "https://github.com/xamdxlonewolf/apex_pilot/issues/42", "blockers": [30, 31]}
+]
