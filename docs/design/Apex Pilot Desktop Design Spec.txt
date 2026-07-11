@@ -1,0 +1,8496 @@
+# Apex Pilot UI Design Specification
+Version: 1.0 (Draft)
+Status: Living Document
+
+---
+
+# 1. Purpose
+
+This document defines the visual language, interaction patterns, layout system, and user experience standards for Apex Pilot.
+
+It is the authoritative source for all desktop UI implementation.
+
+Its purpose is to ensure every screen, component, workflow, and interaction follows a consistent design language while maintaining the core principles of Apex Pilot.
+
+This specification intentionally focuses on user experience and interface implementation.
+
+It does not define backend architecture, SQL execution logic, MCP implementation, Oracle integration, or AI prompt engineering.
+
+---
+
+# 2. Design Philosophy
+
+Apex Pilot is not a dashboard.
+
+It is not a web application.
+
+It is not a SaaS product.
+
+It is a professional desktop development environment.
+
+The user should immediately recognize similarities to tools such as:
+
+- JetBrains IDEs
+- Visual Studio Code
+- DataGrip
+- SQL Developer
+- DBeaver
+- Postman
+
+The application should feel like software intended to be used for eight hours a day.
+
+Every decision in this specification supports that goal.
+
+---
+
+# 3. Core Principles
+
+## 3.1 Developer First
+
+The interface always prioritizes speed over decoration.
+
+Additional clicks should never exist for aesthetic reasons.
+
+Information should remain visible whenever practical.
+
+Panels should expose functionality rather than hide it.
+
+Power users should rarely need modal dialogs.
+
+---
+
+## 3.2 Trust Before Automation
+
+AI never performs hidden work.
+
+Every operation progresses through visible stages.
+
+Intent
+
+↓
+
+Planning
+
+↓
+
+Generated SQL
+
+↓
+
+Review
+
+↓
+
+Execution
+
+↓
+
+Audit
+
+The user should understand exactly what is about to happen before execution begins.
+
+---
+
+## 3.3 Context Never Disappears
+
+The application should continuously communicate:
+
+Current Project
+
+Current Connection
+
+Connected User
+
+Working Schema
+
+Current Environment
+
+Backend Status
+
+MCP Status
+
+This information should never require navigation.
+
+It belongs to the application shell.
+
+---
+
+## 3.4 Explainability
+
+Every significant operation should answer:
+
+What is happening?
+
+Why is it happening?
+
+What will execute?
+
+Where will it execute?
+
+How will it execute?
+
+What happened?
+
+The interface should never force users to infer important information.
+
+---
+
+## 3.5 Progressive Disclosure
+
+Complexity should be revealed naturally.
+
+Users should not be overwhelmed.
+
+However...
+
+Information should never be hidden behind unnecessary navigation.
+
+Panels may collapse.
+
+Information should not disappear.
+
+---
+
+## 3.6 Local First
+
+Everything should reinforce that work occurs locally.
+
+Projects are folders.
+
+Connections belong to the user.
+
+Profiles are local.
+
+No cloud concepts appear anywhere within the interface.
+
+There are no organizations.
+
+No workspaces.
+
+No tenants.
+
+No team dashboards.
+
+---
+
+# 4. Overall User Experience
+
+The emotional response to Apex Pilot should be:
+
+"I trust this."
+
+rather than
+
+"This looks impressive."
+
+Professional software earns trust through consistency.
+
+Not animation.
+
+Not gradients.
+
+Not oversized cards.
+
+The application should appear engineered.
+
+Not marketed.
+
+---
+
+# 5. Visual Personality
+
+Keywords
+
+Professional
+
+Dense
+
+Quiet
+
+Confident
+
+Technical
+
+Precise
+
+Stable
+
+Focused
+
+Intentional
+
+Never
+
+Playful
+
+Flashy
+
+Rounded everywhere
+
+Oversized
+
+Minimalist for the sake of minimalism
+
+Dashboard-like
+
+Consumer-oriented
+
+---
+
+# 6. Information Density
+
+The interface intentionally favors medium-to-high information density.
+
+Large empty areas are discouraged.
+
+Whitespace exists to improve readability.
+
+Not aesthetics.
+
+Users spend hours inside Apex Pilot.
+
+Information density should increase productivity rather than create clutter.
+
+---
+
+# 7. Figure References
+
+This specification references two conceptual mockups.
+
+Figure 1
+
+Overall Mission Control layout.
+
+This image establishes:
+
+- Window composition
+- Panel hierarchy
+- Density
+- Visual style
+- Overall proportions
+
+Figure 2
+
+Annotated layout with enlarged component references.
+
+This image clarifies:
+
+- Conversation workspace
+- Inspector
+- MCP Activity
+- Primary interaction zones
+
+These images are conceptual references.
+
+They define design intent rather than pixel-perfect implementation.
+
+---
+
+# 8. Product Identity
+
+Apex Pilot should communicate one central idea.
+
+The AI is not the product.
+
+The AI is the navigator.
+
+SQLcl performs execution.
+
+Oracle Database performs work.
+
+Apex Pilot orchestrates the workflow.
+
+This distinction should influence every interaction.
+
+The interface should continually reinforce that the user remains in control.
+
+# 9. Window Shell
+
+## Purpose
+
+The Window Shell is the permanent structure of Apex Pilot.
+
+Unlike web applications, the shell is not replaced as the user navigates.
+
+The shell establishes spatial memory.
+
+Users should always know where to find:
+
+- Project information
+- Database connection
+- AI conversation
+- Database objects
+- Execution status
+- MCP activity
+
+Changing projects or workflows should update panel contents rather than reorganize the application.
+
+The shell should feel permanent.
+
+---
+
+# 10. Shell Architecture
+
+The application is divided into six permanent regions.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Menu Bar                                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Toolbar + Context Bar                                                       │
+├──────────────┬──────────────────────────────┬───────────────────────────────┤
+│              │                              │                               │
+│              │                              │                               │
+│ Explorer     │     Conversation /           │          Inspector            │
+│              │     Workspace                │                               │
+│              │                              │                               │
+│              │                              │                               │
+├──────────────┴──────────────────────────────┴───────────────────────────────┤
+│ MCP Activity / Output / SQL History / Problems                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Status Bar                                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Every major workflow occurs within this layout.
+
+The shell itself never changes.
+
+---
+
+# 11. Panel Philosophy
+
+Each panel has a single responsibility.
+
+The application avoids "Swiss Army Knife" panels.
+
+Explorer
+
+Responsible for navigation.
+
+Conversation
+
+Responsible for intent.
+
+Inspector
+
+Responsible for understanding.
+
+Bottom Panel
+
+Responsible for evidence.
+
+Status Bar
+
+Responsible for system state.
+
+Each panel should remain focused.
+
+---
+
+# 12. Menu Bar
+
+The Menu Bar follows native desktop conventions.
+
+Menus should remain concise.
+
+```
+File
+
+Edit
+
+View
+
+Project
+
+Database
+
+AI
+
+Tools
+
+Window
+
+Help
+```
+
+Menus should expose every major command.
+
+Nothing important should exist only inside right-click menus.
+
+---
+
+# 13. Toolbar
+
+The toolbar provides immediate access to common actions.
+
+It should not become a ribbon.
+
+Toolbar buttons should remain icon-first with optional labels.
+
+Suggested layout:
+
+```
+New Project
+
+Open
+
+Save
+
+────────────
+
+Connect
+
+Disconnect
+
+Refresh
+
+────────────
+
+New SQL
+
+Run
+
+Explain
+
+────────────
+
+Ask AI
+
+History
+
+Settings
+```
+
+Toolbar height
+
+40–44px
+
+Icons
+
+18px
+
+Padding
+
+12px
+
+---
+
+# 14. Context Bar
+
+The Context Bar is unique to Apex Pilot.
+
+It continuously answers:
+
+Where am I?
+
+Who am I?
+
+What am I connected to?
+
+Can I trust the system?
+
+It remains visible at all times.
+
+---
+
+Example (Not real names or icons) Layout
+
+```
+📁 HR Portal
+
+│
+
+🔌 DEV
+
+│
+
+👤 Connected As
+
+ADMIN
+
+│
+
+🗄 Working Schema
+
+APEX_PILOT
+
+│
+
+🌿 Development
+
+│
+
+Backend ●
+
+SQLcl ●
+
+MCP ●
+```
+
+This should never scroll.
+
+Never collapse.
+
+Never move.
+
+---
+
+# 15. Context Rules
+
+Project
+
+Always visible.
+
+Connection
+
+Always visible.
+
+Connected User
+
+Always visible.
+
+Working Schema
+
+Always visible.
+
+Environment
+
+Always visible.
+
+Health
+
+Always visible.
+
+These six items define user confidence.
+
+---
+
+# 16. Health Indicators
+
+Health indicators should communicate state immediately.
+
+States
+
+Healthy
+
+Warning
+
+Offline
+
+Busy
+
+Error
+
+Colors should be secondary.
+
+Icons communicate status first.
+
+Example
+
+```
+● Backend
+
+● SQLcl
+
+● MCP
+```
+
+Hovering reveals detailed diagnostics.
+
+Clicking opens the System Health panel.
+
+---
+
+# 17. Layout Proportions
+
+Default Widths
+
+Explorer
+
+300px
+
+Conversation
+
+Flexible
+
+Inspector
+
+360px
+
+Minimum Widths
+
+Explorer
+
+240px
+
+Conversation
+
+600px
+
+Inspector
+
+320px
+
+Preferred Workspace Ratio
+
+Explorer
+
+20%
+
+Conversation
+
+50%
+
+Inspector
+
+30%
+
+These values may be adjusted by users.
+
+---
+
+# 18. Resizing
+
+Every vertical panel is resizable.
+
+Dragging dividers should feel immediate.
+
+No animations.
+
+No snapping delays.
+
+Minimum widths prevent unusable layouts.
+
+Panel sizes persist per project.
+
+---
+
+# 19. Docking
+
+Explorer
+
+May collapse.
+
+Cannot move.
+
+Conversation
+
+Cannot move.
+
+Always center.
+
+Inspector
+
+May collapse.
+
+Cannot move.
+
+Bottom Panel
+
+Resizable.
+
+Hideable.
+
+Status Bar
+
+Permanent.
+
+Menu
+
+Permanent.
+
+Toolbar
+
+Permanent.
+
+This intentionally differs from VS Code.
+
+Users should never lose the application's mental model.
+
+---
+
+# 20. Startup Layout
+
+Upon first launch
+
+Explorer
+
+Expanded
+
+Conversation
+
+Expanded
+
+Inspector
+
+Expanded
+
+Bottom Panel
+
+Collapsed
+
+Status Bar
+
+Visible
+
+Health Panel
+
+Hidden
+
+This creates a clean initial experience.
+
+---
+
+# 21. Restoring Sessions
+
+When reopening Apex Pilot
+
+Restore
+
+Open project
+
+Panel sizes
+
+Collapsed states
+
+Open tabs
+
+Conversation history
+
+Scroll positions
+
+Inspector state
+
+Bottom panel selection
+
+The application should feel like it was never closed.
+
+---
+
+# 22. Empty Workspace
+
+If no project is open
+
+Conversation becomes the primary content.
+
+Display
+
+Recent Projects
+
+New Project
+
+Open Folder
+
+Recent Connections
+
+Health Status
+
+Quick Start
+
+The application should never appear empty.
+
+---
+
+# 23. Offline Mode
+
+If Backend is unavailable
+
+Conversation remains usable.
+
+Explorer remains available.
+
+Files remain available.
+
+Database features become disabled.
+
+Inspector clearly explains why.
+
+Offline should feel intentional.
+
+Not broken.
+
+---
+
+# 24. Visual Weight
+
+The shell should visually disappear.
+
+Panels should be separated by:
+
+1px borders
+
+Not shadows.
+
+Background contrast should define structure.
+
+Recommended hierarchy
+
+Window
+
+↓
+
+Panels
+
+↓
+
+Headers
+
+↓
+
+Content
+
+The user should never consciously notice the shell.
+
+Only the content.
+
+---
+
+# 25. Motion
+
+Opening panels
+
+150ms
+
+Hover
+
+Instant
+
+Resize
+
+Immediate
+
+Panel collapse
+
+120–150ms
+
+Dialogs
+
+150–180ms
+
+Loading
+
+Skeletons preferred over spinners.
+
+Animations should communicate state.
+
+Never entertain.
+
+# 26. Mission Workspace
+
+## Purpose
+
+The Mission Workspace is the primary interaction area of Apex Pilot.
+
+Unlike traditional chat interfaces, it represents the lifecycle of work.
+
+The user defines intent.
+
+Apex Pilot plans the work.
+
+The user reviews the plan.
+
+SQL is generated.
+
+SQL is reviewed.
+
+Execution occurs.
+
+Results are presented.
+
+The Mission Workspace documents this process.
+
+It is both a conversation and a permanent engineering record.
+
+---
+
+# 27. Design Philosophy
+
+The Mission Workspace is NOT a messaging application.
+
+Avoid visual patterns from:
+
+- Slack
+- Discord
+- Teams
+- Messenger
+
+Instead draw inspiration from:
+
+- GitHub Pull Requests
+- GitHub Actions
+- Cursor
+- Claude Artifacts
+- Build Pipelines
+- CI/CD timelines
+
+Messages are secondary.
+
+Tasks are primary.
+
+---
+
+# 28. Workspace Layout
+
+```
+──────────────────────────────────────
+
+Mission
+
+──────────────────────────────────────
+
+Mission Timeline
+
+↓
+
+Prompt Composer
+
+(always docked)
+
+```
+
+The timeline occupies all available height.
+
+The prompt composer remains permanently attached to the bottom.
+
+Only the timeline scrolls.
+
+---
+
+# 29. Timeline
+
+Every request creates one Mission.
+
+Example
+
+Mission
+
+Create Employee Approval Workflow
+
+↓
+
+Planning
+
+↓
+
+SQL Generation
+
+↓
+
+Review
+
+↓
+
+Execution
+
+↓
+
+Completed
+
+Rather than displaying dozens of individual messages,
+the timeline groups activity into meaningful stages.
+
+---
+
+# 30. Mission Card
+
+Every mission begins with a summary card.
+
+Example
+
+────────────────────────────
+
+Mission
+
+Create Employee Approval Workflow
+
+Status
+
+Planning
+
+Created
+
+10:42 AM
+
+Connection
+
+DEV
+
+Working Schema
+
+APEX_PILOT
+
+────────────────────────────
+
+The Mission Card remains pinned to the top of that mission.
+
+It serves as the permanent context for all activity.
+
+---
+
+# 31. Timeline Events
+
+Timeline events represent significant milestones.
+
+Examples
+
+Mission Created
+
+Planning Started
+
+Plan Completed
+
+SQL Generated
+
+Review Requested
+
+Execution Started
+
+Execution Completed
+
+Audit Available
+
+Each event becomes part of the permanent record.
+
+---
+
+# 32. AI Responses
+
+Avoid long conversational paragraphs whenever possible.
+
+Prefer structured responses.
+
+Instead of
+
+"I've analyzed your request and determined..."
+
+Use
+
+```
+Plan Generated
+
+6 Tasks
+
+Estimated Objects
+
+4 Tables
+
+2 Packages
+
+Estimated SQL
+
+18 Statements
+
+Ready for Review
+```
+
+The interface should feel procedural rather than conversational.
+
+---
+
+# 33. Planning Stage
+
+Planning is the first major workflow.
+
+Display
+
+Goal
+
+Assumptions
+
+Objects
+
+Estimated Risk
+
+Estimated Changes
+
+Dependencies
+
+Buttons
+
+Approve Plan
+
+Modify Request
+
+Cancel
+
+The user should be able to stop the process before SQL exists.
+
+---
+
+# 34. Plan Display
+
+Plans should resemble engineering checklists.
+
+Example
+
+✓ Create EMPLOYEE table
+
+✓ Create STATUS lookup
+
+✓ Create PACKAGE
+
+✓ Create Trigger
+
+✓ Create LOV
+
+✓ Register Navigation
+
+Each task should expand for additional detail.
+
+---
+
+# 35. SQL Generation
+
+Once approved
+
+The Mission Timeline displays
+
+────────────────────────────
+
+SQL Generated
+
+18 Statements
+
+Classification
+
+PROMPT
+
+Ready for Review
+
+────────────────────────────
+
+Clicking the card opens the Inspector.
+
+The SQL itself is never rendered inline in the timeline.
+
+---
+
+# 36. Review Stage
+
+Review summarizes
+
+Objects affected
+
+Classification
+
+Estimated duration
+
+Warnings
+
+Dependency changes
+
+Links
+
+View SQL
+
+Open Inspector
+
+Compare
+
+Review exists before execution.
+
+Always.
+
+---
+
+# 37. Execution
+
+Execution becomes a live event.
+
+Example
+
+Executing
+
+Statement 7 of 18
+
+Current MCP Tool
+
+execute_sql
+
+Elapsed Time
+
+00:02
+
+The Mission Timeline reflects progress.
+
+Detailed execution remains inside the Inspector.
+
+---
+
+# 38. Completion
+
+Completed Missions summarize
+
+Success
+
+Warnings
+
+Objects Modified
+
+Execution Time
+
+Audit ID
+
+Open Audit
+
+View SQL
+
+Open Files
+
+The Mission Timeline should become a searchable work history.
+
+---
+
+# 39. Prompt Composer
+
+The Prompt Composer remains permanently docked.
+
+Structure
+
+```
+______________________________________
+
+Ask Apex Pilot...
+
+[ Attach ]
+
+[ Agent ]
+
+[ Send ]
+```
+
+Future additions
+
+Voice
+
+Images
+
+Database Objects
+
+File References
+
+The composer should be expandable.
+
+---
+
+# 40. Suggested Prompts
+
+When idle
+
+Display
+
+Create APEX Page
+
+Generate Package
+
+Review SQL
+
+Explain Object
+
+Create REST Endpoint
+
+Compare Schemas
+
+These should disappear once work begins.
+
+---
+
+# 41. Mission History
+
+Previous Missions remain accessible.
+
+Recent
+
+Today
+
+Yesterday
+
+Earlier
+
+Selecting a previous mission restores
+
+Timeline
+
+Inspector
+
+SQL
+
+Execution
+
+This creates a complete engineering journal.
+
+---
+
+# 42. Streaming
+
+Planning
+
+SQL generation
+
+Execution
+
+All stream incrementally.
+
+Never freeze the interface.
+
+Partial information is better than waiting.
+
+---
+
+# 43. Mission Status
+
+Every Mission has one state.
+
+Planning
+
+Waiting
+
+Review
+
+Executing
+
+Completed
+
+Cancelled
+
+Failed
+
+Offline
+
+These states drive the Inspector.
+
+---
+
+# 44. Visual Hierarchy
+
+Mission Title
+
+Largest
+
+Timeline Cards
+
+Second
+
+Status
+
+Third
+
+Metadata
+
+Fourth
+
+Messages
+
+Lowest
+
+Messages should never dominate the interface.
+
+---
+
+# 45. Empty State
+
+No active mission
+
+Display
+
+Welcome
+
+Recent Projects
+
+Quick Actions
+
+Recent Missions
+
+Health
+
+Recent Connections
+
+The application should immediately invite productive work.
+
+---
+
+# 46. Rules
+
+The Mission Workspace SHALL
+
+Maintain chronological history.
+
+Never hide completed stages.
+
+Never delete generated SQL.
+
+Never replace previous content.
+
+Always preserve context.
+
+The Mission Workspace SHALL NOT
+
+Contain execution details.
+
+Display SQL editors.
+
+Contain schema browsing.
+
+Contain connection management.
+
+Those belong elsewhere.
+
+---
+
+As I was writing this chapter, I realized something important.
+
+I don't think the center should scroll like ChatGPT or Claude at all.
+
+I think it should feel closer to GitHub Actions.
+
+Example:
+
+Mission
+──────────────────────────────────────────
+
+▶ Create Employee Approval Workflow
+
+    ✓ Plan Generated
+
+    ✓ SQL Generated
+
+    ○ Waiting Review
+
+──────────────────────────────────────────
+
+▶ Explain Package EMP_API
+
+    ✓ Completed
+
+──────────────────────────────────────────
+
+▶ Convert Report to Interactive Report
+
+    Executing...
+
+
+
+----
+
+# 47. Inspector
+
+## Purpose
+
+The Inspector is the contextual intelligence panel of Apex Pilot.
+
+It is responsible for explaining the current state of the active Mission.
+
+The Inspector never initiates work.
+
+The Inspector never owns execution.
+
+The Inspector explains.
+
+It provides visibility into:
+
+- Current Mission
+- Current Stage
+- Generated SQL
+- SQL Classification
+- Objects Affected
+- Dependencies
+- Risks
+- Execution Progress
+- Results
+- Audit Information
+
+The Inspector is the primary trust mechanism of Apex Pilot.
+
+---
+
+# 48. Design Philosophy
+
+Traditional AI applications require users to search conversations for important information.
+
+Apex Pilot intentionally separates:
+
+Intent
+
+↓
+
+Evidence
+
+The Mission Workspace captures intent.
+
+The Inspector presents evidence.
+
+Users should never scroll through a conversation searching for SQL.
+
+---
+
+# 49. Inspector Layout
+
+The Inspector is divided into vertical sections.
+
+```
+Inspector
+
+──────────────────────────
+
+Mission Summary
+
+──────────────────────────
+
+Current Stage
+
+──────────────────────────
+
+Context
+
+──────────────────────────
+
+Details
+
+──────────────────────────
+
+Actions
+```
+
+Each section expands independently.
+
+Only one section is expanded by default.
+
+---
+
+# 50. Workflow Progress
+
+A vertical workflow indicator appears on the left edge.
+
+```
+● Mission
+
+│
+
+● Planning
+
+│
+
+● SQL Generated
+
+│
+
+◎ Review
+
+│
+
+○ Execute
+
+│
+
+○ Complete
+```
+
+Legend
+
+Filled Circle
+
+Completed
+
+Outlined Circle
+
+Current
+
+Empty Circle
+
+Upcoming
+
+Red Circle
+
+Failed
+
+Yellow Circle
+
+Warning
+
+This indicator remains visible throughout the workflow.
+
+It provides constant orientation.
+
+---
+
+# 51. Inspector Header
+
+The header always displays
+
+Mission Name
+
+Current Status
+
+Elapsed Time
+
+Connection
+
+Working Schema
+
+Example
+
+```
+Mission
+
+Employee Approval Workflow
+
+Status
+
+Review
+
+Elapsed
+
+00:01:28
+
+Connection
+
+DEV
+
+Working Schema
+
+APEX_PILOT
+```
+
+The header never scrolls.
+
+---
+
+# 52. Context Section
+
+Always visible.
+
+Contains
+
+Project
+
+Environment
+
+Connected As
+
+Working Schema
+
+Execution Tool
+
+Example
+
+```
+Project
+
+HR Portal
+
+Environment
+
+Development
+
+Connected As
+
+ADMIN
+
+Working Schema
+
+APEX_PILOT
+
+Execution
+
+SQLcl MCP
+```
+
+The user should never wonder where SQL will execute.
+
+---
+
+# 53. Planning State
+
+Expanded by default during planning.
+
+Displays
+
+Mission Goal
+
+Assumptions
+
+Tasks
+
+Dependencies
+
+Estimated Objects
+
+Estimated Statements
+
+Risk
+
+Buttons
+
+Approve Plan
+
+Revise Request
+
+Cancel
+
+---
+
+# 54. Planning Checklist
+
+Example
+
+```
+✓ Create EMPLOYEE table
+
+✓ Create STATUS table
+
+✓ Create Package
+
+✓ Register Navigation
+
+✓ Generate LOV
+
+✓ Update Security
+```
+
+Each task expands.
+
+Expansion reveals
+
+Description
+
+Affected Objects
+
+Estimated SQL
+
+Dependencies
+
+---
+
+# 55. SQL Generated State
+
+The Inspector automatically transitions after planning.
+
+Sections
+
+Summary
+
+Statements
+
+Objects
+
+Dependencies
+
+Warnings
+
+Classification
+
+Actions
+
+Buttons
+
+Open SQL
+
+Copy
+
+Export
+
+Compare
+
+---
+
+# 56. SQL Viewer
+
+The SQL Viewer occupies most of the Inspector.
+
+```
+CREATE TABLE employee (
+
+id NUMBER,
+
+...
+
+);
+
+----------------------
+
+CREATE PACKAGE ...
+```
+
+Features
+
+Syntax highlighting
+
+Line numbers
+
+Search
+
+Copy
+
+Expand to Full Workspace
+
+Word wrap toggle
+
+Readonly
+
+SQL editing does NOT occur here.
+
+Editing belongs in SQL Workspace.
+
+---
+
+# 57. Classification
+
+Classification appears immediately above execution controls.
+
+Possible Values
+
+ALLOW
+
+PROMPT
+
+BLOCK
+
+Display
+
+```
+Classification
+
+PROMPT
+
+Reason
+
+CREATE TABLE
+
+DDL
+
+Changes Schema
+```
+
+Classification colors
+
+Allow
+
+Green
+
+Prompt
+
+Amber
+
+Block
+
+Red
+
+Icons accompany every classification.
+
+Never rely on color.
+
+---
+
+# 58. Object Summary
+
+Displays
+
+Tables
+
+Views
+
+Packages
+
+Indexes
+
+Triggers
+
+REST Modules
+
+APEX Components
+
+Each item links to
+
+Schema Browser
+
+Object Viewer
+
+SQL
+
+---
+
+# 59. Dependency Analysis
+
+Displays
+
+Objects Referenced
+
+Objects Modified
+
+Potential Invalidations
+
+Compilation Requirements
+
+Warnings
+
+Future enhancement
+
+Dependency Graph
+
+---
+
+# 60. Execution Stage
+
+During execution
+
+Inspector automatically changes.
+
+```
+Executing
+
+Statement
+
+7 / 18
+
+Current Tool
+
+execute_sql
+
+Elapsed
+
+00:02
+
+Current Object
+
+EMPLOYEE
+
+Progress
+
+██████░░░░
+```
+
+The user never loses visibility.
+
+---
+
+# 61. Completion
+
+After execution
+
+```
+Completed
+
+Duration
+
+2.3 seconds
+
+Statements
+
+18
+
+Succeeded
+
+18
+
+Warnings
+
+1
+
+Errors
+
+0
+
+Audit
+
+A-10827
+```
+
+Buttons
+
+Open Audit
+
+Open SQL
+
+View Objects
+
+Open Log
+
+---
+
+# 62. Error State
+
+Errors receive dedicated presentation.
+
+Example
+
+```
+Execution Failed
+
+Statement
+
+14
+
+Object
+
+EMPLOYEE
+
+Oracle Error
+
+ORA-00942
+
+Suggestions
+
+Open SQL
+
+Retry
+
+Copy Error
+
+Explain Error
+```
+
+Errors should never disappear into logs.
+
+---
+
+# 63. Offline State
+
+Inspector clearly communicates
+
+Backend Offline
+
+SQLcl Unavailable
+
+MCP Unavailable
+
+Connection Lost
+
+Explain
+
+What happened
+
+What remains available
+
+How to recover
+
+---
+
+# 64. Actions
+
+Actions remain pinned to the bottom.
+
+Examples
+
+Approve Plan
+
+Generate SQL
+
+Execute
+
+Retry
+
+Cancel
+
+View Audit
+
+Only actions relevant to the current state appear.
+
+Avoid disabled buttons whenever possible.
+
+---
+
+# 65. Rules
+
+The Inspector SHALL
+
+Always display the active Mission.
+
+Always display the working schema.
+
+Always display the connection.
+
+Always display execution tool.
+
+Always display classification before execution.
+
+Always preserve generated SQL.
+
+Never hide warnings.
+
+Never replace history.
+
+The Inspector SHALL NOT
+
+Contain conversation.
+
+Contain navigation.
+
+Contain file browsing.
+
+Contain SQL editing.
+
+Contain project management.
+
+Those belong elsewhere.
+
+---
+
+# 66. Future Enhancements
+
+Future Inspector capabilities may include
+
+Execution replay
+
+Dependency visualization
+
+Schema impact diagrams
+
+AI explanation mode
+
+Performance estimates
+
+Execution recording
+
+Approval workflows
+
+Collaborative review
+
+The Inspector architecture should allow additional sections without redesign.
+
+
+----
+
+I Had an Idea While Writing This
+
+This is the first thing I'd change from the mockups.
+
+Instead of tabs...
+
+I don't think the Inspector should have tabs at all.
+
+I think it should behave like Xcode's Inspector or the GitHub Pull Request sidebar.
+
+Imagine this:
+
+Inspector
+──────────────────────────
+
+▼ Mission Summary
+
+▼ Context
+
+▼ Plan
+
+▼ Generated SQL
+
+▶ Dependency Analysis
+
+▶ Execution
+
+▶ Audit
+------
+
+It's one continuous panel.
+
+As the Mission progresses:
+
+Plan opens automatically.
+Then Generated SQL expands.
+Then Execution expands.
+Then Audit expands.
+
+Nothing disappears.
+
+You can scroll back through the workflow without switching tabs.
+
+
+-----
+Another Signature Feature
+
+Here's an idea I haven't seen in any IDE.
+
+"Pinned Context"
+
+At the very top of the Inspector, always show a compact card like this (example, not actual words just showing):
+
+MISSION
+Employee Approval Workflow
+
+PROJECT
+HR Portal
+
+CONNECTED AS
+ADMIN
+
+WORKING SCHEMA
+APEX_PILOT
+
+STATUS
+Review
+
+CLASSIFICATION
+PROMPT
+
+
+-----
+
+# 67. Project Explorer
+
+## Purpose
+
+The Project Explorer is the primary navigation panel for Apex Pilot.
+
+It provides a unified view of:
+
+- Local project files
+- Oracle APEX application assets
+- Database schema objects
+- Working files
+- Favorites
+- Recent objects
+
+Unlike traditional IDEs, the Project Explorer combines the local filesystem with live database metadata.
+
+It is the primary navigation surface for the application.
+
+It is never responsible for displaying object details.
+
+Selection changes the active workspace.
+
+Inspection occurs in the Inspector.
+
+---
+
+# 68. Design Philosophy
+
+The Explorer should answer one question:
+
+"What can I work on?"
+
+It should never become cluttered with actions.
+
+Navigation belongs here.
+
+Actions belong in toolbars, context menus, and the Inspector.
+
+The Explorer should remain visually quiet.
+
+---
+
+# 69. Layout
+
+```
+Explorer
+
+Search
+
+──────────────────────
+
+Project
+
+Favorites
+
+Database
+
+APEX
+
+REST
+
+Recent
+
+Pinned
+
+```
+
+Each section is collapsible.
+
+Expansion state persists between sessions.
+
+---
+
+# 70. Search
+
+Search remains permanently visible.
+
+Placeholder
+
+Search project...
+
+Capabilities
+
+Search files
+
+Search objects
+
+Search packages
+
+Search tables
+
+Search pages
+
+Search REST modules
+
+Search procedures
+
+Search triggers
+
+Keyboard Shortcut
+
+CTRL+K
+
+Results update live.
+
+Search never hides the underlying tree.
+
+---
+
+# 71. Project Section
+
+Displays the local project.
+
+Example
+
+```
+Project
+
+📁 HR Portal
+
+    📁 application
+
+    📁 sql
+
+    📁 rest
+
+    📁 images
+
+    📁 docs
+
+    📄 README.md
+
+    📄 build.sql
+
+```
+
+The Project section reflects the filesystem.
+
+Not the database.
+
+---
+
+# 72. Favorites
+
+Frequently accessed items.
+
+Examples
+
+EMPLOYEE
+
+SECURITY_PKG
+
+Application 104
+
+REST Employee API
+
+Shared Components
+
+Favorites appear regardless of location.
+
+---
+
+# 73. Database Section
+
+Displays objects within the current working schema.
+
+Example
+
+```
+Database
+
+Tables
+
+Views
+
+Packages
+
+Functions
+
+Procedures
+
+Triggers
+
+Sequences
+
+Indexes
+
+Materialized Views
+
+Synonyms
+
+Jobs
+
+Queues
+
+Directories
+```
+
+Counts appear beside each category.
+
+Example
+
+Tables (58)
+
+Views (14)
+
+Packages (23)
+
+---
+
+# 74. APEX Section
+
+Dedicated Oracle APEX navigation.
+
+Applications
+
+Pages
+
+Navigation
+
+Shared Components
+
+Authentication
+
+Authorization
+
+Build Options
+
+Themes
+
+Templates
+
+Static Files
+
+Plug-ins
+
+REST Enabled SQL
+
+The APEX section should feel like App Builder navigation.
+
+---
+
+# 75. REST Section
+
+Displays
+
+REST Modules
+
+Templates
+
+Handlers
+
+Parameters
+
+Privileges
+
+OAuth Clients
+
+REST Sources
+
+Future
+
+ORDS diagnostics
+
+---
+
+# 76. Recent
+
+Displays
+
+Recently opened
+
+Files
+
+Objects
+
+Pages
+
+SQL
+
+Packages
+
+Maximum
+
+25 entries
+
+---
+
+# 77. Pinned
+
+Pinned objects remain permanently available.
+
+Pins synchronize per project.
+
+Examples
+
+EMPLOYEE table
+
+Security Package
+
+Application 101
+
+REST Module
+
+Build Script
+
+---
+
+# 78. Object Nodes
+
+Every node displays
+
+Icon
+
+Name
+
+Optional Badge
+
+Optional Status
+
+Example
+
+```
+📦 Package
+
+employee_api
+
+✓ Valid
+
+```
+
+Status examples
+
+Valid
+
+Invalid
+
+Modified
+
+Warning
+
+Offline
+
+---
+
+# 79. Context Menu
+
+Every object supports context actions.
+
+Example
+
+Package
+
+Open
+
+Open Specification
+
+Open Body
+
+Generate Documentation
+
+Explain with AI
+
+Compare
+
+Generate Tests
+
+Open Dependencies
+
+Favorite
+
+Pin
+
+Reveal in Project
+
+Copy Name
+
+Copy Path
+
+---
+
+# 80. Double Click
+
+Double click opens
+
+SQL
+
+Package
+
+Page
+
+REST Handler
+
+Object Viewer
+
+Never opens modal dialogs.
+
+---
+
+# 81. Single Click
+
+Single click selects.
+
+Selection updates
+
+Inspector
+
+Preview
+
+Properties
+
+Dependencies
+
+Without opening a tab.
+
+This matches JetBrains behavior.
+
+---
+
+# 82. Drag and Drop
+
+Supported
+
+Project files
+
+Favorites
+
+Pinned
+
+Workspace tabs
+
+Future
+
+Schema folders
+
+Drag should never initiate SQL execution.
+
+---
+
+# 83. Filtering
+
+Each section supports filtering.
+
+Examples
+
+Tables
+
+Only Invalid
+
+Recently Modified
+
+Owned
+
+Referenced
+
+Packages
+
+Invalid
+
+Compiled Today
+
+Has Errors
+
+---
+
+# 84. Badges
+
+Badges communicate state.
+
+Examples
+
+Modified
+
+Invalid
+
+Locked
+
+Read Only
+
+AI Generated
+
+Favorite
+
+Pinned
+
+Execution Pending
+
+Avoid excessive color.
+
+Icons first.
+
+---
+
+# 85. Explorer Width
+
+Default
+
+300px
+
+Minimum
+
+250px
+
+Maximum
+
+500px
+
+Persisted
+
+Per Project
+
+---
+
+# 86. Empty States
+
+No Database
+
+"Connect to browse schema."
+
+No Project
+
+"Open a project."
+
+No Favorites
+
+"Pin frequently used objects."
+
+No Results
+
+"No matching objects."
+
+Every empty state should suggest the next action.
+
+---
+
+# 87. Performance
+
+Large schemas should load incrementally.
+
+Expand on demand.
+
+Lazy loading required.
+
+Search should remain responsive.
+
+Scrolling should remain smooth regardless of schema size.
+
+---
+
+# 88. Rules
+
+The Explorer SHALL
+
+Remain visible.
+
+Support keyboard navigation.
+
+Support lazy loading.
+
+Remember expansion state.
+
+Remember selection.
+
+Support incremental search.
+
+Support drag and drop.
+
+The Explorer SHALL NOT
+
+Display execution status.
+
+Display SQL.
+
+Contain conversations.
+
+Contain approval workflows.
+
+Contain settings.
+
+Those belong elsewhere.
+
+
+-----
+
+
+I Think We Should Make One Big Change
+
+This is the first place where I think the original mockup is actually too simple.
+
+I think we should merge the local project and the live database into one intelligent Explorer, but visually distinguish them.
+
+Imagine something like this:
+
+📁 Project
+   📁 sql
+   📁 docs
+   📄 README.md
+
+━━━━━━━━━━━━━━━━━━━━
+
+🗄 Database (APEX_PILOT)
+
+   📂 Tables (58)
+
+   📂 Packages (22)
+
+   📂 Views (14)
+
+━━━━━━━━━━━━━━━━━━━━
+
+🚀 APEX
+
+   📱 App 101
+
+   📱 App 102
+
+━━━━━━━━━━━━━━━━━━━━
+
+🌐 REST
+
+━━━━━━━━━━━━━━━━━━━━
+
+⭐ Favorites
+
+━━━━━━━━━━━━━━━━━━━━
+
+🕒 Recent
+
+
+
+Notice the section dividers.
+
+This is much easier to scan than one continuous tree.
+
+-----
+
+# 89. Workspace
+
+## Purpose
+
+The Workspace is the primary editing and viewing surface of Apex Pilot.
+
+Unlike the Mission Workspace, which represents intent, the Workspace represents artifacts.
+
+Artifacts include
+
+- SQL Scripts
+- Package Specifications
+- Package Bodies
+- Tables
+- Views
+- APEX Pages
+- REST Modules
+- Documentation
+- Markdown
+- JSON
+- XML
+- Text Files
+
+The Workspace is where users inspect, edit, compare, and understand objects.
+
+It is not responsible for workflow management.
+
+---
+
+# 90. Design Philosophy
+
+The Workspace should feel familiar to users of
+
+- VS Code
+- DataGrip
+- JetBrains IDEs
+- SQL Developer
+
+The goal is immediate comfort.
+
+Users should instinctively understand:
+
+Tabs
+
+Editors
+
+Splits
+
+Navigation
+
+History
+
+Keyboard shortcuts
+
+No unnecessary learning curve should exist.
+
+---
+
+# 91. Layout
+
+```
+Workspace
+──────────────────────────────────
+
+Tab Bar
+
+──────────────────────────────────
+
+Editor
+
+or
+
+Viewer
+
+──────────────────────────────────
+
+Breadcrumb
+
+(optional)
+
+```
+
+The Workspace always occupies the center-right portion of the application.
+
+The Mission remains visible to the left.
+
+The Inspector remains visible to the right.
+
+---
+
+# 92. Workspace Types
+
+The Workspace hosts multiple editor types.
+
+SQL Editor
+
+Object Viewer
+
+APEX Page Viewer
+
+Markdown Editor
+
+JSON Editor
+
+REST Viewer
+
+Schema Diff
+
+Dependency Graph
+
+Settings
+
+Logs
+
+Each type follows the same shell.
+
+---
+
+# 93. Tabs
+
+Tabs behave similarly to modern IDEs.
+
+Features
+
+Closable
+
+Reorderable
+
+Pinned
+
+Dirty state
+
+Icons
+
+Unsaved indicator
+
+Tabs persist between sessions.
+
+---
+
+# 94. Tab Icons
+
+Every artifact has a distinct icon.
+
+Examples
+
+📄 SQL Script
+
+📦 Package
+
+📋 Table
+
+🪟 View
+
+🌐 REST
+
+📱 APEX Page
+
+📘 Documentation
+
+⚙ Settings
+
+Icons improve scanning.
+
+---
+
+# 95. SQL Editor
+
+The SQL Editor is optimized for Oracle.
+
+Features
+
+Syntax highlighting
+
+Line numbers
+
+Code folding
+
+Bracket matching
+
+Minimap (optional)
+
+Multi-cursor
+
+Column selection
+
+Find / Replace
+
+Go To Line
+
+Bookmarks
+
+Outline
+
+The SQL Editor is the only place SQL may be edited.
+
+The Inspector remains read-only.
+
+---
+
+# 96. SQL Header
+
+Every SQL tab displays execution context.
+
+Example
+
+```
+employee.sql
+
+Connected As
+
+ADMIN
+
+Working Schema
+
+APEX_PILOT
+
+Classification
+
+Unknown
+```
+
+Classification updates after analysis.
+
+---
+
+# 97. SQL Toolbar
+
+Toolbar actions
+
+Run
+
+Run Selection
+
+Explain Plan
+
+Format SQL
+
+Generate Documentation
+
+Review with AI
+
+Compare
+
+History
+
+Export
+
+Actions remain contextual.
+
+---
+
+# 98. Object Viewer
+
+Read-only by default.
+
+Displays
+
+Properties
+
+Columns
+
+Indexes
+
+Constraints
+
+Triggers
+
+Statistics
+
+Dependencies
+
+Comments
+
+Actions
+
+Open SQL
+
+Generate Documentation
+
+Review with AI
+
+---
+
+# 99. Package Viewer
+
+Supports split mode.
+
+```
+Specification
+
+│
+
+Body
+```
+
+Users may toggle
+
+Side-by-side
+
+Stacked
+
+Single
+
+---
+
+# 100. APEX Viewer
+
+Displays
+
+Application
+
+Pages
+
+Regions
+
+Items
+
+Processes
+
+Dynamic Actions
+
+Authentication
+
+Navigation
+
+Future enhancement
+
+Visual page preview.
+
+---
+
+# 101. REST Viewer
+
+Displays
+
+Modules
+
+Templates
+
+Handlers
+
+Privileges
+
+Parameters
+
+Responses
+
+Future enhancement
+
+OpenAPI preview.
+
+---
+
+# 102. Diff Viewer
+
+Supports
+
+SQL
+
+Packages
+
+Tables
+
+REST
+
+Markdown
+
+Visual layout
+
+```
+Old
+
+│
+
+New
+```
+
+Inline differences highlighted.
+
+---
+
+# 103. Split Editors
+
+Workspace supports
+
+Vertical Split
+
+Horizontal Split
+
+Maximum
+
+Four visible editors
+
+Splits persist.
+
+---
+
+# 104. Breadcrumb
+
+Optional
+
+Example
+
+```
+Project
+
+Database
+
+Packages
+
+employee_api
+
+Body
+```
+
+Clicking navigates upward.
+
+---
+
+# 105. Unsaved Changes
+
+Unsaved tabs display
+
+●
+
+Close prompts only when required.
+
+Auto-save remains configurable.
+
+---
+
+# 106. Read-only
+
+Objects opened from the Inspector default to read-only.
+
+Editing requires
+
+Edit
+
+or
+
+Open in SQL Editor
+
+This prevents accidental modification.
+
+---
+
+# 107. Search
+
+Workspace search supports
+
+Current File
+
+Open Tabs
+
+Entire Project
+
+Current Schema
+
+Keyboard
+
+CTRL+SHIFT+F
+
+---
+
+# 108. Navigation
+
+CTRL+TAB
+
+Recent Tabs
+
+ALT+LEFT
+
+Back
+
+ALT+RIGHT
+
+Forward
+
+CTRL+P
+
+Quick Open
+
+Navigation should match developer expectations.
+
+---
+
+# 109. Performance
+
+Editors should restore instantly.
+
+Large files
+
+Incremental loading
+
+Syntax highlighting
+
+Background parsing
+
+Workspace scrolling
+
+60 FPS
+
+---
+
+# 110. Rules
+
+The Workspace SHALL
+
+Support multiple tabs.
+
+Support split editors.
+
+Persist sessions.
+
+Support keyboard navigation.
+
+Support drag-and-drop.
+
+Support external file changes.
+
+The Workspace SHALL NOT
+
+Contain AI conversations.
+
+Contain execution approval.
+
+Contain connection management.
+
+Contain system health.
+
+Those belong elsewhere.
+
+-----
+
+I Think We Just Found Another Big Improvement
+
+As I was writing this, something clicked.
+
+I don't think Mission and Workspace should always be visible at the same size.
+
+Right now our mockup shows:
+
+Explorer | Mission | Inspector
+
+But once you open a SQL file...
+
+I think the layout should become:
+
+Explorer | Mission | Workspace | Inspector
+
+Like this:
+
+┌────────┬────────────┬──────────────────────
+│        │            │                      │              │
+│        │            │                      │              │
+│Project │ Mission    │     SQL Editor       │ Inspector    │
+│        │            │                      │              │
+│        │            │                      │              │
+└────────┴────────────┴──────────────────────
+Why this is important
+
+The Mission isn't where you edit.
+
+It's where you manage work.
+
+The Workspace is where you do work.
+
+That's a subtle but powerful distinction.
+
+
+----
+
+My Favorite Idea So Far
+
+I think we should stop thinking of the center of Apex Pilot as a single panel.
+
+Instead, think of it as three cooperating columns:
+
+Explorer
+
+↓
+
+Mission
+
+↓
+
+Workspace
+
+↓
+
+Inspector
+
+Each answers a different question:
+
+| Column    | Question                        |
+| --------- | ------------------------------- |
+| Explorer  | What exists?                    |
+| Mission   | What am I trying to accomplish? |
+| Workspace | What am I editing?              |
+| Inspector | Can I trust this?               |
+
+
+I absolutely love this model.
+
+It doesn't feel like Cursor.
+
+It doesn't feel like SQL Developer.
+
+It doesn't feel like Claude.
+
+It feels like Apex Pilot.
+
+
+---
+
+# 111. Workflow Engine
+
+## Purpose
+
+Every action performed by Apex Pilot follows a defined workflow.
+
+The application does not execute work immediately after a user prompt.
+
+Instead, work progresses through explicit stages.
+
+This provides transparency, predictability, and user confidence.
+
+The workflow engine is independent of AI provider.
+
+Whether a task originates from AI, a template, or manual input, the same lifecycle applies.
+
+---
+
+# 112. Standard Workflow
+
+Every Mission follows the same progression.
+
+```
+Intent
+    ↓
+Planning
+    ↓
+Review Plan
+    ↓
+Generate SQL
+    ↓
+Review SQL
+    ↓
+Classification
+    ↓
+Execute
+    ↓
+Audit
+```
+
+No stage may be skipped.
+
+---
+
+# 113. Workflow States
+
+Every Mission has exactly one active state.
+
+States
+
+Draft
+
+Planning
+
+Waiting for Plan Review
+
+Generating SQL
+
+Waiting for SQL Review
+
+Ready to Execute
+
+Executing
+
+Completed
+
+Cancelled
+
+Failed
+
+Offline
+
+The Inspector reflects the active state.
+
+---
+
+# 114. Intent
+
+Intent begins when the user creates a Mission.
+
+Intent may originate from
+
+Prompt
+
+Selected database object
+
+Project file
+
+APEX page
+
+REST endpoint
+
+Existing SQL
+
+Template
+
+Intent captures
+
+Goal
+
+Context
+
+Relevant objects
+
+Current connection
+
+Working schema
+
+No SQL exists during this stage.
+
+---
+
+# 115. Planning
+
+Planning is performed before SQL generation.
+
+The purpose of planning is to verify that the AI correctly understands the user's request.
+
+Planning produces
+
+Objectives
+
+Tasks
+
+Dependencies
+
+Estimated objects
+
+Estimated SQL statements
+
+Estimated risk
+
+Warnings
+
+The plan should be understandable without reading SQL.
+
+---
+
+# 116. Plan Review
+
+The user reviews the proposed plan.
+
+Available actions
+
+Approve
+
+Revise Prompt
+
+Cancel
+
+Open Details
+
+The workflow cannot advance until the plan is approved.
+
+---
+
+# 117. SQL Generation
+
+After plan approval
+
+SQL is generated.
+
+Generated SQL becomes immutable history.
+
+Subsequent revisions create new versions.
+
+SQL generation records
+
+Timestamp
+
+Generator
+
+Model
+
+Mission ID
+
+Version
+
+Classification Pending
+
+---
+
+# 118. SQL Review
+
+SQL review occurs before execution.
+
+The user may
+
+Read
+
+Copy
+
+Export
+
+Compare
+
+Open in Workspace
+
+Review with AI
+
+SQL review exists to verify implementation.
+
+---
+
+# 119. Classification
+
+Classification analyzes generated SQL.
+
+Possible values
+
+ALLOW
+
+PROMPT
+
+BLOCK
+
+Classification records
+
+Reason
+
+Rule
+
+Confidence
+
+Affected Objects
+
+Risk
+
+Classification completes before execution.
+
+Execution buttons remain hidden until classification completes.
+
+---
+
+# 120. Execution Review
+
+Immediately before execution
+
+Display
+
+Mission
+
+Project
+
+Environment
+
+Connection
+
+Connected As
+
+Working Schema
+
+Execution Tool
+
+Classification
+
+Statement Count
+
+Warnings
+
+The purpose is to eliminate ambiguity.
+
+---
+
+# 121. Execution
+
+Execution occurs through SQLcl MCP.
+
+The UI should never imply that Apex Pilot executes SQL directly.
+
+Execution records
+
+Start Time
+
+End Time
+
+Duration
+
+Tool
+
+Connection
+
+Schema
+
+Statement Count
+
+Result
+
+Errors
+
+Warnings
+
+Execution streams progress live.
+
+---
+
+# 122. Completion
+
+Completion summarizes
+
+Mission
+
+Duration
+
+Statements
+
+Warnings
+
+Errors
+
+Affected Objects
+
+Audit ID
+
+Links
+
+SQL
+
+Audit
+
+Workspace
+
+History
+
+---
+
+# 123. Failure
+
+Failure should never discard context.
+
+Users must retain
+
+Plan
+
+Generated SQL
+
+Logs
+
+Oracle errors
+
+MCP activity
+
+Retry options
+
+Failure becomes part of Mission history.
+
+---
+
+# 124. Cancellation
+
+Users may cancel
+
+Planning
+
+Generation
+
+Execution (where supported)
+
+Cancelled Missions remain searchable.
+
+---
+
+# 125. Offline
+
+If the backend becomes unavailable
+
+Current Mission pauses.
+
+Mission state changes to
+
+Offline
+
+The user receives
+
+Explanation
+
+Recovery options
+
+Reconnect
+
+Mission data remains intact.
+
+---
+
+# 126. Audit
+
+Every completed Mission creates an audit record.
+
+Audit includes
+
+Mission
+
+Prompt
+
+Plan
+
+SQL
+
+Classification
+
+Execution
+
+Results
+
+Timestamps
+
+Environment
+
+Audit records are immutable.
+
+---
+
+# 127. Versioning
+
+Every significant revision creates a new version.
+
+Examples
+
+Plan V1
+
+Plan V2
+
+SQL V1
+
+SQL V2
+
+Users may compare versions.
+
+History remains permanent.
+
+---
+
+# 128. Long Running Operations
+
+Operations exceeding three seconds display
+
+Current Stage
+
+Elapsed Time
+
+Current Action
+
+Estimated Remaining
+
+Cancel (if supported)
+
+The UI must remain responsive.
+
+---
+
+# 129. Multiple Missions
+
+Users may work on multiple Missions simultaneously.
+
+Only one Mission is active.
+
+Inactive Missions continue background work when appropriate.
+
+Mission switching preserves
+
+Timeline
+
+Inspector
+
+Workspace
+
+---
+
+# 130. Workflow Rules
+
+Every Mission SHALL
+
+Maintain complete history.
+
+Maintain version history.
+
+Preserve SQL.
+
+Preserve audit.
+
+Preserve Oracle errors.
+
+Support reopening.
+
+Every Mission SHALL NOT
+
+Execute automatically.
+
+Discard planning.
+
+Hide generated SQL.
+
+Skip review.
+
+Skip classification.
+
+Skip audit.
+
+---
+
+I Just Thought of Something Important
+
+This is a design decision, but I think it changes the entire experience.
+
+Don't call them "Chats"
+
+Don't call them "Conversations."
+
+Don't even call them "Sessions."
+
+Call them Missions everywhere.
+
+Imagine the Explorer:
+
+📂 Missions
+
+▶ Create Approval Workflow
+
+✓ Convert Report
+
+⚠ Refactor Package
+
+✓ Explain Trigger
+
+⏳ Build REST API
+
+
+Now imagine clicking one.
+
+Everything restores.
+
+Timeline
+Inspector
+SQL
+Open Workspace tabs
+Audit
+MCP Activity
+
+A Mission becomes a complete unit of work.
+
+That's far more meaningful than a chat history.
+
+---
+
+I Think We Need One More Permanent Panel
+
+This came to me while writing the workflow.
+
+I think the bottom panel shouldn't just be "Output."
+
+It should be a Developer Console with tabs:
+
+Problems
+
+Output
+
+MCP Activity
+
+SQL History
+
+Oracle Messages
+
+Downloads
+
+Tasks
+
+Notifications
+
+--
+
+Very VS Code.
+
+The key is that Mission answers what you're trying to do, while the Developer Console answers what the system is doing.
+
+That separation keeps the interface clean.
+
+
+---
+
+My Biggest Recommendation So Far
+
+I want to suggest one significant change to the original mockups.
+
+Instead of having the center be mostly chat, I think the primary screen should look something like this:
+
+┌────────────┬──────────────┬──────────────────────┬
+│            │              │                      │               │
+│ Explorer   │  Mission      │     Workspace        │   Inspector   │
+│            │              │                      │               │
+├────────────┴──────────────┴──────────────────────┴
+│ Developer Console                                                │
+└──────────────────────────────────────────────────
+
+
+
+----
+
+
+# 131. Interaction Principles
+
+## Purpose
+
+Interaction principles define how users interact with Apex Pilot.
+
+These rules exist to create consistency.
+
+Every new feature added to Apex Pilot should follow these principles unless a compelling reason exists to deviate.
+
+Users should never need to relearn the interface.
+
+---
+
+# 132. Interaction Hierarchy
+
+Every user action falls into one of four categories.
+
+Navigation
+
+Moves the user.
+
+Inspection
+
+Shows information.
+
+Editing
+
+Changes content.
+
+Execution
+
+Changes the database.
+
+Each category behaves differently.
+
+---
+
+# 133. Navigation
+
+Navigation never changes data.
+
+Examples
+
+Selecting an object
+
+Changing tabs
+
+Expanding folders
+
+Opening files
+
+Viewing SQL
+
+Navigation should always feel immediate.
+
+No confirmation dialogs.
+
+No loading overlays.
+
+---
+
+# 134. Inspection
+
+Inspection provides information.
+
+Examples
+
+Viewing dependencies
+
+Viewing generated SQL
+
+Viewing object details
+
+Viewing audit history
+
+Inspection is always read-only.
+
+Inspection should never have side effects.
+
+---
+
+# 135. Editing
+
+Editing modifies local content only.
+
+Examples
+
+SQL Editor
+
+Markdown
+
+Configuration
+
+Templates
+
+Editing never changes the database until execution occurs.
+
+Unsaved changes remain local.
+
+---
+
+# 136. Execution
+
+Execution changes Oracle.
+
+Execution always requires
+
+Context
+
+Classification
+
+Review
+
+Confirmation
+
+Audit
+
+Execution is the highest-trust interaction in the application.
+
+---
+
+# 137. Selection
+
+Single Click
+
+Select
+
+Double Click
+
+Open
+
+Triple Click
+
+Not used
+
+Selection updates
+
+Inspector
+
+Preview
+
+Status Bar
+
+Context Actions
+
+Without opening editors.
+
+---
+
+# 138. Context Menus
+
+Context menus expose object-specific actions.
+
+Menu order should remain consistent.
+
+Recommended order
+
+Open
+
+Edit
+
+Open in New Tab
+
+──────────────
+
+Explain with AI
+
+Generate
+
+Compare
+
+──────────────
+
+Copy Name
+
+Copy Path
+
+Reveal
+
+──────────────
+
+Pin
+
+Favorite
+
+──────────────
+
+Delete (if permitted)
+
+Dangerous actions remain separated.
+
+---
+
+# 139. Primary Buttons
+
+Every view contains one primary action.
+
+Examples
+
+Generate SQL
+
+Approve Plan
+
+Execute
+
+Retry
+
+Save
+
+Primary buttons always appear
+
+Bottom Right
+
+Or
+
+Top Right
+
+Never both.
+
+---
+
+# 140. Secondary Buttons
+
+Examples
+
+Cancel
+
+Back
+
+Copy
+
+Export
+
+Compare
+
+Secondary buttons never compete visually with primary actions.
+
+---
+
+# 141. Dangerous Actions
+
+Dangerous actions require additional emphasis.
+
+Examples
+
+Delete
+
+Drop
+
+Truncate
+
+Disconnect
+
+Reset
+
+Drop Project
+
+Dangerous buttons use
+
+Warning styling
+
+Confirmation
+
+Additional explanation
+
+Never icon-only.
+
+---
+
+# 142. Dialog Philosophy
+
+Dialogs interrupt work.
+
+Therefore
+
+Dialogs should be rare.
+
+Preferred alternatives
+
+Inspector
+
+Workspace
+
+Bottom Panel
+
+Inline expansion
+
+Use dialogs only when
+
+Confirmation
+
+Credentials
+
+Preferences
+
+File Picker
+
+System Modal
+
+---
+
+# 143. Confirmation Dialogs
+
+Confirmation dialogs always display
+
+Action
+
+Object
+
+Connection
+
+Working Schema
+
+Classification
+
+Impact
+
+Example
+
+```
+Execute SQL
+
+Connection
+
+DEV
+
+Connected As
+
+ADMIN
+
+Working Schema
+
+APEX_PILOT
+
+Classification
+
+PROMPT
+
+Statements
+
+18
+
+Proceed?
+```
+
+---
+
+# 144. Progress
+
+Long operations remain visible.
+
+Progress displays
+
+Current Step
+
+Elapsed Time
+
+Current Object
+
+Cancellation
+
+Progress never blocks navigation.
+
+---
+
+# 145. Toast Notifications
+
+Toast notifications communicate
+
+Success
+
+Information
+
+Warnings
+
+Never errors.
+
+Errors deserve dedicated presentation.
+
+Duration
+
+Success
+
+3 seconds
+
+Information
+
+5 seconds
+
+Pinned until dismissed
+
+Warnings
+
+Pinned
+
+---
+
+# 146. Error Presentation
+
+Errors require dedicated views.
+
+Display
+
+Problem
+
+Reason
+
+Oracle Error
+
+MCP Error
+
+Recovery
+
+Retry
+
+Copy
+
+Explain
+
+Never
+
+"Something went wrong."
+
+Always provide actionable detail.
+
+---
+
+# 147. Hover
+
+Hover should communicate affordance.
+
+Examples
+
+Buttons
+
+Links
+
+Objects
+
+Timeline entries
+
+Hover animations
+
+100–150ms
+
+No scaling effects.
+
+---
+
+# 148. Focus
+
+Keyboard focus remains highly visible.
+
+Focus ring
+
+2px
+
+High contrast
+
+Never rely on browser defaults.
+
+Keyboard users should navigate every feature.
+
+---
+
+# 149. Keyboard Navigation
+
+Everything should be keyboard accessible.
+
+Explorer
+
+Arrow Keys
+
+Mission
+
+Arrow Keys
+
+Workspace
+
+Standard editor shortcuts
+
+Inspector
+
+Tab
+
+Developer Console
+
+CTRL+`
+
+No mouse should be required.
+
+---
+
+# 150. Drag and Drop
+
+Supported
+
+Workspace Tabs
+
+Favorites
+
+Pinned Objects
+
+Project Files
+
+Future
+
+Mission Reordering
+
+Drag feedback should remain subtle.
+
+---
+
+# 151. Inline Editing
+
+Preferred over dialogs.
+
+Examples
+
+Rename
+
+Description
+
+Notes
+
+Labels
+
+Avoid
+
+Rename dialogs
+
+Unless required.
+
+---
+
+# 152. Empty States
+
+Every empty state answers
+
+What happened?
+
+Why?
+
+What should I do next?
+
+Example
+
+No Database Connection
+
+Connect to browse schema.
+
+[ Connect ]
+
+Never display empty whitespace.
+
+---
+
+# 153. Loading
+
+Loading should preserve layout.
+
+Preferred
+
+Skeletons
+
+Progressive rendering
+
+Lazy loading
+
+Avoid
+
+Large spinners
+
+Blank pages
+
+---
+
+# 154. Offline Behavior
+
+Offline mode should remain functional.
+
+Available
+
+Projects
+
+Mission History
+
+Workspace
+
+Documentation
+
+Unavailable
+
+Execution
+
+Schema Browsing
+
+Connection
+
+Explain limitations clearly.
+
+---
+
+# 155. Undo
+
+Whenever possible
+
+Support Undo.
+
+Examples
+
+Closing tabs
+
+Workspace layout
+
+Pinning
+
+Favorites
+
+Mission cancellation (where applicable)
+
+Execution cannot generally be undone.
+
+Communicate this clearly.
+
+---
+
+# 156. Interaction Rules
+
+Interactions SHALL
+
+Be predictable.
+
+Be reversible where possible.
+
+Respect user context.
+
+Preserve work.
+
+Require confirmation for destructive actions.
+
+Interactions SHALL NOT
+
+Move controls unexpectedly.
+
+Hide context.
+
+Require unnecessary dialogs.
+
+Block unrelated work.
+
+Interrupt typing.
+
+----
+
+I Think We Need One More Concept
+
+As I was writing this, I realized something that I haven't seen in any IDE.
+
+"Focus Modes"
+
+Not full-screen.
+
+Task-specific layouts.
+
+For example:
+
+🛠 Build Mode
+Explorer | Mission | Workspace | Inspector
+
+Default.
+
+🔍 Review Mode
+
+When reviewing AI-generated SQL:
+
+Mission | SQL Review | Inspector
+
+Explorer automatically collapses.
+
+Workspace expands.
+
+Inspector expands.
+
+Everything else gets out of the way.
+
+📚 Investigation Mode
+
+When exploring the schema:
+
+Explorer | Workspace | Inspector
+
+Mission collapses.
+
+Explorer widens.
+
+🤖 Mission Mode
+
+Working almost entirely with AI:
+
+Mission | Inspector
+
+Workspace minimizes until SQL or files are opened.
+
+🖥 Presentation Mode
+
+For demos or pair programming.
+
+Larger fonts.
+
+Reduced density.
+
+Simplified status indicators.
+
+Why I Like This
+
+One thing that has always bothered me about IDEs is that you spend half your time manually resizing panes.
+
+What if Apex Pilot did it intelligently?
+
+When your activity changes, the layout subtly adapts—never taking control away from you, but offering optimized arrangements for the task at hand. Users could pin a preferred mode or let Apex Pilot suggest one based on context.
+
+------
+
+I Think This Might Become Apex Pilot's "Wow" Feature
+
+I want to throw out one last idea because it ties everything together.
+
+Imagine the title bar showing not just the project, but your current focus:
+
+Apex Pilot
+
+Mission
+Creating Employee Approval Workflow
+
+Review Mode
+
+Or
+
+Apex Pilot
+
+Mission
+Refactor REST API
+
+Build Mode
+
+Or
+
+Apex Pilot
+
+Mission
+Investigate ORA-00942
+
+Investigation Mode
+
+It gives the application a sense of purpose. You're not just sitting in an IDE—you have an active mission, and the workspace adapts to help you complete it.
+
+----
+
+# 157. Design System
+
+## Purpose
+
+The Design System establishes the visual language of Apex Pilot.
+
+It ensures every panel, component, interaction, and workflow appears to belong to the same application.
+
+The design system prioritizes clarity, consistency, and readability over visual novelty.
+
+Every visual decision should support productivity.
+
+---
+
+# 158. Visual Personality
+
+Apex Pilot should feel
+
+Professional
+
+Purposeful
+
+Quiet
+
+Precise
+
+Dense
+
+Modern
+
+Stable
+
+Technical
+
+The interface should resemble a professional engineering workstation.
+
+It should not resemble
+
+A SaaS dashboard
+
+A marketing website
+
+A consumer application
+
+A gaming interface
+
+---
+
+# 159. Color Philosophy
+
+Color communicates information.
+
+Color never provides decoration.
+
+Neutral colors define structure.
+
+Accent colors define interaction.
+
+Status colors define meaning.
+
+The interface should remain usable if accent colors are removed.
+
+---
+
+# 160. Theme
+
+Dark theme is the primary experience.
+
+Light theme should be supported.
+
+Both themes share the same spacing, typography, sizing, and interaction rules.
+
+Only color values change.
+
+---
+
+# 161. Color Palette
+
+## Window Background
+
+#111315
+
+The darkest color in the application.
+
+Used only for the application frame.
+
+---
+
+## Primary Surface
+
+#181B20
+
+Primary panel backgrounds.
+
+Explorer
+
+Mission
+
+Workspace
+
+Inspector
+
+---
+
+## Secondary Surface
+
+#20242A
+
+Cards
+
+Headers
+
+Expandable sections
+
+Toolbars
+
+---
+
+## Elevated Surface
+
+#272C34
+
+Dialogs
+
+Context menus
+
+Dropdowns
+
+Floating panels
+
+---
+
+## Border
+
+#313844
+
+Used throughout the application.
+
+Borders define separation.
+
+Avoid shadows whenever possible.
+
+---
+
+## Accent
+
+#4F8CFF
+
+Primary interaction color.
+
+Buttons
+
+Selected rows
+
+Focus
+
+Links
+
+Progress
+
+---
+
+## Success
+
+#3FB950
+
+---
+
+## Warning
+
+#D29922
+
+---
+
+## Error
+
+#F85149
+
+---
+
+## Information
+
+#58A6FF
+
+---
+
+## Text Primary
+
+#F3F4F6
+
+---
+
+## Text Secondary
+
+#B7BDC8
+
+---
+
+## Text Disabled
+
+#6E7684
+
+---
+
+# 162. Surface Hierarchy
+
+Visual hierarchy should rely primarily on
+
+Contrast
+
+Spacing
+
+Typography
+
+Never shadows.
+
+Recommended
+
+Window
+
+↓
+
+Panels
+
+↓
+
+Section Headers
+
+↓
+
+Cards
+
+↓
+
+Interactive Elements
+
+---
+
+# 163. Borders
+
+Panels
+
+1px
+
+Cards
+
+1px
+
+Inputs
+
+1px
+
+Buttons
+
+0–1px
+
+Border radius
+
+Small.
+
+Professional.
+
+Never exaggerated.
+
+---
+
+# 164. Corner Radius
+
+Window
+
+0
+
+Panels
+
+6px
+
+Buttons
+
+6px
+
+Inputs
+
+6px
+
+Dialogs
+
+8px
+
+Menus
+
+6px
+
+Avoid pill-shaped controls.
+
+---
+
+# 165. Shadows
+
+Avoid shadows for permanent panels.
+
+Use shadows only for
+
+Dialogs
+
+Menus
+
+Tooltips
+
+Drag previews
+
+Floating windows
+
+Shadows should communicate elevation.
+
+Not style.
+
+---
+
+# 166. Typography
+
+Primary
+
+Inter
+
+Fallback
+
+Segoe UI
+
+System UI
+
+Code
+
+JetBrains Mono
+
+Fallback
+
+Cascadia Code
+
+Consolas
+
+---
+
+# 167. Type Scale
+
+Application Title
+
+22px
+
+Panel Titles
+
+16px
+
+Section Titles
+
+14px
+
+Body
+
+13px
+
+Metadata
+
+12px
+
+Status
+
+11px
+
+Buttons
+
+13px
+
+Code
+
+13px
+
+Maintain a compact hierarchy.
+
+---
+
+# 168. Font Weight
+
+Application
+
+700
+
+Panel Titles
+
+600
+
+Section Titles
+
+600
+
+Body
+
+400
+
+Metadata
+
+400
+
+Code
+
+400
+
+Avoid excessive bold text.
+
+---
+
+# 169. Icons
+
+Style
+
+Outlined
+
+Simple
+
+Consistent Stroke
+
+18px
+
+Use icons to improve scanning.
+
+Never rely on icons without labels.
+
+---
+
+# 170. Spacing System
+
+Base Unit
+
+4px
+
+Primary spacing increments
+
+4
+
+8
+
+12
+
+16
+
+24
+
+32
+
+Avoid arbitrary spacing.
+
+Every measurement should derive from the base unit.
+
+---
+
+# 171. Component Spacing
+
+Panel Padding
+
+12px
+
+Card Padding
+
+12px
+
+Section Gap
+
+16px
+
+Button Gap
+
+8px
+
+Toolbar Gap
+
+8px
+
+Input Padding
+
+8px
+
+Timeline Gap
+
+12px
+
+---
+
+# 172. Buttons
+
+Height
+
+32px
+
+Primary
+
+Filled
+
+Secondary
+
+Outlined
+
+Tertiary
+
+Text
+
+Danger
+
+Filled Red
+
+Avoid oversized buttons.
+
+---
+
+# 173. Inputs
+
+Height
+
+32px
+
+Search
+
+36px
+
+Radius
+
+6px
+
+Placeholder
+
+Secondary text
+
+Focus
+
+Accent border
+
+2px
+
+---
+
+# 174. Lists
+
+Row Height
+
+30px
+
+Compact
+
+26px
+
+Comfortable
+
+34px
+
+Allow user preference.
+
+---
+
+# 175. Tree View
+
+Indent
+
+16px
+
+Expand Icon
+
+Chevron
+
+Icons
+
+18px
+
+Row Highlight
+
+Accent Surface
+
+Selection persists.
+
+---
+
+# 176. Scrollbars
+
+Thin
+
+Overlay when possible
+
+Fade when inactive
+
+Never dominate the interface.
+
+---
+
+# 177. Motion
+
+Hover
+
+100ms
+
+Expand
+
+150ms
+
+Collapse
+
+150ms
+
+Dialogs
+
+180ms
+
+Progress
+
+Continuous
+
+Animations should communicate change.
+
+Never distract.
+
+---
+
+# 178. Focus
+
+Keyboard focus
+
+Always visible.
+
+2px accent outline.
+
+Do not rely on browser defaults.
+
+---
+
+# 179. Density Modes
+
+Compact
+
+Default
+
+Comfortable
+
+Changes
+
+Tree rows
+
+Tables
+
+Lists
+
+Padding
+
+Toolbar height
+
+Typography remains unchanged.
+
+---
+
+# 180. Empty States
+
+Include
+
+Simple illustration (optional)
+
+Short explanation
+
+Primary action
+
+Avoid decorative artwork.
+
+---
+
+# 181. Loading States
+
+Prefer
+
+Skeletons
+
+Progressive loading
+
+Incremental rendering
+
+Avoid
+
+Blank panels
+
+Large centered spinners
+
+---
+
+# 182. Visual Rules
+
+The interface SHALL
+
+Use consistent spacing.
+
+Use restrained color.
+
+Prioritize readability.
+
+Support long work sessions.
+
+The interface SHALL NOT
+
+Use gradients.
+
+Use glassmorphism.
+
+Use oversized cards.
+
+Use floating dashboards.
+
+Use unnecessary animation.
+
+Use decorative effects.
+
+---
+
+I Actually Want to Change One Big Thing
+
+Looking back at the mockups…
+
+I think they're still too blue.
+
+Not the accent.
+
+The surfaces.
+
+I would shift them to a warmer neutral.
+
+Instead of this:
+
+Blue-gray
+
+I'd go toward:
+
+Graphite
+Charcoal
+Slate
+
+Much closer to:
+
+JetBrains Rider
+IntelliJ New UI
+Raycast
+Warp
+Arc
+
+That makes the blue accent much stronger because it's one of the only saturated colors on screen.
+
+---
+
+Another Signature Idea
+
+This is something I don't think I've ever seen in an IDE.
+
+Adaptive Accent Colors
+
+The UI accent stays blue.
+
+But the Environment badge changes.
+
+For example:
+
+Development
+
+🟢 DEV
+
+Test
+
+🟡 TEST
+
+Stage
+
+🟠 STAGE
+
+Production
+
+🔴 PROD
+
+Imagine looking at the top Context Bar:
+
+Project: HR Portal
+
+Connection: PROD
+
+Working Schema: HR_APP
+
+Environment: 🔴 Production
+
+You would instantly know you're connected to production.
+
+No reading.
+
+No guessing.
+
+No hidden settings.
+
+Just immediate recognition.
+
+---
+
+# 183. Component Library
+
+## Purpose
+
+The Component Library defines every reusable UI component used throughout Apex Pilot.
+
+Every screen within the application should be composed from these components.
+
+Creating one-off controls should be avoided.
+
+Consistency is preferred over novelty.
+
+---
+
+# 184. Component Philosophy
+
+Every component should answer three questions.
+
+Purpose
+
+Why does it exist?
+
+Behavior
+
+How does it work?
+
+Appearance
+
+How should it look?
+
+Visual styling should never define a component.
+
+Its responsibility should.
+
+---
+
+# 185. Panel
+
+Purpose
+
+Primary layout container.
+
+Used for
+
+Explorer
+
+Mission
+
+Workspace
+
+Inspector
+
+Developer Console
+
+Structure
+
+```
+Panel
+
+Header
+
+Body
+
+Footer (optional)
+```
+
+Properties
+
+Resizable
+
+Collapsible
+
+Persistent
+
+Scrollable (Body only)
+
+Rules
+
+Headers never scroll.
+
+Footers remain pinned.
+
+---
+
+# 186. Panel Header
+
+Contains
+
+Title
+
+Icon
+
+Actions
+
+Search (optional)
+
+Status Badge (optional)
+
+Height
+
+40px
+
+Actions align right.
+
+Title aligns left.
+
+---
+
+# 187. Section
+
+Purpose
+
+Logical grouping of related information.
+
+Used throughout
+
+Inspector
+
+Settings
+
+Dialogs
+
+Mission Timeline
+
+Workspace
+
+Structure
+
+```
+Title
+
+Description (optional)
+
+Content
+```
+
+Spacing
+
+16px between sections.
+
+---
+
+# 188. Accordion
+
+Purpose
+
+Progressive disclosure.
+
+Used in
+
+Inspector
+
+Settings
+
+Object Details
+
+Properties
+
+Behavior
+
+Single or multiple sections may remain expanded.
+
+Expansion state persists while the panel remains open.
+
+Animation
+
+150ms
+
+---
+
+# 189. Card
+
+Cards are informational.
+
+Never dashboard widgets.
+
+Used for
+
+Mission Summary
+
+Plan Summary
+
+Execution Summary
+
+Connection Status
+
+Audit Summary
+
+Cards never contain complex interactions.
+
+Cards should remain compact.
+
+---
+
+# 190. Tree
+
+Purpose
+
+Hierarchical navigation.
+
+Used by
+
+Explorer
+
+Database Objects
+
+APEX
+
+REST
+
+Behavior
+
+Arrow keys
+
+Lazy loading
+
+Search integration
+
+Context menu
+
+Drag support
+
+---
+
+# 191. Timeline
+
+Purpose
+
+Display workflow history.
+
+Used by
+
+Mission
+
+Execution
+
+Audit
+
+Behavior
+
+Chronological
+
+Collapsible
+
+Persistent
+
+Never paginated.
+
+---
+
+# 192. Timeline Event
+
+Structure
+
+```
+Icon
+
+Title
+
+Status
+
+Timestamp
+
+Expand
+```
+
+Expandable
+
+Yes
+
+Selectable
+
+Yes
+
+Editable
+
+No
+
+---
+
+# 193. Badge
+
+Purpose
+
+Communicate state.
+
+Examples
+
+Connected
+
+Offline
+
+Modified
+
+Invalid
+
+Prompt
+
+Blocked
+
+Badges are informative.
+
+Never interactive.
+
+---
+
+# 194. Status Pill
+
+Purpose
+
+Represent environment.
+
+Examples
+
+DEV
+
+TEST
+
+STAGE
+
+PROD
+
+Different from badges.
+
+Status Pills remain permanently visible.
+
+Rounded rectangle.
+
+Never circular.
+
+---
+
+# 195. Button
+
+Variants
+
+Primary
+
+Secondary
+
+Ghost
+
+Danger
+
+Icon
+
+Loading
+
+Disabled
+
+Loading buttons retain width.
+
+Never resize.
+
+---
+
+# 196. Split Button
+
+Purpose
+
+Primary action with alternatives.
+
+Example
+
+Execute ▼
+
+Options
+
+Execute
+
+Execute Selected
+
+Explain
+
+Preview
+
+Avoid overuse.
+
+---
+
+# 197. Icon Button
+
+Used for
+
+Refresh
+
+Close
+
+Collapse
+
+Expand
+
+Settings
+
+Tooltips required.
+
+Never use icon-only buttons for destructive actions.
+
+---
+
+# 198. Search Box
+
+Features
+
+Live filtering
+
+Clear button
+
+Keyboard shortcut
+
+Recent searches
+
+Optional object filters
+
+Always displayed at top of navigation panels.
+
+---
+
+# 199. Command Palette
+
+Keyboard
+
+CTRL+SHIFT+P
+
+Purpose
+
+Quick access to commands.
+
+Examples
+
+Connect
+
+Open Package
+
+Run SQL
+
+Generate Plan
+
+Explain Object
+
+Toggle Theme
+
+Searches
+
+Commands
+
+Objects
+
+Files
+
+Pages
+
+Recent Missions
+
+---
+
+# 200. Tabs
+
+Properties
+
+Closable
+
+Pinned
+
+Dirty
+
+Drag Reorder
+
+Context Menu
+
+Preview Tabs (optional)
+
+Maximum width
+
+220px
+
+Minimum width
+
+100px
+
+---
+
+# 201. Data Table
+
+Features
+
+Sorting
+
+Filtering
+
+Column Resize
+
+Column Reorder
+
+Keyboard Navigation
+
+Copy
+
+Export
+
+Pagination only when required.
+
+Virtual scrolling preferred.
+
+---
+
+# 202. Property Grid
+
+Purpose
+
+Display object metadata.
+
+Two-column layout.
+
+```
+Property
+
+Value
+```
+
+Read-only by default.
+
+Used throughout the Inspector.
+
+---
+
+# 203. Key / Value Block
+
+Purpose
+
+Compact metadata.
+
+Example
+
+```
+Connected As
+
+ADMIN
+
+Working Schema
+
+APEX_PILOT
+
+Classification
+
+PROMPT
+```
+
+Frequently used throughout the Inspector.
+
+---
+
+# 204. Code Block
+
+Purpose
+
+Display generated SQL.
+
+Features
+
+Syntax highlighting
+
+Line numbers
+
+Copy
+
+Expand
+
+Readonly
+
+Search
+
+Never editable.
+
+---
+
+# 205. Code Editor
+
+Purpose
+
+Edit SQL and source files.
+
+Features
+
+Autocomplete
+
+Formatting
+
+Code folding
+
+Bookmarks
+
+Diagnostics
+
+Find
+
+Replace
+
+Diff
+
+Split View
+
+This is distinct from Code Block.
+
+---
+
+# 206. Notification
+
+Types
+
+Information
+
+Success
+
+Warning
+
+Progress
+
+Notifications appear
+
+Upper right.
+
+Never center screen.
+
+---
+
+# 207. Dialog
+
+Dialog Types
+
+Confirmation
+
+Connection
+
+Preferences
+
+File Picker
+
+Import
+
+Export
+
+Dialogs remain focused.
+
+Avoid large wizard-style experiences.
+
+---
+
+# 208. Wizard
+
+Reserved for
+
+Project Creation
+
+Connection Creation
+
+Profile Import
+
+Major Setup
+
+Never use wizards for routine work.
+
+---
+
+# 209. Context Menu
+
+Maximum depth
+
+One submenu.
+
+Avoid cascading menus.
+
+Target
+
+Object specific.
+
+---
+
+# 210. Toolbar
+
+Supports
+
+Buttons
+
+Separators
+
+Dropdowns
+
+Search
+
+Flexible spacing
+
+Never wraps.
+
+---
+
+# 211. Breadcrumb
+
+Purpose
+
+Display current location.
+
+Optional.
+
+Workspace only.
+
+---
+
+# 212. Divider
+
+Horizontal
+
+Vertical
+
+Subtle.
+
+Used to improve readability.
+
+Never decorative.
+
+---
+
+# 213. Empty State
+
+Contains
+
+Icon
+
+Explanation
+
+Suggested action
+
+Primary button
+
+Never illustrations larger than 120px.
+
+---
+
+# 214. Loading Placeholder
+
+Skeleton rows.
+
+Skeleton cards.
+
+Skeleton trees.
+
+Avoid spinning indicators whenever possible.
+
+---
+
+# 215. Tooltip
+
+Delay
+
+500ms
+
+Maximum width
+
+320px
+
+Support Markdown.
+
+Support keyboard focus.
+
+---
+
+# 216. Rules
+
+Components SHALL
+
+Remain reusable.
+
+Support keyboard interaction.
+
+Support dark and light themes.
+
+Support accessibility.
+
+Components SHALL NOT
+
+Contain business logic.
+
+Depend on screen location.
+
+Duplicate functionality.
+
+Require custom implementations for common patterns.
+
+
+---
+
+
+I Think We Just Found Another Major Feature
+
+While writing the component library, something occurred to me.
+
+I think Apex Pilot needs a Universal Object Card.
+
+Not a dialog.
+
+Not a preview.
+
+A reusable component that can represent anything.
+
+Imagine clicking:
+
+a package,
+a table,
+an APEX page,
+a REST module,
+a SQL script,
+even a Mission.
+
+Everywhere in the application, it could render like this:
+
+📦 employee_api
+
+Package
+
+Status
+✓ Valid
+
+Owner
+APEX_PILOT
+
+Modified
+2 hours ago
+
+Dependencies
+14
+
+Open
+
+Explain
+
+Compare
+
+Now imagine a table:
+
+📋 EMPLOYEE
+
+Table
+
+Rows
+14,281
+
+Columns
+23
+
+Indexes
+4
+
+Dependencies
+18
+
+Open
+
+Generate Documentation
+
+Explain
+
+Same component.
+
+Different data.
+
+That consistency would make the UI feel incredibly polished.
+
+
+---
+
+
+One More Idea (This is my favorite component so far)
+
+Instead of showing "cards" everywhere...
+
+I think Apex Pilot should use what I'm calling Information Blocks.
+
+Think JetBrains' property inspectors.
+
+For example, instead of this:
+
+Connected As
+ADMIN
+
+Working Schema
+APEX_PILOT
+
+Environment
+DEV
+
+Render it as compact blocks:
+
+Connected As
+┌───────────┐
+│ ADMIN         │
+└───────────┘
+
+Working Schema
+┌───────────┐
+│ APEX_PILOT    │
+└───────────┘
+
+Environment
+┌───────────┐
+│ DEV           │
+└───────────┘
+
+They're subtle—not flashy—but they create visual rhythm and make metadata much easier to scan. I can imagine using them throughout the Inspector, connection dialogs, audit views, object viewers, and even the status area. They would become one of those quiet design details that gives Apex Pilot its own visual identity without drawing attention to themselves.
+
+---
+
+# 217. Developer Console
+
+## Purpose
+
+The Developer Console provides visibility into the operational behavior of Apex Pilot.
+
+Unlike the Mission Workspace, which represents user intent, the Developer Console represents system activity.
+
+The console answers the question:
+
+"What is Apex Pilot doing right now?"
+
+It is always available.
+
+It may be collapsed.
+
+It is never modal.
+
+---
+
+# 218. Design Philosophy
+
+The console is intended for transparency.
+
+It should never overwhelm the user.
+
+Routine activity remains concise.
+
+Detailed diagnostics remain available on demand.
+
+The console should feel similar to the output windows found in professional IDEs.
+
+---
+
+# 219. Layout
+
+```
+Developer Console
+
+────────────────────────────────────
+
+Tabs
+
+Body
+
+Status
+
+```
+
+Default height
+
+220px
+
+Minimum
+
+120px
+
+Maximum
+
+50% of window height
+
+Resizable by drag.
+
+---
+
+# 220. Console Tabs
+
+Recommended tabs
+
+Problems
+
+Output
+
+MCP Activity
+
+SQL History
+
+Oracle Messages
+
+Tasks
+
+Downloads
+
+Notifications
+
+Future additions should not require redesign.
+
+---
+
+# 221. Problems
+
+Purpose
+
+Surface actionable issues.
+
+Examples
+
+Compilation errors
+
+SQL syntax errors
+
+Missing files
+
+Connection failures
+
+Invalid objects
+
+Warnings
+
+Each problem includes
+
+Severity
+
+Object
+
+Description
+
+Location
+
+Suggested action
+
+Double-click opens the relevant object.
+
+---
+
+# 222. Output
+
+General application output.
+
+Examples
+
+Project opened
+
+Workspace restored
+
+Theme changed
+
+Settings saved
+
+Profile loaded
+
+Output is informational.
+
+Not diagnostic.
+
+---
+
+# 223. MCP Activity
+
+Purpose
+
+Display communication between Apex Pilot and SQLcl MCP.
+
+Each entry displays
+
+Timestamp
+
+Tool Name
+
+Status
+
+Duration
+
+Summary
+
+Example
+
+```
+10:42:13
+
+execute_sql
+
+Completed
+
+312 ms
+
+18 statements executed
+```
+
+The default view is summarized.
+
+Users may expand individual entries for details.
+
+---
+
+# 224. MCP Details
+
+Expanded view
+
+```
+Tool
+
+execute_sql
+
+Connection
+
+DEV
+
+Working Schema
+
+APEX_PILOT
+
+Duration
+
+312 ms
+
+Input
+
+Hidden by default
+
+Output
+
+Available
+
+Result
+
+Success
+```
+
+Raw payloads remain optional.
+
+Most users should never need them.
+
+---
+
+# 225. SQL History
+
+Displays executed SQL.
+
+Columns
+
+Timestamp
+
+Connection
+
+Working Schema
+
+Classification
+
+Result
+
+Mission
+
+Statement Count
+
+Double-click
+
+Open SQL
+
+History persists across sessions.
+
+Filtering supported.
+
+---
+
+# 226. Oracle Messages
+
+Displays
+
+ORA errors
+
+Warnings
+
+Compilation output
+
+PL/SQL messages
+
+DBMS_OUTPUT
+
+Messages are grouped by Mission.
+
+---
+
+# 227. Tasks
+
+Displays long-running operations.
+
+Examples
+
+Planning
+
+Generating SQL
+
+Schema Refresh
+
+Loading Objects
+
+Import
+
+Export
+
+Columns
+
+Task
+
+Progress
+
+Duration
+
+Status
+
+Cancellation
+
+---
+
+# 228. Downloads
+
+Displays exported artifacts.
+
+Examples
+
+SQL Scripts
+
+Audit Reports
+
+Documentation
+
+Logs
+
+Open
+
+Reveal in Folder
+
+Retry
+
+---
+
+# 229. Notifications
+
+Displays non-critical notifications.
+
+Examples
+
+Update available
+
+New connection profile
+
+Mission completed
+
+Extension installed
+
+Notifications persist until dismissed.
+
+---
+
+# 230. Console Filtering
+
+Every tab supports filtering.
+
+Examples
+
+Severity
+
+Mission
+
+Connection
+
+Schema
+
+Time
+
+Status
+
+Search
+
+Filtering should be incremental.
+
+---
+
+# 231. Console Toolbar
+
+Toolbar actions
+
+Clear
+
+Copy
+
+Export
+
+Pause Auto Scroll
+
+Search
+
+Filter
+
+Toolbar contents adapt per tab.
+
+---
+
+# 232. Auto Scroll
+
+Enabled by default.
+
+Automatically disabled when the user scrolls upward.
+
+A "Jump to Latest" button appears.
+
+Behavior should match terminal applications.
+
+---
+
+# 233. Console Status
+
+Footer displays
+
+Current Task Count
+
+Error Count
+
+Warning Count
+
+Last Update
+
+Backend Status
+
+Example
+
+```
+Tasks 2
+
+Warnings 1
+
+Errors 0
+
+Backend Connected
+```
+
+---
+
+# 234. Context Integration
+
+Console entries link back into the application.
+
+Examples
+
+ORA-00942
+
+→ Opens SQL
+
+Mission
+
+→ Opens Mission
+
+Package
+
+→ Opens Package
+
+Connection
+
+→ Opens Connection Details
+
+Navigation should always preserve context.
+
+---
+
+# 235. Persistence
+
+History should remain available.
+
+Suggested retention
+
+Output
+
+Current session
+
+Problems
+
+Until resolved
+
+SQL History
+
+Configurable
+
+MCP Activity
+
+Configurable
+
+Notifications
+
+30 days
+
+Audit remains permanent.
+
+---
+
+# 236. Performance
+
+Console updates should never block the UI.
+
+Virtualized rendering required.
+
+Incremental loading preferred.
+
+Search should remain responsive regardless of history size.
+
+---
+
+# 237. Console Rules
+
+The Developer Console SHALL
+
+Remain docked.
+
+Support filtering.
+
+Support copying.
+
+Support searching.
+
+Support keyboard navigation.
+
+Preserve history.
+
+The Developer Console SHALL NOT
+
+Replace dialogs.
+
+Replace the Inspector.
+
+Replace Mission history.
+
+Duplicate Explorer functionality.
+
+
+---
+
+
+A Bigger Idea: The "Explain Everything" Philosophy
+
+The more I think about it, the more I believe every line in the Developer Console should answer four questions:
+
+Question	Example
+What happened?	SQL executed
+Why did it happen?	Mission requested execution
+How long did it take?	312 ms
+Can I investigate further?	Open Mission / Inspector / SQL
+
+That means instead of:
+
+execute_sql completed
+
+You'd see:
+
+execute_sql
+
+Mission
+Create Approval Workflow
+
+Connection
+DEV
+
+Working Schema
+APEX_PILOT
+
+Completed
+
+312 ms
+
+18 Statements
+
+Open →
+
+That's much more useful than a traditional log viewer.
+
+
+---
+
+
+One Design Principle I Want to Add
+
+After writing all these chapters, I think Apex Pilot should adopt a guiding philosophy that influences every screen:
+
+Never make the user wonder.
+
+If the user asks themselves:
+
+Which database am I connected to?
+Which schema is active?
+What SQL is about to run?
+Why is this blocked?
+What is the AI doing?
+What tool executed this?
+Where did that error come from?
+
+…the answer should already be visible somewhere in the interface.
+
+That single principle ties together the Explorer, Mission, Workspace, Inspector, and Developer Console. It reinforces the trust model you've been building from the beginning and, in my opinion, is what will make Apex Pilot feel like a professional engineering tool rather than a black-box AI assistant.
+
+
+---
+
+
+# 238. Dialogs & Wizards
+
+## Philosophy
+
+Dialogs interrupt productivity.
+
+Every dialog should justify its existence.
+
+Prefer:
+
+- Inspector
+- Inline editing
+- Side panels
+- Expandable sections
+
+Use dialogs only when user attention is required.
+
+---
+
+# 239. Dialog Types
+
+Only six dialog types should exist.
+
+Connection
+
+Confirmation
+
+Preferences
+
+Import / Export
+
+Project Creation
+
+System Alerts
+
+Everything else should be an Inspector panel or Workspace tab.
+
+---
+
+# 240. Dialog Layout
+
+All dialogs share a common structure.
+
+```
+────────────────────────────
+
+Title
+
+Description
+
+────────────────────────────
+
+Content
+
+────────────────────────────
+
+Secondary
+
+Primary
+
+```
+
+Maximum width
+
+720px
+
+Large dialogs
+
+960px
+
+Avoid fullscreen dialogs.
+
+---
+
+# 241. Confirmation Dialogs
+
+Every confirmation dialog must answer
+
+What?
+
+Where?
+
+Who?
+
+Impact?
+
+Example
+
+Execute SQL
+
+Project
+
+HR Portal
+
+Connection
+
+DEV
+
+Connected As
+
+ADMIN
+
+Working Schema
+
+APEX_PILOT
+
+Classification
+
+PROMPT
+
+Statements
+
+18
+
+Buttons
+
+Cancel
+
+Execute
+
+---
+
+# 242. Wizard Philosophy
+
+Only major workflows deserve wizards.
+
+Examples
+
+Create Project
+
+Import Project
+
+Create Connection
+
+Import Connections
+
+Everything else should remain inline.
+
+---
+
+# 243. Wizard Layout
+
+```
+Steps
+
+│
+
+Content
+
+│
+
+Footer
+```
+
+Steps remain visible.
+
+Users always know progress.
+
+---
+
+# 244. Wizard Navigation
+
+Back
+
+Next
+
+Finish
+
+Cancel
+
+No hidden steps.
+
+No branching UI.
+
+---
+
+# 245. Project Creation Wizard
+
+Steps
+
+Project Details
+
+Location
+
+Git
+
+Connection (Optional)
+
+Summary
+
+Finish
+
+---
+
+# 246. Connection Wizard
+
+Steps
+
+Connection Type
+
+Credentials
+
+Validation
+
+Working Schema
+
+Summary
+
+Save
+
+Connection testing occurs before Finish.
+
+---
+
+# 247. Import Wizard
+
+Supports
+
+SQL Developer
+
+Oracle SQLcl
+
+JSON
+
+YAML
+
+Encrypted exports
+
+Preview imported profiles before saving.
+
+---
+
+# 248. Preferences
+
+Preferences never use a wizard.
+
+Structure
+
+General
+
+Editor
+
+Appearance
+
+Connections
+
+AI
+
+MCP
+
+Updates
+
+Advanced
+
+---
+
+# 249. System Alerts
+
+Reserved for
+
+Fatal errors
+
+Corrupt project
+
+Missing SQLcl
+
+MCP unavailable
+
+Unexpected failures
+
+Never used for normal warnings.
+
+
+----
+
+# 250. Connection & Profile Management
+
+## Philosophy
+
+Connections are one of the most important concepts in Apex Pilot.
+
+The UI should make accidental execution against the wrong database extremely difficult.
+
+---
+
+# 251. Terminology
+
+Connection
+
+The authenticated Oracle login.
+
+Connected As
+
+The Oracle user.
+
+Working Schema
+
+The schema receiving unqualified SQL.
+
+Environment
+
+DEV / TEST / STAGE / PROD
+
+Mission
+
+Current unit of work.
+
+These terms must never be used interchangeably.
+
+---
+
+# 252. Context Bar
+
+Always visible.
+
+```
+Project
+
+HR Portal
+
+Environment
+
+🟢 DEV
+
+Connected As
+
+ADMIN
+
+Working Schema
+
+APEX_PILOT
+
+Mission
+
+Create Approval Workflow
+```
+
+Never hide this information.
+
+---
+
+# 253. Connection Switcher
+
+Selecting a new connection displays
+
+Environment
+
+Database
+
+Version
+
+Connected As
+
+Working Schema
+
+Status
+
+Latency
+
+Last Connected
+
+---
+
+# 254. Profile Structure
+
+Every saved profile includes
+
+Name
+
+Description
+
+Environment
+
+Username
+
+Database Alias
+
+Default Schema
+
+Authentication Type
+
+Favorite
+
+Last Used
+
+Color
+
+---
+
+# 255. Authentication
+
+Support
+
+Username / Password
+
+Wallet
+
+OS Authentication
+
+External Authentication
+
+Future
+
+OAuth
+
+Cloud IAM
+
+---
+
+# 256. Validation
+
+Profiles display
+
+Connected
+
+Offline
+
+Expired
+
+Authentication Failed
+
+Unknown
+
+Validation occurs asynchronously.
+
+---
+
+# 257. Environment Identity
+
+Every environment receives
+
+Badge
+
+Color
+
+Icon
+
+Development
+
+Green
+
+Test
+
+Yellow
+
+Stage
+
+Orange
+
+Production
+
+Red
+
+Environment identity appears everywhere.
+
+---
+
+# 258. Working Schema Selection
+
+Working schema selection occurs independently.
+
+Changing schema never reconnects.
+
+Users must clearly understand this distinction.
+
+---
+
+# 259. Connection History
+
+Recent connections
+
+Favorite connections
+
+Pinned connections
+
+Recent schemas
+
+Persist locally.
+
+---
+
+# 260. Safety
+
+Before execution always display
+
+Environment
+
+Connection
+
+Connected As
+
+Working Schema
+
+Classification
+
+Mission
+
+No exceptions.
+
+
+----
+
+
+# 261. Keyboard Shortcuts
+
+## Philosophy
+
+Everything should be keyboard accessible.
+
+Keyboard interaction should equal or exceed VS Code.
+
+---
+
+General
+
+Ctrl+P
+
+Quick Open
+
+Ctrl+Shift+P
+
+Command Palette
+
+Ctrl+,
+
+Preferences
+
+Ctrl+Q
+
+Quick Documentation
+
+Ctrl+`
+
+Developer Console
+
+Ctrl+B
+
+Toggle Explorer
+
+Ctrl+Shift+I
+
+Toggle Inspector
+
+Ctrl+Shift+M
+
+Toggle Mission
+
+Ctrl+Alt+W
+
+Toggle Workspace Focus
+
+---
+
+Mission
+
+Ctrl+Enter
+
+Execute Primary Action
+
+Ctrl+Shift+Enter
+
+Generate Plan
+
+Esc
+
+Cancel Current Action
+
+---
+
+Workspace
+
+Ctrl+N
+
+New SQL
+
+Ctrl+S
+
+Save
+
+Ctrl+Shift+S
+
+Save As
+
+Ctrl+W
+
+Close Tab
+
+Ctrl+Tab
+
+Next Tab
+
+Ctrl+Shift+Tab
+
+Previous Tab
+
+Alt+Left
+
+Navigate Back
+
+Alt+Right
+
+Navigate Forward
+
+---
+
+Explorer
+
+Arrow Keys
+
+Navigate
+
+Enter
+
+Open
+
+Space
+
+Preview
+
+Delete
+
+Remove Favorite (when applicable)
+
+---
+
+SQL Editor
+
+F5
+
+Execute
+
+Shift+F5
+
+Execute Selected
+
+Ctrl+/
+
+Comment
+
+Ctrl+Space
+
+Autocomplete
+
+Ctrl+Shift+F
+
+Format SQL
+
+F12
+
+Go to Definition
+
+Alt+F12
+
+Peek Definition
+
+---
+
+Inspector
+
+Tab
+
+Next Section
+
+Shift+Tab
+
+Previous
+
+Enter
+
+Expand
+
+Space
+
+Toggle
+
+---
+
+Developer Console
+
+Ctrl+L
+
+Clear
+
+Ctrl+F
+
+Search
+
+Ctrl+Shift+C
+
+Copy Selection
+
+---
+
+Future
+
+All shortcuts configurable.
+
+---
+
+# 262. Animation & Motion
+
+## Philosophy
+
+Motion should communicate.
+
+Never decorate.
+
+---
+
+Durations
+
+Hover
+
+100ms
+
+Expand
+
+150ms
+
+Collapse
+
+150ms
+
+Dialogs
+
+180ms
+
+Notifications
+
+180ms
+
+Panel Resize
+
+0ms
+
+Immediate
+
+---
+
+Panel Behavior
+
+Explorer
+
+Instant resize
+
+Mission
+
+Smooth collapse
+
+Inspector
+
+Smooth expansion
+
+Developer Console
+
+Slide
+
+Workspace
+
+Immediate
+
+---
+
+Loading
+
+Skeletons
+
+Incremental rendering
+
+Progressive updates
+
+Avoid
+
+Blocking overlays
+
+Spinners
+
+Flash transitions
+
+---
+
+Timeline
+
+New events fade.
+
+Status updates animate.
+
+Execution progress streams.
+
+---
+
+Focus
+
+Focus transitions
+
+150ms
+
+Never animate typing.
+
+---
+
+Mission Progress
+
+Planning
+
+↓
+
+Review
+
+↓
+
+Execution
+
+↓
+
+Audit
+
+Each stage gently expands.
+
+Completed stages remain visible.
+
+---
+
+Accessibility
+
+Respect
+
+prefers-reduced-motion
+
+Disable nonessential animations.
+
+---
+
+# 263. React / Tauri Architecture
+
+## Layout
+
+<AppShell>
+
+    <TitleBar />
+
+    <ContextBar />
+
+    <MainLayout>
+
+        <Explorer />
+
+        <Mission />
+
+        <Workspace />
+
+        <Inspector />
+
+    </MainLayout>
+
+    <DeveloperConsole />
+
+    <StatusBar />
+
+</AppShell>
+
+---
+
+Every panel owns only presentation.
+
+Business logic lives elsewhere.
+
+Panels communicate through application state.
+
+---
+
+Recommended Libraries
+
+React 19
+
+TypeScript
+
+Tauri 2
+
+TanStack Router
+
+TanStack Query
+
+Zustand
+
+React Aria
+
+Monaco Editor
+
+React Virtuoso
+
+Floating UI
+
+Framer Motion (light usage)
+
+React Hook Form
+
+Zod
+
+---
+
+State Ownership
+
+Project Store
+
+Connection Store
+
+Mission Store
+
+Workspace Store
+
+Inspector Store
+
+Console Store
+
+Settings Store
+
+No component should directly depend on another component's state.
+
+---
+
+# 264. Design Tokens
+
+Spacing
+
+4
+
+8
+
+12
+
+16
+
+24
+
+32
+
+48
+
+Radius
+
+0
+
+4
+
+6
+
+8
+
+12
+
+Typography
+
+Title
+
+22
+
+Panel
+
+16
+
+Section
+
+14
+
+Body
+
+13
+
+Metadata
+
+12
+
+Caption
+
+11
+
+Animation
+
+Fast
+
+100ms
+
+Normal
+
+150ms
+
+Dialog
+
+180ms
+
+Colors
+
+Surface
+
+Surface Elevated
+
+Border
+
+Accent
+
+Success
+
+Warning
+
+Danger
+
+Info
+
+Text Primary
+
+Text Secondary
+
+Text Disabled
+
+Scrollbar
+
+Selection
+
+Focus
+
+Environment
+
+DEV
+
+#2EA043
+
+TEST
+
+#D29922
+
+STAGE
+
+#FB8500
+
+PROD
+
+#DA3633
+
+---
+
+# 265. Icon Catalogue
+
+Navigation
+
+Folder
+
+Folder Open
+
+File
+
+Search
+
+History
+
+Bookmark
+
+Pin
+
+Star
+
+Filter
+
+Refresh
+
+Settings
+
+Chevron
+
+Home
+
+Project
+
+Mission
+
+Tasks
+
+Timeline
+
+Workflow
+
+Checklist
+
+Play
+
+Pause
+
+Stop
+
+Complete
+
+Warning
+
+Error
+
+AI
+
+Sparkles
+
+Brain
+
+Robot
+
+Chat
+
+Plan
+
+Review
+
+Magic Wand
+
+Database
+
+Oracle
+
+Table
+
+View
+
+Package
+
+Procedure
+
+Function
+
+Trigger
+
+Sequence
+
+Index
+
+REST
+
+Globe
+
+API
+
+Route
+
+JSON
+
+SQL
+
+Document
+
+Code
+
+Terminal
+
+Console
+
+Connection
+
+Plug
+
+Database Link
+
+User
+
+Key
+
+Lock
+
+Unlock
+
+Wallet
+
+Shield
+
+Execution
+
+Play
+
+Pause
+
+Stop
+
+Clock
+
+History
+
+Audit
+
+Clipboard
+
+Copy
+
+Compare
+
+Diff
+
+Export
+
+Import
+
+Download
+
+Upload
+
+Developer
+
+Bug
+
+Logs
+
+Console
+
+Activity
+
+CPU
+
+Memory
+
+Network
+
+Window
+
+Split Horizontal
+
+Split Vertical
+
+Sidebar Left
+
+Sidebar Right
+
+Panel Bottom
+
+Maximize
+
+Minimize
+
+Restore
+
+General
+
+Success
+
+Warning
+
+Error
+
+Information
+
+Help
+
+Light
+
+Dark
+
+Moon
+
+Sun
+
+Keyboard
+
+Mouse
+
+Accessibility
+
+Use a single icon library.
+
+Recommended
+
+Lucide
+
+or
+
+Phosphor
+
+Avoid mixing icon sets.
+
+
+---
+
+
+My Final Recommendation
+
+After writing the equivalent of a full product specification, I think Apex Pilot has evolved into something much more distinctive than the original concept. If I were joining the project as the product design lead, I would make these recommendations before any significant implementation begins:
+
+1. Lock the Information Architecture First
+
+Treat these as the permanent top-level concepts of the application:
+
+Explorer — What exists?
+Mission — What am I trying to accomplish?
+Workspace — What am I editing?
+Inspector — Can I trust this?
+Developer Console — What is the system doing?
+Status Bar — What is the current environment and health?
+
+Every future feature should fit naturally into one of these areas. If it doesn't, rethink the feature rather than adding another panel.
+
+2. Make "Mission" the Defining Concept
+
+This is the biggest opportunity to differentiate Apex Pilot.
+
+Don't imitate chat-based AI tools.
+
+Users should think in terms of missions, not conversations.
+
+Every mission becomes:
+
+A planning record
+A review record
+An execution record
+An audit record
+A reusable history item
+
+That's a much stronger mental model for database development.
+
+3. Make the Inspector the Trust Center
+
+If users say, "I trust Apex Pilot," it won't be because of the AI.
+
+It will be because the Inspector consistently answers:
+
+What is going to happen?
+Why is it happening?
+Where is it happening?
+What executed it?
+What changed?
+What can I do next?
+4. Optimize for Long Sessions
+
+Every design decision should assume users spend 8+ hours a day in Apex Pilot.
+
+That means:
+
+Dense layouts
+Excellent keyboard support
+Minimal modal dialogs
+Consistent interaction patterns
+Fast navigation
+Low visual noise
+5. Build a Real Design System
+
+Before building features, implement the design system as reusable React components.
+
+Create components for:
+
+Panels
+Accordions
+Timeline
+Information Blocks
+Status Pills
+Universal Object Cards
+Inspector Sections
+Mission Events
+Console Tabs
+
+If you build those first, the rest of the UI will come together much faster and remain visually consistent.
+
+
+
+
+
