@@ -89,7 +89,8 @@ export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   showConsole: false,
   showJunkFiles: false,
   skipDestructiveSqlPrompt: false,
-  rightTools: ["mappings"],
+  // Legacy field; Inspector is no longer a tool-tab host (issue #36).
+  rightTools: [],
 });
 
 export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs => {
@@ -129,7 +130,7 @@ export const loadProjectTabs = (projectId: string): ProjectTabState => {
     }
     const parsed = JSON.parse(raw) as ProjectTabState;
     const openTabs = (parsed.openTabs ?? []).filter(
-      (tab) => tab.kind === "sql" || tab.kind === "file" || tab.kind === "mappings",
+      (tab) => tab.kind === "mission" || tab.kind === "sql" || tab.kind === "file",
     );
     const activeTabId =
       parsed.activeTabId && openTabs.some((tab) => tab.id === parsed.activeTabId)

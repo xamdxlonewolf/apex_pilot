@@ -547,11 +547,9 @@ describe("App", () => {
     for (const name of ["Files", "Database", "APEX", "REST", "Favorites", "Pinned", "Recent"]) {
       expect(within(explorerSections).getByRole("button", { name })).toBeInTheDocument();
     }
-    const inspectorTabs = within(screen.getByRole("region", { name: "Inspector" })).getByRole(
-      "tablist",
-      { name: "Inspector tabs" },
-    );
-    expect(within(inspectorTabs).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
+    const inspector = screen.getByRole("region", { name: "Inspector" });
+    expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Schema browser")).not.toBeInTheDocument();
     fireEvent.click(within(explorerSections).getByRole("button", { name: "Database" }));
     expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
@@ -580,10 +578,8 @@ describe("App", () => {
     expect(within(centerTabs).getByRole("tab", { name: "Mission" })).toBeInTheDocument();
     expect(within(centerTabs).getByRole("tab", { name: "SQL Editor" })).toBeInTheDocument();
 
-    const inspectorTabs = within(inspector).getByRole("tablist", {
-      name: "Inspector tabs",
-    });
-    expect(within(inspectorTabs).queryByRole("tab", { name: /SQL/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("tab", { name: /SQL/i })).not.toBeInTheDocument();
     expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
     expect(within(inspector).queryByLabelText(/^SQL$/)).not.toBeInTheDocument();
 
@@ -596,6 +592,33 @@ describe("App", () => {
     fireEvent.click(within(centerTabs).getByRole("tab", { name: "Mission" }));
     expect(within(mission).getByLabelText("Mission composer")).toBeInTheDocument();
     expect(within(mission).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
+  });
+
+  it("makes the right pane a pure Inspector with progress/classification/summaries/checklist and no tool tabs", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const inspector = await screen.findByRole("region", { name: "Inspector" });
+    expect(within(inspector).getByLabelText("Inspector panel")).toBeInTheDocument();
+    expect(within(inspector).getByRole("region", { name: "Workflow progress" })).toBeInTheDocument();
+    expect(within(inspector).getByRole("region", { name: "Classification" })).toBeInTheDocument();
+    expect(within(inspector).getByRole("region", { name: "Object summaries" })).toBeInTheDocument();
+    expect(within(inspector).getByRole("region", { name: "Checklist" })).toBeInTheDocument();
+
+    expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("tab", { name: /SQL/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("tab", { name: /^mappings$/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByLabelText("Project mappings")).not.toBeInTheDocument();
+    expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("button", { name: /^Run$/i })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("button", { name: /^Execute$/i })).not.toBeInTheDocument();
   });
 
   it("switches workspace density via settings and persists the profile preference", async () => {

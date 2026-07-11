@@ -2,9 +2,9 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "rea
 
 import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer } from "./Explorer";
+import { InspectorPanel } from "./InspectorPanel";
 import { MissionComposer } from "./MissionComposer";
 import { SqlSheet } from "./SqlSheet";
-import { ProjectMappings } from "./StartupFunnel";
 import {
   type ActivityEntry,
   type BackendConfig,
@@ -36,19 +36,13 @@ type WorkspaceTab = Readonly<{
   content?: string;
 }>;
 
-const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>(["mission", "sql"]);
-const INSPECTOR_TAB_KINDS = new Set<WorkspaceTabKind>(["mappings", "file"]);
+const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>(["mission", "sql", "file"]);
 
 const isCenterTab = (tab: WorkspaceTab): boolean => CENTER_TAB_KINDS.has(tab.kind);
-const isInspectorTab = (tab: WorkspaceTab): boolean => INSPECTOR_TAB_KINDS.has(tab.kind);
 
 const defaultCenterTabs = (): WorkspaceTab[] => [
   { id: "mission", kind: "mission", title: "Mission" },
   { id: "sql", kind: "sql", title: "SQL Editor" },
-];
-
-const defaultInspectorTabs = (): WorkspaceTab[] => [
-  { id: "mappings", kind: "mappings", title: "Mappings" },
 ];
 
 const restoreWorkspaceTabs = (
@@ -56,39 +50,29 @@ const restoreWorkspaceTabs = (
 ): Readonly<{
   tabs: WorkspaceTab[];
   activeCenterTabId: string | null;
-  activeInspectorTabId: string | null;
 }> => {
   const restored: WorkspaceTab[] =
     saved.openTabs.length > 0
       ? saved.openTabs
-          .filter((tab) => CENTER_TAB_KINDS.has(tab.kind) || INSPECTOR_TAB_KINDS.has(tab.kind))
+          .filter((tab) => CENTER_TAB_KINDS.has(tab.kind))
           .map((tab) => ({
             id: tab.id,
             kind: tab.kind,
             title: tab.kind === "sql" ? "SQL Editor" : tab.title,
             path: tab.path,
           }))
-      : [...defaultCenterTabs(), ...defaultInspectorTabs()];
+      : defaultCenterTabs();
 
   let tabs = restored;
   if (!tabs.some((tab) => tab.kind === "mission")) {
     tabs = [...defaultCenterTabs().filter((tab) => tab.kind === "mission"), ...tabs];
   }
   if (!tabs.some((tab) => tab.kind === "sql")) {
-    tabs = [
-      ...tabs.filter(isCenterTab),
-      ...defaultCenterTabs().filter((tab) => tab.kind === "sql"),
-      ...tabs.filter(isInspectorTab),
-    ];
-  }
-  if (!tabs.some((tab) => tab.kind === "mappings")) {
-    tabs = [...tabs, ...defaultInspectorTabs().filter((tab) => tab.kind === "mappings")];
+    tabs = [...tabs, ...defaultCenterTabs().filter((tab) => tab.kind === "sql")];
   }
 
   const centerTabs = tabs.filter(isCenterTab);
-  const inspectorTabs = tabs.filter(isInspectorTab);
   const centerIds = new Set(centerTabs.map((tab) => tab.id));
-  const inspectorIds = new Set(inspectorTabs.map((tab) => tab.id));
 
   const activeCenterTabId =
     (saved.activeCenterTabId && centerIds.has(saved.activeCenterTabId)
@@ -98,15 +82,7 @@ const restoreWorkspaceTabs = (
     centerTabs[0]?.id ??
     null;
 
-  const activeInspectorTabId =
-    (saved.activeInspectorTabId && inspectorIds.has(saved.activeInspectorTabId)
-      ? saved.activeInspectorTabId
-      : null) ??
-    (saved.activeTabId && inspectorIds.has(saved.activeTabId) ? saved.activeTabId : null) ??
-    inspectorTabs[0]?.id ??
-    null;
-
-  return { tabs, activeCenterTabId, activeInspectorTabId };
+  return { tabs, activeCenterTabId };
 };
 
 type IdeWorkspaceProps = Readonly<{
@@ -272,7 +248,6 @@ export const IdeWorkspace = ({
   const [tabsProjectId, setTabsProjectId] = useState<string | null>(null);
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeCenterTabId, setActiveCenterTabId] = useState<string | null>(null);
-  const [activeInspectorTabId, setActiveInspectorTabId] = useState<string | null>(null);
   const [workingSchema, setWorkingSchema] = useState("");
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -286,7 +261,6 @@ export const IdeWorkspace = ({
     setTabsProjectId(projectId);
     setTabs(restored.tabs);
     setActiveCenterTabId(restored.activeCenterTabId);
-    setActiveInspectorTabId(restored.activeInspectorTabId);
     setProjectSchemaOverride(schema);
     setWorkingSchema(schema ?? "");
     setSaveMessage(null);
@@ -326,11 +300,11 @@ export const IdeWorkspace = ({
         title: tab.title,
         path: tab.path,
       })),
-      activeTabId: activeCenterTabId ?? activeInspectorTabId,
+      activeTabId: activeCenterTabId,
       activeCenterTabId,
-      activeInspectorTabId,
+      activeInspectorTabId: null,
     });
-  }, [activeCenterTabId, activeInspectorTabId, openedProject.project.project_id, tabs]);
+  }, [activeCenterTabId, openedProject.project.project_id, tabs]);
 
   useEffect(() => {
     if (!isBackendOnline || isConnecting || connections.length === 0) {
@@ -389,11 +363,7 @@ export const IdeWorkspace = ({
 
   const openOrFocus = (tab: WorkspaceTab) => {
     setTabs((current) => (current.some((item) => item.id === tab.id) ? current : [...current, tab]));
-    if (isCenterTab(tab)) {
-      setActiveCenterTabId(tab.id);
-    } else {
-      setActiveInspectorTabId(tab.id);
-    }
+    setActiveCenterTabId(tab.id);
   };
 
   const closeTab = (tabId: string) => {
@@ -402,9 +372,6 @@ export const IdeWorkspace = ({
       const next = current.filter((tab) => tab.id !== tabId);
       if (closing && isCenterTab(closing) && activeCenterTabId === tabId) {
         setActiveCenterTabId(next.find(isCenterTab)?.id ?? null);
-      }
-      if (closing && isInspectorTab(closing) && activeInspectorTabId === tabId) {
-        setActiveInspectorTabId(next.find(isInspectorTab)?.id ?? null);
       }
       return next;
     });
@@ -474,10 +441,7 @@ export const IdeWorkspace = ({
   };
 
   const centerTabs = tabs.filter(isCenterTab);
-  const inspectorTabs = tabs.filter(isInspectorTab);
   const activeCenterTab = centerTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
-  const activeInspectorTab =
-    inspectorTabs.find((tab) => tab.id === activeInspectorTabId) ?? null;
   const backendHealth = backendHealthLabel(backendStatus);
   const mcpHealth = mcpHealthLabel(activityCount, Boolean(activeActivitySessionId));
   const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
@@ -697,6 +661,17 @@ export const IdeWorkspace = ({
                       onClick={() => setActiveCenterTabId(tab.id)}
                     >
                       {tab.title}
+                      {tab.kind === "file" ? (
+                        <span
+                          className="tab-close"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            closeTab(tab.id);
+                          }}
+                        >
+                          ×
+                        </span>
+                      ) : null}
                     </button>
                   ))}
                 </div>
@@ -716,6 +691,12 @@ export const IdeWorkspace = ({
                     onDirtyChange={onSqlDirtyChange}
                     onActivityRefresh={onActivityRefresh}
                   />
+                ) : null}
+                {activeCenterTab?.kind === "file" ? (
+                  <div className="file-preview">
+                    <p className="pane-muted">{activeCenterTab.path}</p>
+                    <pre>{activeCenterTab.content}</pre>
+                  </div>
                 ) : null}
                 {!activeCenterTab ? (
                   <p className="pane-muted">Open a center workspace tab.</p>
@@ -744,53 +725,14 @@ export const IdeWorkspace = ({
               />
             ) : null}
             <div className="ide-pane ide-pane--right">
-              <div className="pane-header pane-header--tabs">
-                <div className="tab-strip" role="tablist" aria-label="Inspector tabs">
-                  {inspectorTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab.id === activeInspectorTabId}
-                      className={tab.id === activeInspectorTabId ? "tab tab--active" : "tab"}
-                      onClick={() => setActiveInspectorTabId(tab.id)}
-                    >
-                      {tab.title}
-                      {tab.kind === "file" ? (
-                        <span
-                          className="tab-close"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            closeTab(tab.id);
-                          }}
-                        >
-                          ×
-                        </span>
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              </div>
               {saveMessage ? (
                 <p className="pane-muted connection-strip-message">{saveMessage}</p>
               ) : null}
-              <div className="pane-body">
-                {activeInspectorTab?.kind === "mappings" ? (
-                  <ProjectMappings
-                    backendConfig={backendConfig}
-                    connections={connections}
-                    openedProject={openedProject}
-                    onOpenedProjectChange={onOpenedProjectChange}
-                  />
-                ) : null}
-                {activeInspectorTab?.kind === "file" ? (
-                  <div className="file-preview">
-                    <p className="pane-muted">{activeInspectorTab.path}</p>
-                    <pre>{activeInspectorTab.content}</pre>
-                  </div>
-                ) : null}
-                {!activeInspectorTab ? <p className="pane-muted">Open an Inspector tab.</p> : null}
-              </div>
+              <InspectorPanel
+                projectName={openedProject.project.name}
+                connectionName={connectedConnection}
+                workingSchema={workingSchema}
+              />
             </div>
           </section>
         ) : null}
