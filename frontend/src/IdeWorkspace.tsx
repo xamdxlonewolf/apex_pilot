@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ChatPane } from "./ChatPane";
 import { FileTree } from "./FileTree";
@@ -13,14 +13,11 @@ import {
   type SchemaSummary,
 } from "./backend";
 import {
-  type ProfileLayoutPrefs,
-  loadProfileLayout,
-  loadProjectDefaults,
-  loadProjectTabs,
-  saveProfileLayout,
-  saveProjectDefaults,
-  saveProjectTabs,
-} from "./prefs";
+  clampConsoleHeight,
+  clampExplorerWidth,
+  clampInspectorWidth,
+} from "./panelLayout";
+import { type ProfileLayoutPrefs, loadProjectDefaults, loadProjectTabs, saveProjectDefaults, saveProjectTabs } from "./prefs";
 import { type FileTreeNode, joinPath, readTextFile } from "./projectFs";
 import {
   backendHealthLabel,
@@ -49,7 +46,10 @@ type IdeWorkspaceProps = Readonly<{
   onSelectedConnectionChange: (name: string) => void;
   onConnect: (connectionName?: string) => Promise<void> | void;
   isConnecting: boolean;
-  profileId: string | null;
+  layout: ProfileLayoutPrefs;
+  onLayoutChange: (
+    next: ProfileLayoutPrefs | ((current: ProfileLayoutPrefs) => ProfileLayoutPrefs),
+  ) => void;
   activityCount: number;
   activeActivitySessionId: string | null;
   onActivityRefresh: () => Promise<void>;
@@ -95,6 +95,72 @@ const defaultConnectionFromMappings = (openedProject: OpenedProject): string | n
   return openedProject.environment_mappings[0]?.sqlcl_connection_name ?? null;
 };
 
+type SplitAxis = "explorer" | "inspector" | "console";
+
+const PanelSplitter = ({
+  axis,
+  label,
+  onDelta,
+}: Readonly<{
+  axis: SplitAxis;
+  label: string;
+  onDelta: (delta: number) => void;
+}>) => {
+  const vertical = axis !== "console";
+
+  const startDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const target = event.currentTarget;
+    const pointerId = event.pointerId;
+    const origin = vertical ? event.clientX : event.clientY;
+    target.setPointerCapture(pointerId);
+
+    let last = origin;
+    const onMove = (moveEvent: PointerEvent) => {
+      const current = vertical ? moveEvent.clientX : moveEvent.clientY;
+      onDelta(current - last);
+      last = current;
+    };
+    const onUp = () => {
+      target.releasePointerCapture(pointerId);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  return (
+    <button
+      type="button"
+      className={
+        vertical
+          ? "panel-splitter panel-splitter--vertical"
+          : "panel-splitter panel-splitter--horizontal"
+      }
+      aria-label={label}
+      aria-orientation={vertical ? "vertical" : "horizontal"}
+      onPointerDown={startDrag}
+      onKeyDown={(event) => {
+        const step = event.shiftKey ? 24 : 8;
+        if (vertical && event.key === "ArrowLeft") {
+          event.preventDefault();
+          onDelta(-step);
+        } else if (vertical && event.key === "ArrowRight") {
+          event.preventDefault();
+          onDelta(step);
+        } else if (!vertical && event.key === "ArrowUp") {
+          event.preventDefault();
+          onDelta(-step);
+        } else if (!vertical && event.key === "ArrowDown") {
+          event.preventDefault();
+          onDelta(step);
+        }
+      }}
+    />
+  );
+};
+
 export const IdeWorkspace = ({
   backendConfig,
   backendStatus,
@@ -107,7 +173,8 @@ export const IdeWorkspace = ({
   onSelectedConnectionChange,
   onConnect,
   isConnecting,
-  profileId,
+  layout,
+  onLayoutChange,
   activityCount,
   activeActivitySessionId,
   onActivityRefresh,
@@ -115,20 +182,17 @@ export const IdeWorkspace = ({
   sqlDirty,
   onSqlDirtyChange,
 }: IdeWorkspaceProps) => {
-  const [layout, setLayout] = useState<ProfileLayoutPrefs>(() => loadProfileLayout(profileId));
+  const projectId = openedProject.project.project_id;
+  const [tabsProjectId, setTabsProjectId] = useState<string | null>(null);
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [workingSchema, setWorkingSchema] = useState("");
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    setLayout(loadProfileLayout(profileId));
-  }, [profileId]);
-
-  useEffect(() => {
-    const saved = loadProjectTabs(openedProject.project.project_id);
-    const defaults = loadProjectDefaults(openedProject.project.project_id);
+  if (projectId !== tabsProjectId) {
+    const saved = loadProjectTabs(projectId);
+    const defaults = loadProjectDefaults(projectId);
     const restored: WorkspaceTab[] =
       saved.openTabs.length > 0
         ? saved.openTabs.map((tab) => ({
@@ -142,31 +206,23 @@ export const IdeWorkspace = ({
             { id: "sql", kind: "sql", title: "SQL Sheet" },
             { id: "mappings", kind: "mappings", title: "Mappings" },
           ];
+    const schema = defaults.schemaName ?? defaultSchemaFromManifest(openedProject) ?? null;
+    setTabsProjectId(projectId);
     setTabs(restored);
     setActiveTabId(saved.activeTabId ?? restored[0]?.id ?? null);
-
-    const schema =
-      defaults.schemaName ??
-      defaultSchemaFromManifest(openedProject) ??
-      null;
     setProjectSchemaOverride(schema);
     setWorkingSchema(schema ?? "");
+    setSaveMessage(null);
+  }
 
+  useEffect(() => {
+    const defaults = loadProjectDefaults(openedProject.project.project_id);
     const connection =
-      defaults.connectionName ??
-      defaultConnectionFromMappings(openedProject) ??
-      "";
+      defaults.connectionName ?? defaultConnectionFromMappings(openedProject) ?? "";
     if (connection) {
       onSelectedConnectionChange(connection);
     }
   }, [openedProject, onSelectedConnectionChange]);
-
-  useEffect(() => {
-    if (!profileId) {
-      return;
-    }
-    saveProfileLayout(profileId, layout);
-  }, [layout, profileId]);
 
   useEffect(() => {
     saveProjectTabs(openedProject.project.project_id, {
@@ -260,7 +316,7 @@ export const IdeWorkspace = ({
       }
     }
     void (async () => {
-      let content = "";
+      let content: string;
       try {
         content = await readTextFile(node.path);
       } catch (error) {
@@ -319,16 +375,52 @@ export const IdeWorkspace = ({
   const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
   const environment = environmentIdentity(openedProject.manifest);
 
+  const bodyColumns = [
+    layout.showExplorer ? `${layout.leftWidth}px` : null,
+    // Spec §17 Conversation minimum width when Mission is visible.
+    layout.showMission ? "minmax(600px, 1fr)" : null,
+    layout.showInspector ? `${layout.rightWidth}px` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const consoleHeight = layout.showConsole ? layout.consoleHeight : 0;
+
   return (
     <div
-      className="ide-workspace"
+      className={
+        layout.showConsole ? "ide-workspace ide-workspace--console-open" : "ide-workspace"
+      }
       data-density="default"
       style={{
         ["--left-width" as string]: `${layout.leftWidth}px`,
         ["--right-width" as string]: `${layout.rightWidth}px`,
+        ["--console-height" as string]: `${consoleHeight}px`,
       }}
     >
-      <div className="ide-toolbar" role="toolbar" aria-label="Toolbar">
+      <div
+        className="ide-toolbar"
+        role="toolbar"
+        aria-label="Toolbar"
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+            return;
+          }
+          const items = Array.from(
+            event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled)"),
+          );
+          const index = items.indexOf(event.target as HTMLElement);
+          if (index < 0) {
+            return;
+          }
+          event.preventDefault();
+          const next =
+            event.key === "ArrowRight"
+              ? items[(index + 1) % items.length]
+              : items[(index - 1 + items.length) % items.length];
+          next?.focus();
+        }}
+      >
         <button type="button" className="chrome-button" disabled title="Not implemented yet">
           New SQL
         </button>
@@ -355,7 +447,31 @@ export const IdeWorkspace = ({
         </button>
       </div>
 
-      <div className="ide-context-bar" role="region" aria-label="Context Bar">
+      <div
+        className="ide-context-bar"
+        role="region"
+        aria-label="Context Bar"
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+            return;
+          }
+          const items = Array.from(
+            event.currentTarget.querySelectorAll<HTMLElement>(
+              "button:not(:disabled), select:not(:disabled), input:not(:disabled)",
+            ),
+          );
+          const index = items.indexOf(event.target as HTMLElement);
+          if (index < 0) {
+            return;
+          }
+          event.preventDefault();
+          const next =
+            event.key === "ArrowRight"
+              ? items[(index + 1) % items.length]
+              : items[(index - 1 + items.length) % items.length];
+          next?.focus();
+        }}
+      >
         <span className="context-field" aria-label="Project">
           <span className="context-label">Project</span>
           <strong>{openedProject.project.name}</strong>
@@ -411,116 +527,180 @@ export const IdeWorkspace = ({
         </div>
       </div>
 
-      <div className="ide-workspace-body">
-        <section className="ide-region ide-region--explorer" role="region" aria-label="Explorer">
-          <FileTree
-            rootPath={openedProject.project.root_path}
-            showJunk={layout.showJunkFiles}
-            onToggleJunk={() =>
-              setLayout((current) => ({ ...current, showJunkFiles: !current.showJunkFiles }))
-            }
-            onOpenFile={onOpenFile}
-          />
-        </section>
+      <div
+        className="ide-workspace-body"
+        style={{ gridTemplateColumns: bodyColumns || "minmax(0, 1fr)" }}
+      >
+        {layout.showExplorer ? (
+          <section
+            className="ide-region ide-region--explorer"
+            role="region"
+            aria-label="Explorer"
+          >
+            <FileTree
+              rootPath={openedProject.project.root_path}
+              showJunk={layout.showJunkFiles}
+              onToggleJunk={() =>
+                onLayoutChange((current) => ({
+                  ...current,
+                  showJunkFiles: !current.showJunkFiles,
+                }))
+              }
+              onOpenFile={onOpenFile}
+            />
+            {layout.showMission || layout.showInspector ? (
+              <PanelSplitter
+                axis="explorer"
+                label="Resize Explorer"
+                onDelta={(delta) =>
+                  onLayoutChange((current) => ({
+                    ...current,
+                    leftWidth: clampExplorerWidth(current.leftWidth + delta),
+                  }))
+                }
+              />
+            ) : null}
+          </section>
+        ) : null}
 
-        <section className="ide-region ide-region--mission" role="region" aria-label="Mission">
-          <ChatPane projectName={openedProject.project.name} />
-        </section>
+        {layout.showMission ? (
+          <section className="ide-region ide-region--mission" role="region" aria-label="Mission">
+            <ChatPane projectName={openedProject.project.name} />
+          </section>
+        ) : null}
 
-        <section className="ide-region ide-region--inspector" role="region" aria-label="Inspector">
-          <div className="ide-pane ide-pane--right">
-            <div className="pane-header pane-header--tabs">
-              <div className="tab-strip" role="tablist" aria-label="Inspector tabs">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab.id === activeTabId}
-                    className={tab.id === activeTabId ? "tab tab--active" : "tab"}
-                    onClick={() => setActiveTabId(tab.id)}
-                  >
-                    {tab.title}
-                    {tab.kind === "file" ? (
-                      <span
-                        className="tab-close"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          closeTab(tab.id);
-                        }}
-                      >
-                        ×
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
+        {layout.showInspector ? (
+          <section
+            className="ide-region ide-region--inspector"
+            role="region"
+            aria-label="Inspector"
+          >
+            {(layout.showExplorer || layout.showMission) ? (
+              <PanelSplitter
+                axis="inspector"
+                label="Resize Inspector"
+                onDelta={(delta) =>
+                  onLayoutChange((current) => ({
+                    ...current,
+                    rightWidth: clampInspectorWidth(current.rightWidth - delta),
+                  }))
+                }
+              />
+            ) : null}
+            <div className="ide-pane ide-pane--right">
+              <div className="pane-header pane-header--tabs">
+                <div className="tab-strip" role="tablist" aria-label="Inspector tabs">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab.id === activeTabId}
+                      className={tab.id === activeTabId ? "tab tab--active" : "tab"}
+                      onClick={() => setActiveTabId(tab.id)}
+                    >
+                      {tab.title}
+                      {tab.kind === "file" ? (
+                        <span
+                          className="tab-close"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            closeTab(tab.id);
+                          }}
+                        >
+                          ×
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {saveMessage ? (
+                <p className="pane-muted connection-strip-message">{saveMessage}</p>
+              ) : null}
+              <div className="pane-body">
+                {activeTab?.kind === "schema" ? (
+                  <SchemaBrowser
+                    backendConfig={backendConfig}
+                    connectedConnection={connectedConnection}
+                    isBackendOnline={isBackendOnline}
+                    projectSchemaOverride={projectSchemaOverride}
+                    workingSchema={workingSchema}
+                    onWorkingSchemaChange={handleWorkingSchemaChange}
+                    onActivityRefresh={onActivityRefresh}
+                    onSaveSummary={(summary) => void saveSchemaSummary(summary)}
+                  />
+                ) : null}
+                {activeTab?.kind === "sql" ? (
+                  <SqlSheet
+                    backendConfig={backendConfig}
+                    connectedConnection={connectedConnection}
+                    workingSchema={workingSchema}
+                    isBackendOnline={isBackendOnline}
+                    skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
+                    dirty={sqlDirty}
+                    onDirtyChange={onSqlDirtyChange}
+                    onActivityRefresh={onActivityRefresh}
+                  />
+                ) : null}
+                {activeTab?.kind === "mappings" ? (
+                  <ProjectMappings
+                    backendConfig={backendConfig}
+                    connections={connections}
+                    openedProject={openedProject}
+                    onOpenedProjectChange={onOpenedProjectChange}
+                  />
+                ) : null}
+                {activeTab?.kind === "file" ? (
+                  <div className="file-preview">
+                    <p className="pane-muted">{activeTab.path}</p>
+                    <pre>{activeTab.content}</pre>
+                  </div>
+                ) : null}
+                {!activeTab ? <p className="pane-muted">Open an Inspector tab.</p> : null}
               </div>
             </div>
-            {saveMessage ? (
-              <p className="pane-muted connection-strip-message">{saveMessage}</p>
-            ) : null}
-            <div className="pane-body">
-              {activeTab?.kind === "schema" ? (
-                <SchemaBrowser
-                  backendConfig={backendConfig}
-                  connectedConnection={connectedConnection}
-                  isBackendOnline={isBackendOnline}
-                  projectSchemaOverride={projectSchemaOverride}
-                  workingSchema={workingSchema}
-                  onWorkingSchemaChange={handleWorkingSchemaChange}
-                  onActivityRefresh={onActivityRefresh}
-                  onSaveSummary={(summary) => void saveSchemaSummary(summary)}
-                />
-              ) : null}
-              {activeTab?.kind === "sql" ? (
-                <SqlSheet
-                  backendConfig={backendConfig}
-                  connectedConnection={connectedConnection}
-                  workingSchema={workingSchema}
-                  isBackendOnline={isBackendOnline}
-                  skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
-                  dirty={sqlDirty}
-                  onDirtyChange={onSqlDirtyChange}
-                  onActivityRefresh={onActivityRefresh}
-                />
-              ) : null}
-              {activeTab?.kind === "mappings" ? (
-                <ProjectMappings
-                  backendConfig={backendConfig}
-                  connections={connections}
-                  openedProject={openedProject}
-                  onOpenedProjectChange={onOpenedProjectChange}
-                />
-              ) : null}
-              {activeTab?.kind === "file" ? (
-                <div className="file-preview">
-                  <p className="pane-muted">{activeTab.path}</p>
-                  <pre>{activeTab.content}</pre>
-                </div>
-              ) : null}
-              {!activeTab ? <p className="pane-muted">Open an Inspector tab.</p> : null}
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
+
+        {!layout.showExplorer && !layout.showMission && !layout.showInspector ? (
+          <p className="pane-muted workspace-empty">
+            All panels are hidden. Use View menu or panel shortcuts to restore them.
+          </p>
+        ) : null}
       </div>
 
-      <section
-        className="ide-region ide-region--console"
-        role="region"
-        aria-label="Developer Console"
-      >
-        <div className="pane-header">
-          <strong>Developer Console</strong>
-          <span className="stub-badge">Stub</span>
+      {layout.showConsole ? (
+        <div className="ide-console-dock">
+          <PanelSplitter
+            axis="console"
+            label="Resize Developer Console"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                consoleHeight: clampConsoleHeight(current.consoleHeight - delta),
+              }))
+            }
+          />
+          <section
+            className="ide-region ide-region--console"
+            role="region"
+            aria-label="Developer Console"
+          >
+            <div className="pane-header">
+              <strong>Developer Console</strong>
+              <span className="stub-badge">Stub</span>
+            </div>
+            <div className="console-body">
+              <p>Not implemented yet</p>
+              <p className="pane-muted">
+                Console tabs need the Developer Console ticket. Use View → MCP Activity for the
+                interim floating path.
+              </p>
+            </div>
+          </section>
         </div>
-        <div className="console-body">
-          <p>Not implemented yet</p>
-          <p className="pane-muted">
-            Console tabs need the Developer Console ticket. Use View → MCP Activity for the interim
-            floating path.
-          </p>
-        </div>
-      </section>
+      ) : null}
     </div>
   );
 };
