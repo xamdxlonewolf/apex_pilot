@@ -124,17 +124,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-07-11T21:55:35.838Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-07-11T21:55:35.838Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     },
     {
       "name": "issue-38-mcp-activity-console",
@@ -208,6 +209,10 @@
     {
       "at": "2026-07-11T21:50:37.810Z",
       "message": "issue-30-explorer-project-files: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-07-11T21:55:35.673Z",
+      "message": "issue-34-sql-editor-center: spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…"
     }
   ]
 }
