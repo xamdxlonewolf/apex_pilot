@@ -25,6 +25,8 @@ import {
   environmentIdentity,
   mcpHealthLabel,
 } from "./shellHealth";
+import { StubSurface } from "./StubSurface";
+import { stubActionProps } from "./stubConvention";
 
 type WorkspaceTab = Readonly<{
   id: string;
@@ -421,10 +423,10 @@ export const IdeWorkspace = ({
           next?.focus();
         }}
       >
-        <button type="button" className="chrome-button" disabled title="Not implemented yet">
+        <button type="button" className="chrome-button" {...stubActionProps()}>
           New SQL
         </button>
-        <button type="button" className="chrome-button" disabled title="Not implemented yet">
+        <button type="button" className="chrome-button" {...stubActionProps()}>
           Run
         </button>
         <button
@@ -687,17 +689,11 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Developer Console"
           >
-            <div className="pane-header">
-              <strong>Developer Console</strong>
-              <span className="stub-badge">Stub</span>
-            </div>
-            <div className="console-body">
-              <p>Not implemented yet</p>
-              <p className="pane-muted">
-                Console tabs need the Developer Console ticket. Use View → MCP Activity for the
-                interim floating path.
-              </p>
-            </div>
+            <StubSurface
+              title="Developer Console"
+              bodyClassName="console-body"
+              secondary="Console tabs need the Developer Console ticket. Use View → MCP Activity for the interim floating path."
+            />
           </section>
         </div>
       ) : null}

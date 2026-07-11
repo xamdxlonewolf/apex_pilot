@@ -389,11 +389,34 @@ describe("App", () => {
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
-    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
-    expect(screen.getByText("Stub")).toBeInTheDocument();
-    expect(screen.getByText("Not implemented yet")).toBeInTheDocument();
+    const consoleRegion = screen.getByRole("region", { name: "Developer Console" });
+    expect(consoleRegion).toBeInTheDocument();
+    expect(consoleRegion).toHaveTextContent("Stub");
+    expect(consoleRegion).toHaveTextContent("Not implemented yet");
+    expect(consoleRegion).not.toHaveTextContent(/\bGap\b/);
+    expect(consoleRegion).not.toHaveTextContent(/\bDS-/);
+    expect(consoleRegion).not.toHaveTextContent(/\bUI-\d+/);
+    expect(consoleRegion).not.toHaveTextContent(/sample row|execution succeeded|mock timeline/i);
+
+    const newSql = screen.getByRole("button", { name: "New SQL" });
+    const run = screen.getByRole("button", { name: "Run" });
+    expect(newSql).toBeDisabled();
+    expect(run).toBeDisabled();
+    expect(newSql).toHaveAttribute("title", "Not implemented yet");
+    expect(run).toHaveAttribute("title", "Not implemented yet");
+
+    // Working interim MCP path is not Stub-badged (migration until Console tabs land).
+    fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
+    const mcp = await screen.findByLabelText("MCP Activity");
+    expect(mcp).toBeInTheDocument();
+    expect(mcp).not.toHaveTextContent("Stub");
+    expect(mcp).not.toHaveTextContent("Not implemented yet");
+    expect(mcp).not.toHaveTextContent(/\bGap\b/);
 
     // Interim Mission content still hosts chat until Mission tickets land.
+    const mission = screen.getByRole("region", { name: "Mission" });
+    expect(mission).toBeInTheDocument();
+    expect(mission).not.toHaveTextContent("Stub");
     expect(screen.getByLabelText("Chat")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
