@@ -19,6 +19,8 @@ type SchemaBrowserProps = Readonly<{
   onWorkingSchemaChange: (schema: string, options?: { persist?: boolean }) => void;
   onActivityRefresh: () => Promise<void>;
   onSaveSummary?: (summary: SchemaSummary) => void;
+  /** Notify parent when the loaded schema catalog changes (Quick Open objects). */
+  onSummaryChange?: (summary: SchemaSummary | null) => void;
 }>;
 
 const withTimeout = <T,>(
@@ -62,6 +64,7 @@ export const SchemaBrowser = ({
   onWorkingSchemaChange,
   onActivityRefresh,
   onSaveSummary,
+  onSummaryChange,
 }: SchemaBrowserProps) => {
   const [summary, setSummary] = useState<SchemaSummary | null>(null);
   const [draftSchema, setDraftSchema] = useState(workingSchema);
@@ -70,6 +73,11 @@ export const SchemaBrowser = ({
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
   const autoLoadKey = useRef<string | null>(null);
 
+  const publishSummary = (next: SchemaSummary | null) => {
+    setSummary(next);
+    onSummaryChange?.(next);
+  };
+
   useEffect(() => {
     setDraftSchema(workingSchema);
   }, [workingSchema]);
@@ -77,7 +85,7 @@ export const SchemaBrowser = ({
   useEffect(() => {
     if (!connectedConnection) {
       autoLoadKey.current = null;
-      setSummary(null);
+      publishSummary(null);
       setActiveSchema(null);
       setBusy(false);
       setMessage("Not connected. Use Connect in the strip above.");
@@ -103,7 +111,7 @@ export const SchemaBrowser = ({
     if (options.allowStateUpdate && !options.allowStateUpdate()) {
       return;
     }
-    setSummary(next);
+    publishSummary(next);
     setActiveSchema(schema);
     setDraftSchema(schema);
     onWorkingSchemaChange(schema, {
@@ -149,7 +157,7 @@ export const SchemaBrowser = ({
         source: "manual",
       });
     } catch (error) {
-      setSummary(null);
+      publishSummary(null);
       setActiveSchema(null);
       setMessage(
         error instanceof Error
