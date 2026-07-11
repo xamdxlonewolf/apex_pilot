@@ -153,13 +153,13 @@
       "handoffPath": "handoffs/issue-38-mcp-activity-console.md",
       "startedAt": "2026-07-11T21:58:38.334Z",
       "finishedAt": "2026-07-11T22:12:28.021Z",
-      "lastUpdate": "2026-07-11T22:12:28.022Z",
+      "lastUpdate": "2026-07-11T22:12:30.878Z",
       "note": "respawned by local-cli (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
       "prNumber": 54,
       "failureMode": null,
-      "verification": null
+      "verification": "unit-test-verified"
     }
   ],
   "attention": [
@@ -262,6 +262,10 @@
     {
       "at": "2026-07-11T22:07:41.959Z",
       "message": "issue-38-mcp-activity-console: tool_call idle 325608ms; last=2026-07-11T22:02:16.350Z"
+    },
+    {
+      "at": "2026-07-11T22:12:30.878Z",
+      "message": "issue-38-mcp-activity-console: verification self-reported (unit-test-verified)"
     }
   ]
 }
