@@ -178,12 +178,12 @@
       "handoffPath": "handoffs/issue-36-inspector-panel.md",
       "startedAt": "2026-07-11T22:20:05.147Z",
       "finishedAt": "2026-07-11T22:45:03.613Z",
-      "lastUpdate": "2026-07-11T22:45:03.613Z",
+      "lastUpdate": "2026-07-11T22:45:06.497Z",
       "note": null,
       "slackTs": null,
       "prNumber": 55,
       "failureMode": null,
-      "verification": null,
+      "verification": "live-ui-verified",
       "attempts": 1
     },
     {
@@ -222,15 +222,15 @@
       "agentId": "bc-b122a0f4-98a6-4ebd-922b-86cc7cf3fb37",
       "runId": "run-7bcb55ce-21d5-425e-a73c-c97b93393b1a",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-42-quick-open.md",
       "startedAt": "2026-07-11T22:20:13.246Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T22:20:19.257Z",
+      "finishedAt": "2026-07-11T23:06:48.845Z",
+      "lastUpdate": "2026-07-11T23:06:48.845Z",
       "note": null,
       "slackTs": null,
-      "prNumber": null,
+      "prNumber": 57,
       "failureMode": null,
       "verification": null,
       "attempts": 1
@@ -376,6 +376,10 @@
     {
       "at": "2026-07-11T22:30:39.519Z",
       "message": "issue-35-center-editor-stubs: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-07-11T22:45:06.497Z",
+      "message": "issue-36-inspector-panel: verification self-reported (live-ui-verified)"
     }
   ]
 }
