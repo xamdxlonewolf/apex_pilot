@@ -792,6 +792,147 @@ button:disabled {
   height: 100%;
 }
 
+.mission-layout {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mission-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px;
+  border-right: 1px solid var(--chrome-border);
+  background: var(--panel-2);
+  overflow: auto;
+}
+
+.mission-history-header,
+.mission-card-header,
+.mission-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mission-history-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mission-history-buckets li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.mission-history-bucket {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.mission-workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mission-pane-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 8px;
+  overflow: auto;
+}
+
+.mission-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--chrome-border);
+  background: var(--panel);
+}
+
+.mission-card-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.mission-card-fields dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.mission-card-fields dd {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+}
+
+.mission-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mission-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mission-stage {
+  display: grid;
+  grid-template-columns: 4.5rem auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.mission-stage-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .mission-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-history {
+    border-right: 0;
+    border-bottom: 1px solid var(--chrome-border);
+    max-height: 160px;
+  }
+
+  .mission-card-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pane-muted,
 .chrome-label {
   color: var(--muted);
