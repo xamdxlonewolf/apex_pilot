@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   type BackendConfig,
@@ -70,6 +70,7 @@ export type ExplorerSchemaProps = Readonly<{
   onWorkingSchemaChange: (schema: string, options?: { persist?: boolean }) => void;
   onActivityRefresh: () => Promise<void>;
   onSaveSummary?: (summary: SchemaSummary) => void;
+  onSummaryChange?: (summary: SchemaSummary | null) => void;
 }>;
 
 type ExplorerProps = Readonly<{
@@ -78,6 +79,10 @@ type ExplorerProps = Readonly<{
   onToggleJunk: () => void;
   onOpenFile: (node: FileTreeNode) => void;
   schema: ExplorerSchemaProps;
+  /** When set, Explorer switches to this section (Quick Open object jump). */
+  focusSection?: ExplorerSectionId | null;
+  onFocusSectionHandled?: () => void;
+  focusedObjectName?: string | null;
 }>;
 
 const StubSectionBody = ({ section }: Readonly<{ section: ExplorerSection }>) => (
@@ -136,6 +141,7 @@ const SectionBody = ({
           onWorkingSchemaChange={schema.onWorkingSchemaChange}
           onActivityRefresh={schema.onActivityRefresh}
           onSaveSummary={schema.onSaveSummary}
+          onSummaryChange={schema.onSummaryChange}
         />
       </div>
     );
@@ -149,10 +155,21 @@ export const Explorer = ({
   onToggleJunk,
   onOpenFile,
   schema,
+  focusSection = null,
+  onFocusSectionHandled,
+  focusedObjectName = null,
 }: ExplorerProps) => {
   const [activeSectionId, setActiveSectionId] = useState<ExplorerSectionId>("files");
   const activeSection =
     EXPLORER_SECTIONS.find((section) => section.id === activeSectionId) ?? EXPLORER_SECTIONS[0];
+
+  useEffect(() => {
+    if (!focusSection) {
+      return;
+    }
+    setActiveSectionId(focusSection);
+    onFocusSectionHandled?.();
+  }, [focusSection, onFocusSectionHandled]);
 
   return (
     <aside className="ide-pane ide-pane--left" aria-label="Explorer navigation">
@@ -178,6 +195,11 @@ export const Explorer = ({
           </button>
         ))}
       </nav>
+      {focusedObjectName && activeSection.id === "database" ? (
+        <p className="pane-muted explorer-focused-object" data-testid="explorer-focused-object">
+          Focused object: {focusedObjectName}
+        </p>
+      ) : null}
       <div className="pane-body explorer-section-body" data-section={activeSection.id}>
         <SectionBody
           section={activeSection}

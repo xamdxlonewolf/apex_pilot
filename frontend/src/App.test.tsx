@@ -1058,6 +1058,129 @@ describe("App", () => {
     expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
   });
 
+  it("opens Quick Open with Ctrl+P without breaking Ctrl+Shift+P command palette", async () => {
+    const { installBrowserProjectFs, browserFsFromTree, resetBrowserProjectFsForTests } =
+      await import("./projectFs");
+    installBrowserProjectFs(
+      browserFsFromTree(
+        {
+          "C:/tmp/demo": [{ name: "README.md", kind: "file" }],
+        },
+        { "C:/tmp/demo/README.md": "# demo" },
+      ),
+    );
+
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    const opened = {
+      project: {
+        project_id: "proj-quick-open",
+        profile_id: "profile-1",
+        name: "Demo",
+        root_path: "C:/tmp/demo",
+        retention_days: 365,
+        created_at: "2026-07-09T00:00:00+00:00",
+        updated_at: "2026-07-09T00:00:00+00:00",
+      },
+      manifest: {
+        defaultEnvironment: "dev",
+        environments: [{ name: "dev", defaultSchema: "HR" }],
+      },
+      environment_mappings: [],
+      apex_workspace_mappings: [],
+      unmapped_environments: ["dev"],
+      preflight: {
+        ready: true,
+        blocking_ids: [],
+        checks: [],
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.includes("/preflight")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ ready: true, blocking_ids: [], checks: [] })),
+          );
+        }
+        if (url.endsWith("/profiles")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                profiles: [
+                  {
+                    profile_id: "profile-1",
+                    display_name: "Dev",
+                    email: null,
+                    username: null,
+                    created_at: "2026-07-09T00:00:00+00:00",
+                    updated_at: "2026-07-09T00:00:00+00:00",
+                  },
+                ],
+              }),
+            ),
+          );
+        }
+        if (url.endsWith("/projects") || url.includes("/projects?")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ projects: [opened.project] })),
+          );
+        }
+        if (url.endsWith("/projects/current")) {
+          return Promise.resolve(new Response(JSON.stringify(opened)));
+        }
+        if (url.endsWith("/health")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                status: "ok",
+                service: "apex-pilot-backend",
+                version: "0.1.0",
+              }),
+            ),
+          );
+        }
+        if (url.endsWith("/connections")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                connections: [{ name: "dev", display_name: "Development" }],
+              }),
+            ),
+          );
+        }
+        if (url.includes("/activity")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ entries: [], active_session_id: null })),
+          );
+        }
+        return Promise.resolve(new Response(JSON.stringify({})));
+      }),
+    );
+
+    try {
+      render(<App />);
+      expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: "p", ctrlKey: true, code: "KeyP" });
+      expect(await screen.findByRole("dialog", { name: /quick open/i })).toBeInTheDocument();
+      expect(await screen.findByRole("option", { name: /README\.md/i })).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: "Escape" });
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog", { name: /quick open/i })).not.toBeInTheDocument();
+      });
+
+      fireEvent.keyDown(window, { key: "P", ctrlKey: true, shiftKey: true, code: "KeyP" });
+      expect(await screen.findByRole("dialog", { name: /command palette/i })).toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: /quick open/i })).not.toBeInTheDocument();
+    } finally {
+      resetBrowserProjectFsForTests();
+    }
+  });
+
   it("ignores a second connect while one is already in flight", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",

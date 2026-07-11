@@ -1,9 +1,10 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { DeveloperConsole } from "./DeveloperConsole";
-import { Explorer } from "./Explorer";
+import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
 import { MissionComposer } from "./MissionComposer";
+import { QuickOpenHost } from "./QuickOpenHost";
 import { SqlSheet } from "./SqlSheet";
 import { StubSurface } from "./StubSurface";
 import {
@@ -26,7 +27,14 @@ import {
   clampInspectorWidth,
 } from "./panelLayout";
 import { type ProfileLayoutPrefs, loadProjectDefaults, loadProjectTabs, saveProjectDefaults, saveProjectTabs, type WorkspaceTabKind } from "./prefs";
-import { type FileTreeNode, joinPath, readTextFile } from "./projectFs";
+import {
+  isApexExportFolderName,
+  isRootApexExportSql,
+  joinPath,
+  readTextFile,
+  type FileTreeNode,
+} from "./projectFs";
+import { schemaTablesToQuickOpenItems, type QuickOpenItem } from "./quickOpen";
 import {
   backendHealthLabel,
   connectionHealthLabel,
@@ -281,6 +289,11 @@ export const IdeWorkspace = ({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(prefersReducedMotion);
   const [handledEditorRequest, setHandledEditorRequest] = useState(0);
+  const [schemaObjects, setSchemaObjects] = useState<QuickOpenItem[]>([]);
+  const [explorerFocusSection, setExplorerFocusSection] = useState<ExplorerSectionId | null>(
+    null,
+  );
+  const [focusedObjectName, setFocusedObjectName] = useState<string | null>(null);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -294,6 +307,9 @@ export const IdeWorkspace = ({
     setWorkingSchema(schema ?? "");
     setSaveMessage(null);
     setHandledEditorRequest(0);
+    setSchemaObjects([]);
+    setFocusedObjectName(null);
+    setExplorerFocusSection(null);
   }
 
   useEffect(() => {
@@ -447,6 +463,37 @@ export const IdeWorkspace = ({
         content,
       });
     })();
+  };
+
+  const onQuickOpenSelect = (item: QuickOpenItem) => {
+    if (item.kind === "file" && item.path) {
+      const root = openedProject.project.root_path;
+      const depth = item.path === joinPath(root, item.label) ? 0 : 1;
+      onOpenFile({
+        name: item.label,
+        path: item.path,
+        kind: "file",
+        protected: isApexExportFolderName(item.label) || isRootApexExportSql(item.label, depth),
+        junk: false,
+      });
+      return;
+    }
+    if (item.kind === "object") {
+      const qualified = item.detail ?? item.objectName ?? item.label;
+      setFocusedObjectName(qualified);
+      if (!layout.showExplorer) {
+        onLayoutChange((current) => ({ ...current, showExplorer: true }));
+      }
+      setExplorerFocusSection("database");
+    }
+  };
+
+  const onSchemaSummaryChange = (summary: SchemaSummary | null) => {
+    if (!summary) {
+      setSchemaObjects([]);
+      return;
+    }
+    setSchemaObjects(schemaTablesToQuickOpenItems(summary.schema_name, summary.tables));
   };
 
   const saveSchemaSummary = async (summary: SchemaSummary) => {
@@ -666,6 +713,9 @@ export const IdeWorkspace = ({
                 }))
               }
               onOpenFile={onOpenFile}
+              focusSection={explorerFocusSection}
+              onFocusSectionHandled={() => setExplorerFocusSection(null)}
+              focusedObjectName={focusedObjectName}
               schema={{
                 backendConfig,
                 connectedConnection,
@@ -675,6 +725,7 @@ export const IdeWorkspace = ({
                 onWorkingSchemaChange: handleWorkingSchemaChange,
                 onActivityRefresh,
                 onSaveSummary: (summary) => void saveSchemaSummary(summary),
+                onSummaryChange: onSchemaSummaryChange,
               }}
             />
             {layout.showMission || layout.showInspector ? (
@@ -826,6 +877,13 @@ export const IdeWorkspace = ({
           </section>
         </div>
       ) : null}
+
+      <QuickOpenHost
+        rootPath={openedProject.project.root_path}
+        showJunk={layout.showJunkFiles}
+        objects={schemaObjects}
+        onSelect={onQuickOpenSelect}
+      />
     </div>
   );
 };
