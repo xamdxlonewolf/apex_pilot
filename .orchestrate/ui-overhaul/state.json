@@ -252,12 +252,12 @@
       "handoffPath": "handoffs/issue-33-mission-timeline-stage.md",
       "startedAt": "2026-07-11T23:18:57.361Z",
       "finishedAt": "2026-07-11T23:22:26.969Z",
-      "lastUpdate": "2026-07-11T23:22:26.970Z",
+      "lastUpdate": "2026-07-11T23:22:27.874Z",
       "note": null,
       "slackTs": null,
       "prNumber": 58,
       "failureMode": null,
-      "verification": null,
+      "verification": "unit-test-verified",
       "attempts": 1
     },
     {
@@ -271,15 +271,15 @@
       "agentId": "bc-2e4eb6a7-075e-4a6c-8480-ee1a0a7e1496",
       "runId": "run-af97716b-19fb-4fa4-ad1e-0948b4aa3b7c",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-39-preferences-layout-mapping-home.md",
       "startedAt": "2026-07-11T23:19:01.363Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T23:19:03.903Z",
+      "finishedAt": "2026-07-11T23:24:28.722Z",
+      "lastUpdate": "2026-07-11T23:24:28.722Z",
       "note": null,
       "slackTs": null,
-      "prNumber": null,
+      "prNumber": 59,
       "failureMode": null,
       "verification": null,
       "attempts": 1
@@ -441,6 +441,10 @@
     {
       "at": "2026-07-11T23:19:01.078Z",
       "message": "issue-39-preferences-layout-mapping-home: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-07-11T23:22:27.875Z",
+      "message": "issue-33-mission-timeline-stage: verification self-reported (unit-test-verified)"
     }
   ]
 }
