@@ -244,15 +244,15 @@
         "issue-32-mission-composer-stub",
         "issue-34-sql-editor-center"
       ],
-      "agentId": null,
-      "runId": null,
-      "parentAgentId": null,
+      "agentId": "bc-6772248f-2dbe-4ca7-905c-3c3f1a475575",
+      "runId": "run-539ca12d-d677-49b9-8673-2a985bcd0977",
+      "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
       "status": "running",
       "resultStatus": null,
       "handoffPath": null,
       "startedAt": "2026-07-11T23:18:57.361Z",
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T23:18:57.361Z",
+      "lastUpdate": "2026-07-11T23:19:01.075Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
@@ -271,17 +271,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-07-11T23:19:01.363Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-07-11T23:19:01.363Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     }
   ],
   "attention": [
@@ -436,6 +437,10 @@
     {
       "at": "2026-07-11T23:18:56.926Z",
       "message": "issue-33-mission-timeline-stage: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-07-11T23:19:01.078Z",
+      "message": "issue-39-preferences-layout-mapping-home: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
