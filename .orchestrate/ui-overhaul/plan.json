@@ -139,6 +139,64 @@
         "cd frontend && pnpm test && pnpm typecheck both pass"
       ],
       "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n- Tauri e2e smoke runs (or skips gracefully with a documented gate) when the native toolchain is present\n## Manual\n- MCP Activity renders inside the Developer Console tab; the floating overlay is no longer the primary path."
+    },
+    {
+      "name": "issue-36-inspector-panel",
+      "type": "worker",
+      "openPR": true,
+      "model": "grok-4.5",
+      "dependsOn": ["issue-31-explorer-multi-section", "issue-34-sql-editor-center"],
+      "scopedGoal": "Implement GitHub issue #36 (\"Inspector panel\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 36 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged #31 (schema moved to Explorer) and #34 (SQL moved to center tabs). Make the right pane the INSPECTOR only: workflow progress, classification, object summaries, and checklists (Stub where unfinished, per `frontend/src/StubSurface.tsx` / `frontend/src/stubConvention.ts`). The Inspector EXPLAINS rather than initiates work or owns execution — it must NOT initiate work or own SQL edit/execution. Ensure Schema and SQL are not permanent right-pane tool tabs (already moved out by #31/#34; keep it that way), and Mappings must NOT be a forever Inspector tab (a temporary prefs/connection stub is acceptable until the preferences ticket #39). The shell is `frontend/src/IdeWorkspace.tsx` (Inspector region `ide-region--inspector`). Follow strict TDD: add failing Vitest assertions that the right pane is the Inspector with progress/classification/summaries/checklist chrome and that it holds no SQL edit ownership, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`; add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/Explorer.tsx", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx", "frontend/src/MissionComposer.tsx"],
+      "acceptance": [
+        "Right pane is Inspector (not a Tools pane with Schema/SQL/Mappings tabs)",
+        "Inspector shows progress / classification / summaries / checklist chrome (Stub where unfinished)",
+        "Inspector does not initiate work or own SQL edit/execution",
+        "Schema and SQL are not permanent right-pane tool tabs",
+        "Mappings is not a forever Inspector tab",
+        "Vitest asserts Inspector role and absence of SQL edit ownership on the right",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- The right pane is a pure Inspector (progress/classification/summaries/checklist), with no SQL editing and no permanent Schema/SQL/Mappings tool tabs."
+    },
+    {
+      "name": "issue-35-center-editor-stubs",
+      "type": "worker",
+      "openPR": true,
+      "model": "grok-4.5",
+      "dependsOn": ["issue-34-sql-editor-center"],
+      "scopedGoal": "Implement GitHub issue #35 (\"Center editor stubs + dirty Close Project\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 35 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged #34 which introduced the center workspace tab host (`CENTER_TAB_KINDS` / `WorkspaceTabKind` in `frontend/src/IdeWorkspace.tsx` and `frontend/src/prefs.ts`; Mission + SQL are center tabs). Extend the center workspace so it can host stubbed editor tabs for object / package / APEX / REST / diff / file editors (so Mission is not the only center content type). Stub editor tabs must follow Stub conventions (`frontend/src/StubSurface.tsx`, `frontend/src/stubConvention.ts`: badge \"Stub\", copy \"Not implemented yet\", no fake success content). Implement Close Project so it returns to the recent-projects picker, with an unsaved-work prompt shown when editors are dirty (the SQL editor already tracks a `sqlDirty` flag — extend dirty tracking as needed). Preserve one-project-per-window UX. Follow strict TDD: add failing Vitest assertions for (a) dirty close-project prompting and (b) stub editor tab presence, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`; add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/Explorer.tsx", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx"],
+      "acceptance": [
+        "Center workspace can host stubbed editor tabs for object / package / APEX / REST / diff / file editors",
+        "Stub editor tabs follow Stub conventions (no fake success content)",
+        "Close Project returns to the recent-projects picker",
+        "Unsaved-work prompt appears when editors are dirty",
+        "One-project-per-window UX is preserved",
+        "Vitest covers dirty close-project prompting and stub editor tab presence",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Center can open stubbed object/package/APEX/REST/diff/file editor tabs; Close Project with dirty editors prompts before returning to the recent-projects picker."
+    },
+    {
+      "name": "issue-42-quick-open",
+      "type": "worker",
+      "openPR": true,
+      "model": "grok-4.5",
+      "dependsOn": ["issue-30-explorer-project-files", "issue-31-explorer-multi-section"],
+      "scopedGoal": "Implement GitHub issue #42 (\"Quick Open\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 42 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged #30 (Explorer project files) and #31 (Explorer multi-section incl. objects). Add a Ctrl+P Quick Open that jumps to project files and objects quickly, reusing the existing command-palette infrastructure where sensible (`frontend/src/commandPalette.ts`, `frontend/src/CommandPalette.tsx` — note #29 already added a Ctrl+Shift+P command palette; Quick Open is the Ctrl+P file/object jumper and should not break the existing palette). Wire it to the Explorer file/object listing (`frontend/src/Explorer.tsx`, `frontend/src/FileTree.tsx`, `frontend/src/projectFs.ts` browser fallback) so it can resolve known files/objects. Surface-specific shortcuts for Mission/SQL Editor/Explorer/Inspector/Console keep shipping with their owning features (do not centralize them here). Follow strict TDD: add failing Vitest assertions (browser-fallback) for (a) Ctrl+P opening Quick Open and (b) selecting a known file/object, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/SqlSheet.tsx", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx", "frontend/src/MissionComposer.tsx"],
+      "acceptance": [
+        "Ctrl+P opens Quick Open",
+        "Quick Open can jump to project files and objects (Explorer search exists)",
+        "Existing Ctrl+Shift+P command palette continues to work",
+        "Vitest covers Quick Open open + selecting a known file/object in browser-fallback tests",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Ctrl+P opens Quick Open and can jump to a known project file/object; Ctrl+Shift+P palette still works."
     }
   ]
 }
