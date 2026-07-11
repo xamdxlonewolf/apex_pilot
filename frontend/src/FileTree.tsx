@@ -7,6 +7,8 @@ type FileTreeProps = Readonly<{
   showJunk: boolean;
   onToggleJunk: () => void;
   onOpenFile: (node: FileTreeNode) => void;
+  /** When true, omit outer Explorer pane chrome (used inside Explorer sections). */
+  embedded?: boolean;
 }>;
 
 type TreeBranchProps = Readonly<{
@@ -105,17 +107,39 @@ const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
   );
 };
 
-export const FileTree = ({ rootPath, showJunk, onToggleJunk, onOpenFile }: FileTreeProps) => (
-  <aside className="ide-pane ide-pane--left" aria-label="Project file tree">
-    <div className="pane-header">
-      <strong>Files</strong>
-      <label className="chrome-check">
-        <input type="checkbox" checked={showJunk} onChange={onToggleJunk} />
-        Show junk
-      </label>
-    </div>
-    <div className="pane-body">
-      <TreeBranch path={rootPath} depth={0} showJunk={showJunk} onOpenFile={onOpenFile} />
-    </div>
-  </aside>
-);
+export const FileTree = ({
+  rootPath,
+  showJunk,
+  onToggleJunk,
+  onOpenFile,
+  embedded = false,
+}: FileTreeProps) => {
+  const body = (
+    <>
+      <div className="pane-header">
+        <strong>Files</strong>
+        <label className="chrome-check">
+          <input type="checkbox" checked={showJunk} onChange={onToggleJunk} />
+          Show junk
+        </label>
+      </div>
+      <div className={embedded ? "explorer-files-body" : "pane-body"}>
+        <TreeBranch path={rootPath} depth={0} showJunk={showJunk} onOpenFile={onOpenFile} />
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="explorer-files" aria-label="Project file tree">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <aside className="ide-pane ide-pane--left" aria-label="Project file tree">
+      {body}
+    </aside>
+  );
+};

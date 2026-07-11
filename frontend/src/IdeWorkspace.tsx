@@ -1,9 +1,8 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { DeveloperConsole } from "./DeveloperConsole";
-import { FileTree } from "./FileTree";
+import { Explorer } from "./Explorer";
 import { MissionComposer } from "./MissionComposer";
-import { SchemaBrowser } from "./SchemaBrowser";
 import { SqlSheet } from "./SqlSheet";
 import { ProjectMappings } from "./StartupFunnel";
 import {
@@ -30,7 +29,7 @@ import { stubActionProps } from "./stubConvention";
 
 type WorkspaceTab = Readonly<{
   id: string;
-  kind: "schema" | "sql" | "file" | "mappings";
+  kind: "sql" | "file" | "mappings";
   title: string;
   path?: string;
   content?: string;
@@ -201,23 +200,29 @@ export const IdeWorkspace = ({
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
     const defaults = loadProjectDefaults(projectId);
+    const restoredFromSaved = saved.openTabs
+      .filter((tab) => tab.kind === "sql" || tab.kind === "file" || tab.kind === "mappings")
+      .map((tab) => ({
+        id: tab.id,
+        kind: tab.kind as "sql" | "file" | "mappings",
+        title: tab.title,
+        path: tab.path,
+      }));
     const restored: WorkspaceTab[] =
-      saved.openTabs.length > 0
-        ? saved.openTabs.map((tab) => ({
-            id: tab.id,
-            kind: tab.kind,
-            title: tab.title,
-            path: tab.path,
-          }))
+      restoredFromSaved.length > 0
+        ? restoredFromSaved
         : [
-            { id: "schema", kind: "schema", title: "Schema" },
             { id: "sql", kind: "sql", title: "SQL Sheet" },
             { id: "mappings", kind: "mappings", title: "Mappings" },
           ];
     const schema = defaults.schemaName ?? defaultSchemaFromManifest(openedProject) ?? null;
+    const activeStillOpen =
+      saved.activeTabId && restored.some((tab) => tab.id === saved.activeTabId)
+        ? saved.activeTabId
+        : restored[0]?.id ?? null;
     setTabsProjectId(projectId);
     setTabs(restored);
-    setActiveTabId(saved.activeTabId ?? restored[0]?.id ?? null);
+    setActiveTabId(activeStillOpen);
     setProjectSchemaOverride(schema);
     setWorkingSchema(schema ?? "");
     setSaveMessage(null);
@@ -563,7 +568,7 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Explorer"
           >
-            <FileTree
+            <Explorer
               rootPath={openedProject.project.root_path}
               showJunk={layout.showJunkFiles}
               onToggleJunk={() =>
@@ -573,6 +578,16 @@ export const IdeWorkspace = ({
                 }))
               }
               onOpenFile={onOpenFile}
+              schema={{
+                backendConfig,
+                connectedConnection,
+                isBackendOnline,
+                projectSchemaOverride,
+                workingSchema,
+                onWorkingSchemaChange: handleWorkingSchemaChange,
+                onActivityRefresh,
+                onSaveSummary: (summary) => void saveSchemaSummary(summary),
+              }}
             />
             {layout.showMission || layout.showInspector ? (
               <PanelSplitter
@@ -645,18 +660,6 @@ export const IdeWorkspace = ({
                 <p className="pane-muted connection-strip-message">{saveMessage}</p>
               ) : null}
               <div className="pane-body">
-                {activeTab?.kind === "schema" ? (
-                  <SchemaBrowser
-                    backendConfig={backendConfig}
-                    connectedConnection={connectedConnection}
-                    isBackendOnline={isBackendOnline}
-                    projectSchemaOverride={projectSchemaOverride}
-                    workingSchema={workingSchema}
-                    onWorkingSchemaChange={handleWorkingSchemaChange}
-                    onActivityRefresh={onActivityRefresh}
-                    onSaveSummary={(summary) => void saveSchemaSummary(summary)}
-                  />
-                ) : null}
                 {activeTab?.kind === "sql" ? (
                   <SqlSheet
                     backendConfig={backendConfig}

@@ -747,6 +747,78 @@ button:disabled {
   font-size: 0.78rem;
 }
 
+.explorer-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--panel-2);
+}
+
+.explorer-section-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.explorer-section-button:hover {
+  background: rgb(255 255 255 / 6%);
+  color: var(--fg);
+}
+
+.explorer-section-button--active {
+  border-color: var(--chrome-border);
+  background: rgb(255 255 255 / 8%);
+  color: var(--fg);
+}
+
+.explorer-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.explorer-files,
+.explorer-database {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.explorer-files .pane-header {
+  padding-inline: 0;
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+.explorer-files-body {
+  min-height: 0;
+}
+
+.explorer-stub-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.explorer-stub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .file-tree {
   margin: 0;
   padding: 0;
