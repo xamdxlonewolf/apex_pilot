@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { McpActivityWindow, openMcpActivityWindow } from "./McpActivityWindow";
 import { IdeWorkspace } from "./IdeWorkspace";
+import { matchPanelToggleShortcut } from "./panelLayout";
+import {
+  type ProfileLayoutPrefs,
+  loadProfileLayout,
+  saveProfileLayout,
+  togglePanelVisibility,
+} from "./prefs";
 import { StartupFunnel, type WizardMode } from "./StartupFunnel";
 import {
   type ActivityEntry,
@@ -47,6 +54,29 @@ export const resetConnectGuardsForTests = (): void => {
   connectInFlight = false;
 };
 
+const focusAdjacentMenuitem = (
+  menubar: HTMLElement,
+  current: Element | null,
+  direction: 1 | -1,
+): void => {
+  const items = Array.from(
+    menubar.querySelectorAll<HTMLElement>(
+      '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)',
+    ),
+  );
+  if (items.length === 0) {
+    return;
+  }
+  const index = current ? items.indexOf(current as HTMLElement) : -1;
+  const nextIndex =
+    index < 0
+      ? direction === 1
+        ? 0
+        : items.length - 1
+      : (index + direction + items.length) % items.length;
+  items[nextIndex]?.focus();
+};
+
 export const App = () => {
   const [backendConfig, setBackendConfig] = useState<BackendConfig>(() => getBackendConfig());
   const [backendStatus, setBackendStatus] = useState<BackendStatus>(() =>
@@ -66,6 +96,13 @@ export const App = () => {
   const [sqlDirty, setSqlDirty] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [shellPhase, setShellPhase] = useState("booting");
+  const [layoutProfileId, setLayoutProfileId] = useState<string | null>(null);
+  const [layout, setLayout] = useState<ProfileLayoutPrefs>(() => loadProfileLayout(null));
+
+  if (profileId !== layoutProfileId) {
+    setLayoutProfileId(profileId);
+    setLayout(loadProfileLayout(profileId));
+  }
 
   const isBackendOnline = backendStatus.kind === "online";
   const projectOpen = Boolean(openedProject) && !wizardMode;
@@ -81,6 +118,7 @@ export const App = () => {
     shellPhase !== "preflight" &&
     shellPhase !== "profile";
   const canOpenMcp = isBackendOnline && !setupLocked;
+  const canTogglePanels = projectOpen;
 
   const refreshActivity = useCallback(async () => {
     if (!isBackendOnline) {
@@ -157,6 +195,13 @@ export const App = () => {
     });
   }, [connectedConnection, isBackendOnline, refreshActivity]);
 
+  useEffect(() => {
+    if (!profileId) {
+      return;
+    }
+    saveProfileLayout(profileId, layout);
+  }, [layout, profileId]);
+
   const connectSelectedConnection = useCallback(
     async (connectionName?: string) => {
       const target = (connectionName ?? selectedConnection).trim();
@@ -197,6 +242,41 @@ export const App = () => {
     }
   };
 
+  const togglePanel = useCallback(
+    (panel: Parameters<typeof togglePanelVisibility>[1]) => {
+      if (!canTogglePanels) {
+        return;
+      }
+      setLayout((current) => togglePanelVisibility(current, panel));
+    },
+    [canTogglePanels],
+  );
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const panel = matchPanelToggleShortcut(event);
+      if (!panel || !canTogglePanels) {
+        return;
+      }
+      event.preventDefault();
+      togglePanel(panel);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canTogglePanels, togglePanel]);
+
+  const onMenubarKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      focusAdjacentMenuitem(event.currentTarget, event.target as Element, 1);
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      focusAdjacentMenuitem(event.currentTarget, event.target as Element, -1);
+    }
+  };
+
   const view = new URLSearchParams(window.location.search).get("view");
   if (view === "mcp-activity") {
     return (
@@ -224,7 +304,12 @@ export const App = () => {
 
   return (
     <div className="ide-shell">
-      <header className="ide-menubar" role="menubar" aria-label="Application menu">
+      <header
+        className="ide-menubar"
+        role="menubar"
+        aria-label="Application menu"
+        onKeyDown={onMenubarKeyDown}
+      >
         <div className="menu-group" role="group" aria-label="Project">
           <span className="menu-title">Project</span>
           <button
@@ -288,6 +373,46 @@ export const App = () => {
           <span className="menu-title">View</span>
           <button
             type="button"
+            role="menuitemcheckbox"
+            aria-checked={layout.showExplorer}
+            disabled={!canTogglePanels}
+            title="Toggle Explorer (Ctrl+B)"
+            onClick={() => togglePanel("explorer")}
+          >
+            Explorer
+          </button>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={layout.showMission}
+            disabled={!canTogglePanels}
+            title="Toggle Mission (Ctrl+Shift+M)"
+            onClick={() => togglePanel("mission")}
+          >
+            Mission
+          </button>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={layout.showInspector}
+            disabled={!canTogglePanels}
+            title="Toggle Inspector (Ctrl+Shift+I)"
+            onClick={() => togglePanel("inspector")}
+          >
+            Inspector
+          </button>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={layout.showConsole}
+            disabled={!canTogglePanels}
+            title="Toggle Developer Console (Ctrl+`)"
+            onClick={() => togglePanel("console")}
+          >
+            Developer Console
+          </button>
+          <button
+            type="button"
             role="menuitem"
             disabled={!canOpenMcp}
             title={setupLocked ? "Finish setup before opening MCP Activity." : "MCP Activity"}
@@ -317,7 +442,8 @@ export const App = () => {
             onSelectedConnectionChange={setSelectedConnection}
             onConnect={connectSelectedConnection}
             isConnecting={isConnecting}
-            profileId={profileId}
+            layout={layout}
+            onLayoutChange={setLayout}
             activityCount={activityEntries.length}
             activeActivitySessionId={activeActivitySessionId}
             onActivityRefresh={refreshActivity}

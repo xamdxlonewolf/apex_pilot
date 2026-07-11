@@ -1,10 +1,16 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 
 import {
   type BackendConfig,
   type LocalProfile,
   createProfile,
 } from "./backend";
+import {
+  EXPLORER_MIN_WIDTH,
+  INSPECTOR_MIN_WIDTH,
+  clampExplorerWidth,
+  clampInspectorWidth,
+} from "./panelLayout";
 import {
   type ProfileLayoutPrefs,
   defaultProfileLayout,
@@ -38,10 +44,10 @@ export const AppSettings = ({
   const [message, setMessage] = useState("");
   const [showCreateProfile, setShowCreateProfile] = useState(profiles.length === 0);
 
-  useEffect(() => {
+  if (selectedProfileId !== activeProfileId) {
     setActiveProfileId(selectedProfileId);
     setLayout(loadProfileLayout(selectedProfileId || null));
-  }, [selectedProfileId]);
+  }
 
   const activeProfile = profiles.find((profile) => profile.profile_id === activeProfileId) ?? null;
 
@@ -214,14 +220,16 @@ export const AppSettings = ({
             Left pane width (px)
             <input
               type="number"
-              min={180}
-              max={480}
+              min={EXPLORER_MIN_WIDTH}
+              max={640}
               value={layout.leftWidth}
               disabled={!activeProfileId}
               onChange={(event) =>
                 persistLayout({
                   ...layout,
-                  leftWidth: Number(event.target.value) || layout.leftWidth,
+                  leftWidth: clampExplorerWidth(
+                    Number(event.target.value) || layout.leftWidth,
+                  ),
                 })
               }
             />
@@ -230,14 +238,16 @@ export const AppSettings = ({
             Right pane width (px)
             <input
               type="number"
-              min={240}
-              max={640}
+              min={INSPECTOR_MIN_WIDTH}
+              max={720}
               value={layout.rightWidth}
               disabled={!activeProfileId}
               onChange={(event) =>
                 persistLayout({
                   ...layout,
-                  rightWidth: Number(event.target.value) || layout.rightWidth,
+                  rightWidth: clampInspectorWidth(
+                    Number(event.target.value) || layout.rightWidth,
+                  ),
                 })
               }
             />

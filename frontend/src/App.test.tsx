@@ -375,7 +375,8 @@ describe("App", () => {
     expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
+    // Spec startup layout: bottom Developer Console starts collapsed/hidden.
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
     expect(screen.getByRole("toolbar", { name: "Toolbar" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Context Bar" })).toBeInTheDocument();
     expect(screen.getByLabelText("Connection")).toBeInTheDocument();
@@ -386,6 +387,9 @@ describe("App", () => {
     expect(screen.getByLabelText("Connection health")).toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
     expect(screen.getByText("Stub")).toBeInTheDocument();
     expect(screen.getByText("Not implemented yet")).toBeInTheDocument();
 
@@ -393,6 +397,136 @@ describe("App", () => {
     expect(screen.getByLabelText("Chat")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+  });
+
+  it("toggles Explorer, Mission, Inspector, and Developer Console from View menu and shortcuts", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    const opened = {
+      project: {
+        project_id: "proj-panels",
+        profile_id: "profile-1",
+        name: "Demo",
+        root_path: "C:/tmp/demo",
+        retention_days: 365,
+        created_at: "2026-07-09T00:00:00+00:00",
+        updated_at: "2026-07-09T00:00:00+00:00",
+      },
+      manifest: {
+        defaultEnvironment: "dev",
+        environments: [{ name: "dev", defaultSchema: "HR" }],
+      },
+      environment_mappings: [],
+      apex_workspace_mappings: [],
+      unmapped_environments: ["dev"],
+      preflight: {
+        ready: true,
+        blocking_ids: [],
+        checks: [],
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url.includes("/preflight")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ ready: true, blocking_ids: [], checks: [] })),
+          );
+        }
+        if (url.endsWith("/profiles")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                profiles: [
+                  {
+                    profile_id: "profile-1",
+                    display_name: "Dev",
+                    email: null,
+                    username: null,
+                    created_at: "2026-07-09T00:00:00+00:00",
+                    updated_at: "2026-07-09T00:00:00+00:00",
+                  },
+                ],
+              }),
+            ),
+          );
+        }
+        if (url.endsWith("/projects") || url.includes("/projects?")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ projects: [opened.project] })),
+          );
+        }
+        if (url.endsWith("/projects/current")) {
+          return Promise.resolve(new Response(JSON.stringify(opened)));
+        }
+        if (url.endsWith("/health")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                status: "ok",
+                service: "apex-pilot-backend",
+                version: "0.1.0",
+              }),
+            ),
+          );
+        }
+        if (url.endsWith("/connections")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                connections: [{ name: "dev", display_name: "Development" }],
+              }),
+            ),
+          );
+        }
+        if (url.includes("/activity")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ entries: [], active_session_id: null })),
+          );
+        }
+        void init;
+        return Promise.resolve(new Response(JSON.stringify({})));
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^explorer$/i }));
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^explorer$/i }));
+    expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^inspector$/i }));
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^mission$/i }));
+    expect(screen.queryByRole("region", { name: "Mission" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
+
+    // Menu bar / toolbar / status remain — chrome identity survives panel collapse.
+    expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Toolbar" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+    expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "I", ctrlKey: true, shiftKey: true });
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "M", ctrlKey: true, shiftKey: true });
+    expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "`", ctrlKey: true });
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
   });
 
   it("ignores a second connect while one is already in flight", async () => {

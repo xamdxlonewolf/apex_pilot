@@ -1,12 +1,50 @@
 /** Local layout prefs: profile-scoped chrome, project-scoped tabs. */
 
+import {
+  CONSOLE_DEFAULT_HEIGHT,
+  EXPLORER_DEFAULT_WIDTH,
+  INSPECTOR_DEFAULT_WIDTH,
+  clampConsoleHeight,
+  clampExplorerWidth,
+  clampInspectorWidth,
+  type PanelId,
+} from "./panelLayout";
+
 export type ProfileLayoutPrefs = Readonly<{
   leftWidth: number;
   rightWidth: number;
+  consoleHeight: number;
+  showExplorer: boolean;
+  showMission: boolean;
+  showInspector: boolean;
+  showConsole: boolean;
   showJunkFiles: boolean;
   skipDestructiveSqlPrompt: boolean;
   rightTools: ReadonlyArray<"schema" | "sql" | "files" | "mappings">;
 }>;
+
+export const panelVisibilityKey = (
+  panel: PanelId,
+): "showExplorer" | "showMission" | "showInspector" | "showConsole" => {
+  switch (panel) {
+    case "explorer":
+      return "showExplorer";
+    case "mission":
+      return "showMission";
+    case "inspector":
+      return "showInspector";
+    case "console":
+      return "showConsole";
+  }
+};
+
+export const togglePanelVisibility = (
+  prefs: ProfileLayoutPrefs,
+  panel: PanelId,
+): ProfileLayoutPrefs => {
+  const key = panelVisibilityKey(panel);
+  return { ...prefs, [key]: !prefs[key] };
+};
 
 export type ProjectTabState = Readonly<{
   openTabs: ReadonlyArray<{
@@ -29,8 +67,14 @@ const projectKey = (projectId: string) => `apex-pilot.project-tabs.${projectId}`
 const projectDefaultsKey = (projectId: string) => `apex-pilot.project-defaults.${projectId}`;
 
 export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
-  leftWidth: 260,
-  rightWidth: 360,
+  leftWidth: EXPLORER_DEFAULT_WIDTH,
+  rightWidth: INSPECTOR_DEFAULT_WIDTH,
+  consoleHeight: CONSOLE_DEFAULT_HEIGHT,
+  // Spec §20 startup: Explorer/Mission/Inspector expanded; bottom console collapsed.
+  showExplorer: true,
+  showMission: true,
+  showInspector: true,
+  showConsole: false,
   showJunkFiles: false,
   skipDestructiveSqlPrompt: false,
   rightTools: ["schema", "sql", "mappings"],
@@ -45,7 +89,16 @@ export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs 
     if (!raw) {
       return defaultProfileLayout();
     }
-    return { ...defaultProfileLayout(), ...(JSON.parse(raw) as Partial<ProfileLayoutPrefs>) };
+    const merged = {
+      ...defaultProfileLayout(),
+      ...(JSON.parse(raw) as Partial<ProfileLayoutPrefs>),
+    };
+    return {
+      ...merged,
+      leftWidth: clampExplorerWidth(merged.leftWidth),
+      rightWidth: clampInspectorWidth(merged.rightWidth),
+      consoleHeight: clampConsoleHeight(merged.consoleHeight),
+    };
   } catch {
     return defaultProfileLayout();
   }
