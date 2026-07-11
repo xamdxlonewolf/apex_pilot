@@ -1,8 +1,8 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
-import { ChatPane } from "./ChatPane";
 import { DeveloperConsole } from "./DeveloperConsole";
 import { FileTree } from "./FileTree";
+import { MissionComposer } from "./MissionComposer";
 import { SchemaBrowser } from "./SchemaBrowser";
 import { SqlSheet } from "./SqlSheet";
 import { ProjectMappings } from "./StartupFunnel";
@@ -591,7 +591,7 @@ export const IdeWorkspace = ({
 
         {layout.showMission ? (
           <section className="ide-region ide-region--mission" role="region" aria-label="Mission">
-            <ChatPane projectName={openedProject.project.name} />
+            <MissionComposer projectName={openedProject.project.name} />
           </section>
         ) : null}
 

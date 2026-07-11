@@ -796,7 +796,8 @@ button:disabled {
   gap: 8px;
 }
 
-.chat-composer {
+.chat-composer,
+.mission-composer {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
@@ -806,6 +807,7 @@ button:disabled {
 }
 
 .chat-composer textarea,
+.mission-composer textarea,
 .sql-editor textarea {
   width: 100%;
   min-height: 72px;
