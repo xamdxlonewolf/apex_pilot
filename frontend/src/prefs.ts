@@ -49,7 +49,29 @@ export const togglePanelVisibility = (
   return { ...prefs, [key]: !prefs[key] };
 };
 
-export type WorkspaceTabKind = "mission" | "sql" | "schema" | "file" | "mappings";
+export type WorkspaceTabKind =
+  | "mission"
+  | "sql"
+  | "schema"
+  | "file"
+  | "mappings"
+  | "object"
+  | "package"
+  | "apex"
+  | "rest"
+  | "diff";
+
+const PERSISTED_TAB_KINDS = new Set<WorkspaceTabKind>([
+  "mission",
+  "sql",
+  "file",
+  "mappings",
+  "object",
+  "package",
+  "apex",
+  "rest",
+  "diff",
+]);
 
 export type ProjectTabState = Readonly<{
   openTabs: ReadonlyArray<{
@@ -128,14 +150,23 @@ export const loadProjectTabs = (projectId: string): ProjectTabState => {
       return { openTabs: [], activeTabId: null };
     }
     const parsed = JSON.parse(raw) as ProjectTabState;
-    const openTabs = (parsed.openTabs ?? []).filter(
-      (tab) => tab.kind === "sql" || tab.kind === "file" || tab.kind === "mappings",
+    const openTabs = (parsed.openTabs ?? []).filter((tab) =>
+      PERSISTED_TAB_KINDS.has(tab.kind),
     );
     const activeTabId =
       parsed.activeTabId && openTabs.some((tab) => tab.id === parsed.activeTabId)
         ? parsed.activeTabId
         : openTabs[0]?.id ?? null;
-    return { openTabs, activeTabId };
+    const activeCenterTabId =
+      parsed.activeCenterTabId && openTabs.some((tab) => tab.id === parsed.activeCenterTabId)
+        ? parsed.activeCenterTabId
+        : undefined;
+    const activeInspectorTabId =
+      parsed.activeInspectorTabId &&
+      openTabs.some((tab) => tab.id === parsed.activeInspectorTabId)
+        ? parsed.activeInspectorTabId
+        : undefined;
+    return { openTabs, activeTabId, activeCenterTabId, activeInspectorTabId };
   } catch {
     return { openTabs: [], activeTabId: null };
   }

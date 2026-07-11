@@ -8,6 +8,11 @@ import {
 
 import { CommandPalette } from "./CommandPalette";
 import { matchCommandPaletteShortcut, type CommandPaletteAction } from "./commandPalette";
+import {
+  CENTER_EDITOR_STUB_KINDS,
+  CENTER_EDITOR_STUB_META,
+  type CenterEditorStubKind,
+} from "./centerEditors";
 import { McpActivityWindow, openMcpActivityWindow } from "./McpActivityWindow";
 import { IdeWorkspace } from "./IdeWorkspace";
 import { matchPanelToggleShortcut } from "./panelLayout";
@@ -25,6 +30,7 @@ import {
   type OpenedProject,
   type SavedConnection,
   checkBackendHealth,
+  closeCurrentProject,
   connectSavedConnection,
   getBackendConfig,
   getCurrentProject,
@@ -108,6 +114,10 @@ export const App = () => {
   const [layoutProfileId, setLayoutProfileId] = useState<string | null>(null);
   const [layout, setLayout] = useState<ProfileLayoutPrefs>(() => loadProfileLayout(null));
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [openCenterEditorKind, setOpenCenterEditorKind] = useState<CenterEditorStubKind | null>(
+    null,
+  );
+  const [openCenterEditorRequest, setOpenCenterEditorRequest] = useState(0);
 
   if (profileId !== layoutProfileId) {
     setLayoutProfileId(profileId);
@@ -218,6 +228,40 @@ export const App = () => {
     }
     setLayout(loadProfileLayout(profileId));
   }, [profileId, wizardMode]);
+
+  useEffect(() => {
+    if (!requestClose) {
+      return;
+    }
+    if (!openedProject) {
+      setRequestClose(false);
+      return;
+    }
+    void (async () => {
+      if (sqlDirty) {
+        const proceed = window.confirm("You have unsaved work. Close the project anyway?");
+        if (!proceed) {
+          setRequestClose(false);
+          return;
+        }
+      }
+      try {
+        await closeCurrentProject(backendConfig);
+        setOpenedProject(null);
+        setSqlDirty(false);
+        setWizardMode(null);
+        setOpenCenterEditorKind(null);
+        setOpenCenterEditorRequest(0);
+        setConnectionMessage("Project closed.");
+      } catch (error) {
+        setConnectionMessage(
+          error instanceof Error ? error.message : "Could not close project.",
+        );
+      } finally {
+        setRequestClose(false);
+      }
+    })();
+  }, [backendConfig, openedProject, requestClose, sqlDirty]);
 
   const connectSelectedConnection = useCallback(
     async (connectionName?: string) => {
@@ -354,6 +398,17 @@ export const App = () => {
         enabled: canOpenSettings,
         run: () => setWizardMode("settings"),
       },
+      ...CENTER_EDITOR_STUB_KINDS.map(
+        (kind): CommandPaletteAction => ({
+          id: `editor-open-${kind}`,
+          label: `Editor: ${CENTER_EDITOR_STUB_META[kind].title}`,
+          enabled: projectOpen,
+          run: () => {
+            setOpenCenterEditorKind(kind);
+            setOpenCenterEditorRequest((token) => token + 1);
+          },
+        }),
+      ),
     ];
     return actions;
   }, [
@@ -362,6 +417,7 @@ export const App = () => {
     canUseProjectMenus,
     canOpenSettings,
     openedProject,
+    projectOpen,
     setupLocked,
     togglePanel,
     openMcp,
@@ -587,6 +643,8 @@ export const App = () => {
             onOpenMcp={() => void openMcp()}
             sqlDirty={sqlDirty}
             onSqlDirtyChange={setSqlDirty}
+            openCenterEditorKind={openCenterEditorKind}
+            openCenterEditorRequest={openCenterEditorRequest}
           />
         ) : (
           <StartupFunnel
@@ -604,9 +662,6 @@ export const App = () => {
             onProfilesChange={(_profiles, selected) => setProfileId(selected || null)}
             wizardMode={wizardMode}
             onWizardModeChange={setWizardMode}
-            requestClose={requestClose}
-            onCloseHandled={() => setRequestClose(false)}
-            hasUnsavedWork={sqlDirty}
           />
         )}
       </main>
