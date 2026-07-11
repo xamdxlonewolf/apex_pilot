@@ -66,7 +66,9 @@ The backend owns:
 The desktop UI owns project menu actions (New Project, Open Project, Open
 Recent, Close Project, Settings), retention selection UX, guided prerequisite
 instructions, and local mapping editors. Missing tools show install guidance and
-documentation links; the app does not run installers.
+documentation links; the app does not run installers. Design Spec wizard chrome
+(richer multi-step presentation) may land later without changing this backend
+ownership boundary; see ADR-0007 and the Design Spec dialogs sections.
 
 Opening a project validates the committed manifest and reports unmapped logical
 environments. Live database work still requires an explicit SQLcl connection

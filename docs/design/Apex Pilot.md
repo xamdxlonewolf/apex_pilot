@@ -1,6 +1,6 @@
 # Apex Pilot
 
-Apex Pilot is a local-first Oracle development automation platform. The first product shape is a chat-first desktop app that runs a local backend, uses Oracle SQLcl MCP for all database execution, and uses skills for Oracle/APEX intelligence and transformations.
+Apex Pilot is a local-first Oracle development automation platform. The first product shape is a Mission Control desktop IDE that runs a local backend, uses Oracle SQLcl MCP for all database execution, and uses skills for Oracle/APEX intelligence and transformations.
 
 ## Core Architecture
 
@@ -36,14 +36,14 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - FastAPI should bind to loopback on a dynamic available port and require a per-run bearer token passed to Tauri at startup.
 - Tauri should own the FastAPI backend as a sidecar process in packaged mode. Development mode may run frontend and backend separately.
 - Backend/frontend API contracts should be driven by FastAPI OpenAPI, with generated TypeScript client/types where practical.
-- Chat streaming and tool activity should use a WebSocket per chat session with typed event envelopes.
+- Chat streaming and tool activity should use a WebSocket per Mission session with typed event envelopes. Persistence may still use chat-thread vocabulary (ADR-0005); the product surface is Mission.
 - Approvals should pause the agent run, emit a structured approval request with an `approval_id`, and resume only if the user approves that exact request.
 - PydanticAI tools should expose only guarded app facades such as SQL request, object description, skill execution, schema context, and approval request APIs. The agent should not receive raw MCP client access.
-- Schema metadata should be cached per connection/schema/chat session with visible age and manual refresh, not persisted in detail by default.
+- Schema metadata should be cached per connection/schema/Mission session with visible age and manual refresh, not persisted in detail by default.
 - APEX/APEXLang should default to check-only. After successful validation, the UI should offer an explicit `Import to APEX` action showing target connection and workspace.
 - APEX workspace names should be stored as non-secret local metadata mapped to SQLcl saved connection names, with target confirmation before live import.
 - UI should be built alongside backend slices so each capability can be tested through the desktop experience.
-- First vertical slice: desktop app starts backend, lists SQLcl saved connections, connects via MCP, runs a safe schema summary, and shows tool activity in chat UI.
+- First vertical slice: desktop app starts backend, lists SQLcl saved connections, connects via MCP, runs a safe schema summary, and shows tool activity (historical chat UI; target observability is Developer Console).
 - PR 8 live smoke proved the first UI vertical slice in Tauri dev mode: FastAPI health, SQLcl saved connection discovery, connect, schema summary, and MCP tool activity worked against saved connection `mcobb_test_oracle_db`.
 - SQLcl MCP live tool names can differ from the public hyphenated examples. SQLcl 25.x advertised `connections_list`, `sql_run`, `sqlcl_run`, and `schema_information`, so Apex Pilot should keep an internal logical tool contract and translate to the live SQLcl tool schema at the MCP adapter boundary.
 - SQLcl `sql_run` live responses returned CSV text content rather than JSON rows. Apex Pilot should parse MCP content shapes conservatively and keep result rows session-scoped/in-memory for schema summaries, not persisted by default.
@@ -51,18 +51,18 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - PR 9 and later should use the addendum roadmap in [[Apex Pilot PR Roadmap]] rather than renumbering completed PRs.
 - PR 9B (Project Initialization Wizard + Preflight) is complete and merged: wizard/preflight APIs plus interim UI. See [[Apex Pilot PR Roadmap]].
 - PR 9B delivered: desktop project menu (New/Open/Recent/Close/Settings); preflight for Git, SQLcl, Java, Python, MCP smoke, and manifest; retention selection; local env→SQLcl mapping and optional APEX workspace mapping; guided install instructions with no auto-install; and remote clone via installed Git only.
-- Next UX work after the merged PR 9B.1 interim shell is the Design Spec overhaul. Authoritative UI/UX: [[Apex Pilot Desktop Design Spec]] (+ figures).
-- Sequence: PR 9B → PR 9B.1 → then Agent Core / PR 9D; land 9B.1 before heavy Agent Core UI reliance.
+- Next UX work after the merged PR 9B.1 interim shell is the Design Spec overhaul. Authoritative UI/UX: [[Apex Pilot Desktop Design Spec]] (+ figures). Design Spec wins over conflicting interim shell / ADR language.
+- Sequence: PR 9B → PR 9B.1 (interim) → UI overhaul (UI-0…UI-9) interleaved with Agent Core / PR 9D as needed; land Spec shell stubs before heavy Agent Core UI reliance.
 - Startup funnel: silent health check → full preflight if first-time or unhealthy → profile if needed → recent-projects picker → workspace.
-- Shell: dense IDE chrome; menus and bottom status bar always; left/right panes only when a project is open. Visual direction is IDE, not stacked cards.
-- Left pane: project file tree with junk hidden by default (toggle to show); respect APEX export folders and root `f*.sql` invariants.
-- Center: chat always present; composer real, send disabled until Agent Core.
-- Right pane: shared tab strip for schema views, project files, and SQL sheets; dockable tools; profile remembers tool prefs/widths; project remembers open tabs.
-- Schema tree: default schema plus switcher; click opens read-only view; Save to project via native dialog with conventional default path.
-- SQL sheet: power-user; logs all; confirms destructive/security by default; per-profile setting may skip destructive prompts.
-- MCP Activity: separate floating window; default filter active connection; optional show all.
+- Shell target (ADR-0007): dense Mission Control chrome — menu, toolbar, context bar, status bar; Explorer | Mission / workspace editors | Inspector | bottom Developer Console when a project is open.
+- Left — Explorer: multi-section (project / DB / APEX / REST / favorites / pinned / recent); junk hidden by default; respect APEX export folders and root `f*.sql` invariants.
+- Center — Mission workspace (timeline, stages, composer, history); also hosts SQL Editor and other workspace editor tabs. Composer may ship with send disabled until Agent Core; stubs must be honest.
+- Right — Inspector only (progress, classification, object summary, checklists). Not a general tool-tab host.
+- SQL Editor lives in center workspace tabs (relocated from interim right-pane SQL Sheet). Schema browsing under Explorer / object viewers. Env→SQLcl / APEX mappings in connection / profile / preferences UX.
+- Developer Console is in-shell; MCP Activity is a Console tab. Floating MCP window is migration-only, not the target.
 - Close project returns to picker with unsaved prompt; one project per window (prefer new window for another project).
-- Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop Design Spec]] / ADR-0007 (interim); Design Spec wins on conflict.
+- Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop Design Spec]] / ADR-0007.
+- Implementation strategy: screen/shell-first Spec layout; design tokens/components grow as screens need them; exact figure pixel-match is not a first-PR gate.
 - Project storage should use a committed JSON manifest, initially `apex-pilot.json`, for portable project facts.
 - Local SQLite should store private/user/runtime facts such as local profiles, retention policy, logical environment to SQLcl saved connection mappings, and connection-to-APEX-workspace mappings.
 - Project manifests should store logical environments, not actual SQLcl saved connection names.

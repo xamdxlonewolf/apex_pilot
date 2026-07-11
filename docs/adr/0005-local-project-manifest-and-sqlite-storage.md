@@ -11,19 +11,21 @@ Accepted
 ## Context
 
 Apex Pilot needs durable local state before Agent Core can own project context,
-chat history, approvals, and memory search. Project facts must be shareable
+Mission history, approvals, and memory search. Project facts must be shareable
 through Git without leaking machine-local SQLcl connection names or secrets.
 Private runtime state must stay on the user's machine.
 
-Phase 1 also needs searchable chat and tool metadata without introducing a
+Phase 1 also needs searchable Mission/tool metadata without introducing a
 vector database or a second Oracle storage path that would bypass SQLcl MCP.
+Storage vocabulary may still say “chat threads/messages”; the product surface
+is Mission (see CONTEXT.md and ADR-0007).
 
 ## Decision Drivers
 
 - Keep portable project facts commit-safe and machine-independent.
 - Keep SQLcl saved connection names and user/runtime state local.
-- Persist explainable chat, SQL text, classification, approval metadata, and
-  tool logs without storing SQL result rows by default.
+- Persist explainable Mission/chat-thread history, SQL text, classification,
+  approval metadata, and tool logs without storing SQL result rows by default.
 - Support local profiles with duplicate detection.
 - Prefer built-in SQLite capabilities over optional extensions for phase 1.
 - Preserve a later path for optional vector memory without making it required.
@@ -65,8 +67,8 @@ other machine-local secrets.
 
 Local SQLite stores profiles, project paths, retention policy, logical
 environment to SQLcl connection mappings, connection-to-APEX-workspace mappings,
-chat threads/messages, and tool activity metadata. SQL result rows are not
-persisted by default.
+chat threads/messages (Mission history persistence), and tool activity metadata.
+SQL result rows are not persisted by default.
 
 Phase 1 memory search uses SQLite tables plus FTS5 after a runtime capability
 check. Vector memory is deferred behind an optional adapter interface and is not
@@ -74,8 +76,10 @@ required for Agent Core.
 
 Local profiles use a random profile ID plus a stable salted hash of email and
 username for duplicate detection. Retention is a user-selected policy enforced
-by explicit maintenance, not silent deletion on every read. Chat display helpers
-load from the latest message backward in 2-week windows.
+by explicit maintenance, not silent deletion on every read. Mission history
+display helpers load from the latest message backward in 2-week windows.
+Renaming storage identifiers from “chat” to “mission” is optional follow-up and
+not required to keep this ADR aligned with the Design Spec.
 
 ## Consequences
 

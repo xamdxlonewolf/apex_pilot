@@ -6,9 +6,12 @@ This note captures the updated PR split plan after completing PR 8 and reviewing
 
 - PR 8 is complete.
 - PR 9B (Project Initialization Wizard + Preflight) is complete and merged: wizard/preflight APIs plus interim UI.
-- Next is PR 9B.1 (Desktop Shell & Workspace UX): complete/merged as the interim
-  IDE shell (chat / tool tabs / floating MCP Activity). Authoritative overhaul
-  target is [[Apex Pilot Desktop Design Spec]] (+ figures).
+- PR 9B.1 (Desktop Shell & Workspace UX) is complete/merged as the **interim**
+  IDE shell (Files | Chat | Tools + floating MCP Activity). Authoritative
+  overhaul target is [[Apex Pilot Desktop Design Spec]] (+ figures); ADR-0007
+  locks the Mission Control shell.
+- Next UX work is the **UI overhaul epic (UI-0…UI-9)** below, interleaved with
+  Agent Core / PR 9D as needed.
 - Remaining PR 9+ addendum work is still plannable around that sequence.
 - Existing completed PR numbers should stay stable.
 - New work should use lettered addendum PRs rather than renumbering completed history.
@@ -27,9 +30,11 @@ flowchart TD
   G --> H
   H --> N[PR 9A: Local Project + Storage Foundation]
   N --> O[PR 9B: Project Initialization Wizard + Preflight]
-  O --> V[PR 9B.1: Desktop Shell and Workspace UX]
-  V --> I[PR 9: Agent Core]
+  O --> V[PR 9B.1: Interim Desktop Shell]
+  V --> W[UI overhaul: Mission Control]
+  W --> I[PR 9: Agent Core]
   V --> U[PR 9D: CLI Launcher + Project Window Integration]
+  W --> U
   I --> P[PR 9C: Context Compression]
   P --> J[PR 10: Skill Installer]
   J --> K[PR 11: Skill Runtime]
@@ -69,8 +74,12 @@ flowchart TD
 - Application Mode must not auto-approve destructive DDL.
 - Keep GUI project open/new/recent flows in the desktop app and add a VS Code-style CLI launcher after the project wizard.
 - PR 9B is merged (wizard/preflight APIs and interim UI); PR 9B.1 (interim dense
-  IDE shell) is also merged. Further UI overhaul follows [[Apex Pilot Desktop Design Spec]].
-- Dependency order: PR 9B → PR 9B.1 → then Agent Core / PR 9D. PR 9B.1 should land before heavy Agent Core UI reliance.
+  IDE shell) is also merged. Further UI overhaul follows [[Apex Pilot Desktop Design Spec]]
+  and ADR-0007 (Mission Control shell).
+- Dependency order: PR 9B → PR 9B.1 → UI overhaul (UI-0…UI-9) interleaved with
+  Agent Core / PR 9D. Spec shell stubs should land before heavy Agent Core UI reliance.
+- Agent Core powers **Mission** + workflow (not “enable chat send” as the product framing).
+- MCP Activity target is an in-shell **Developer Console** tab; floating window is migration-only.
 
 ## Near-Term Addendum PRs
 
@@ -121,7 +130,30 @@ Scope (as shipped — interim vs Design Spec):
 - Native folder pickers primary; Tauri FS for files; backend for MCP/metadata.
 - Visual direction: IDE chrome, not stacked cards.
 
-Authoritative UI/UX for the overhaul: [[Apex Pilot Desktop Design Spec]] (+ figures). Where 9B.1 / ADR-0007 conflict with the Design Spec, the Design Spec wins.
+Authoritative UI/UX for the overhaul: [[Apex Pilot Desktop Design Spec]] (+ figures). Where 9B.1 interim scope conflicted with the Design Spec, ADR-0007 now locks the Spec shell (Mission, Inspector, Explorer, Developer Console).
+
+### UI overhaul epic (post-9B.1)
+
+Purpose: migrate from the interim 9B.1 shell to Design Spec Mission Control.
+Screen/shell-first; design tokens/components grow as screens need them. Exact
+figure pixel-match is not a first-PR gate. Stub/gap-marking conventions: UI-9.
+
+| ID | Scope | Design Spec |
+| --- | --- | --- |
+| **UI-0** | Epic / composition: Mission Control shell; ADR-0007 already rewritten | DS-SHELL-* |
+| **UI-1** | Shell chrome: menu completeness, toolbar, context bar, health indicators | DS-SHELL-menu/toolbar/context/health |
+| **UI-2** | Explorer multi-section (project/DB/APEX/REST/favorites/pinned/recent) | DS-EXPLORER-* |
+| **UI-3** | Mission workspace (replace Chat): timeline, stages, composer, history | DS-MISSION-*, DS-WORKFLOW-* |
+| **UI-4** | Inspector panel (progress, classification, objects, actions) | DS-INSPECTOR-* |
+| **UI-5** | Workspace editors in center; relocate SQL Editor; object/package/APEX/REST/diff | DS-WORKSPACE-* |
+| **UI-6** | Developer Console in-shell; migrate MCP Activity from floating window | DS-CONSOLE-* |
+| **UI-7** | Design system tokens + components (+ density/motion/focus) in parallel | DS-DESIGN-*, DS-COMPONENTS-* |
+| **UI-8** | Dialog/wizard chrome + connection wizard + preferences | DS-DIALOGS-*, DS-CONN-* |
+| **UI-9** | Stub / gap-marking conventions across layout | policy (grilling stub ticket) |
+
+Capability relocation (not deletion): SQL Editor → center workspace; Schema →
+Explorer/DB + viewers; Mappings → connection/profile/preferences UX; right pane
+→ Inspector only.
 
 ### PR 9D: CLI Launcher + Project Window Integration
 
@@ -143,19 +175,22 @@ Scope:
 Purpose: introduce PydanticAI orchestration behind guarded facades.
 
 Scope changes from the original plan:
-- Depends on PR 9B and should follow PR 9B.1 so Agent Core UI can rely on the redesigned shell.
+- Depends on PR 9B and should follow / interleave with UI overhaul so Agent Core
+  UI can rely on Mission + Inspector stubs rather than interim Chat framing.
+- Powers Mission + workflow (composer send, streaming, stages) — not a
+  chat-app product shape.
 - Adds a guarded project memory search facade.
 - First natural-language SQL execution is read-only only.
 - Memory search is bounded and on-demand.
 
 ### PR 9C: Context Compression
 
-Purpose: reduce long-running chat context pressure without provider lock-in.
+Purpose: reduce long-running Mission context pressure without provider lock-in.
 
 Scope:
 - Provider-agnostic summaries.
 - Store summaries locally.
-- Tie summaries to project, profile, thread, model profile, and source message window.
+- Tie summaries to project, profile, Mission thread, model profile, and source message window.
 - Respect retention policy.
 
 ## Later Addendum PRs

@@ -12,9 +12,10 @@ Accepted
 
 Apex Pilot is intended to automate Oracle and Oracle APEX development workflows
 while keeping database access, credentials, generated artifacts, and user
-approvals under local user control. The first product shape needs a desktop
-experience with chat, tool activity, connection selection, approvals, and safe
-schema inspection.
+approvals under local user control. The first product shape needs a Mission
+Control desktop experience with Mission workspace, Inspector evidence, Developer
+Console / tool activity, connection selection, approvals, and safe schema
+inspection.
 
 The project also needs a repository structure that can support independent
 backend, frontend, agent, safety, MCP, and skill-runtime work in small PRs.
@@ -22,8 +23,8 @@ backend, frontend, agent, safety, MCP, and skill-runtime work in small PRs.
 ## Decision Drivers
 
 - Keep Oracle credentials and local development context on the user's machine.
-- Support a rich desktop UI for chat, tool logs, approvals, and connection
-  selection.
+- Support a rich Mission Control desktop UI for Mission, Inspector, Developer
+  Console / tool logs, approvals, and connection selection.
 - Allow backend capabilities to be tested independently from desktop packaging.
 - Preserve a path to a future hosted or team server without designing that first.
 - Keep implementation PRs reviewable by separating backend and frontend
@@ -47,8 +48,8 @@ backend, frontend, agent, safety, MCP, and skill-runtime work in small PRs.
 ### Option 3: CLI-First Tool
 
 - Pros: Fastest implementation path and simple distribution.
-- Cons: Does not match the desired chat-first desktop experience with visible
-  approvals and tool activity.
+- Cons: Does not match the desired Mission Control desktop experience with
+  visible approvals and tool activity.
 
 ## Decision
 
@@ -69,8 +70,8 @@ architecture documentation. The backend Python package name will be
 - Credentials and execution context stay local by default.
 - The backend can enforce safety and execution boundaries behind HTTP and
   WebSocket contracts.
-- The UI can provide explicit approval, connection, chat, and tool-log
-  workflows.
+- The UI can provide explicit approval, connection, Mission, and Developer
+  Console / tool-log workflows.
 - Future hosted or team-server modes can be explored after local invariants are
   proven.
 
@@ -96,7 +97,9 @@ architecture documentation. The backend Python package name will be
 - The frontend may resolve backend config from development environment variables
   or a Tauri runtime command. Packaged mode should prefer a generated per-run
   token and sidecar-owned loopback URL.
-- Chat streaming and tool activity should use typed WebSocket event envelopes.
+- Mission streaming and tool activity should use typed WebSocket event envelopes.
+  Persistence may still use “chat thread/message” table names (see ADR-0005);
+  the product surface is Mission, not Chat.
 - Backend/frontend API contracts should be driven by FastAPI OpenAPI, with
   generated TypeScript client/types where practical.
 - Local persistence uses a committed project manifest for portable facts and
