@@ -54,17 +54,17 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "error",
+      "status": "pending",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": "2026-07-11T21:40:00.837Z",
+      "startedAt": null,
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:40:01.068Z",
-      "note": "spawn failed after 3 transient sub-attempts: ConfigurationError: [invalid_model] Model 'gpt-5.5' does not match a known variant. Call GET /v1/models to list valid id+params combinations. run `bun cli.ts models --check` to re-probe the catalog against /v1/agents.",
+      "lastUpdate": "2026-07-11T21:42:14.863Z",
+      "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 1,
       "slackTs": null,
       "prNumber": null,
-      "failureMode": "unknown",
+      "failureMode": null,
       "verification": null
     },
     {
@@ -110,6 +110,10 @@
     {
       "at": "2026-07-11T21:42:13.440Z",
       "message": "issue-30-explorer-project-files: respawned by self-planner (was error)"
+    },
+    {
+      "at": "2026-07-11T21:42:14.574Z",
+      "message": "issue-32-mission-composer-stub: respawned by self-planner (was error)"
     }
   ]
 }
