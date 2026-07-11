@@ -124,17 +124,17 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "error",
+      "status": "pending",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": "2026-07-11T21:55:44.265Z",
+      "startedAt": null,
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:55:44.841Z",
-      "note": "spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…",
+      "lastUpdate": "2026-07-11T21:58:22.782Z",
+      "note": "respawned by local-cli (was error; attempts=1)",
       "attempts": 1,
       "slackTs": null,
       "prNumber": null,
-      "failureMode": "unknown",
+      "failureMode": null,
       "verification": null
     },
     {
@@ -222,6 +222,10 @@
     {
       "at": "2026-07-11T21:55:56.241Z",
       "message": "issue-38-mcp-activity-console: spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…"
+    },
+    {
+      "at": "2026-07-11T21:58:22.497Z",
+      "message": "issue-34-sql-editor-center: respawned by local-cli (was error)"
     }
   ]
 }
