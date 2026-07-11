@@ -119,6 +119,29 @@ Apex Pilot’s accepted desktop shell is the Design Spec Mission Control layout:
       explicit Gaps / orphans subsection until claimed. Product UI still shows
       Stub once the surface is placed — never a user-visible Gap badge. Remove
       the Gap line once a path exists (the surface may remain Stub until built).
+12. **Keyboard, density, and motion adoption** (locked by
+    [Grilling: Keyboard, density, and motion adoption](https://github.com/xamdxlonewolf/apex_pilot/issues/24);
+    split by concern, sequenced with UI-7 for design-system work):
+    - **Keyboard (shell / early overhaul):** always-visible focus; Tab/arrow
+      traversal of shell chrome and panels; core Spec General panel toggles
+      (`Ctrl+\`` Developer Console, `Ctrl+B` Explorer, `Ctrl+Shift+I`
+      Inspector, `Ctrl+Shift+M` Mission, and related shell toggles).
+      Surface-specific shortcuts (Mission, SQL Editor, Explorer, Inspector,
+      Console) ship with their owning features. Full “all shortcuts
+      configurable” remains Spec Future.
+    - **Command palette:** minimal palette is a shell-adjacent early ticket
+      soon after Spec shell IA so `Ctrl+Shift+P` is real; it does **not** block
+      the first shell IA PR. **Quick Open** (`Ctrl+P`) trails until file/object
+      search exists.
+    - **Density:** shell/layout PRs use Spec **Default** spacing only.
+      Compact / Comfortable modes and the preference switcher are **UI-7**
+      scope (typography unchanged per Spec).
+    - **Motion (shell gates):** no decorative animation; panel resize immediate;
+      prefer skeletons over spinners; respect `prefers-reduced-motion`.
+    - **Motion (UI-7 / polish):** Spec duration table (hover/expand/collapse/
+      dialogs/notifications) and panel/timeline choreography. Roadmap **UI-7**
+      is the checklist owner for density modes, motion durations, and focus
+      token polish.
 
 ### Historical interim (PR 9B.1 — superseded as target)
 
@@ -157,6 +180,9 @@ Shipped for sequencing, no longer the accepted Decision:
 - Do not enable Mission send until Agent Core; use honest stubs per Decision §11.
 - Roadmap UI overhaul items (UI-0…UI-9) track Spec surfaces; **UI-9** is the
   apply-across-layout pointer to Decision §11 (not a second policy source).
+- **UI-7** owns density modes, Spec motion duration table / choreography, and
+  focus token polish per Decision §12; shell PRs still honor §12 keyboard and
+  motion hard rules.
 - Wizard chrome may grow richer per Design Spec without changing ADR-0006’s
   backend ownership of create/open/clone/preflight/mappings.
 

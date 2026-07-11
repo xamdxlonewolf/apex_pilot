@@ -137,18 +137,20 @@ Authoritative UI/UX for the overhaul: [[Apex Pilot Desktop Design Spec]] (+ figu
 Purpose: migrate from the interim 9B.1 shell to Design Spec Mission Control.
 Screen/shell-first; design tokens/components grow as screens need them. Exact
 figure pixel-match is not a first-PR gate. Stub/gap-marking conventions: UI-9
-(locked in ADR-0007 Decision §11).
+(locked in ADR-0007 Decision §11). Keyboard / density / motion adoption:
+ADR-0007 Decision §12 (split by concern; UI-7 owns density modes + motion
+durations/choreography + focus token polish).
 
 | ID | Scope | Design Spec |
 | --- | --- | --- |
 | **UI-0** | Epic / composition: Mission Control shell; ADR-0007 already rewritten | DS-SHELL-* |
-| **UI-1** | Shell chrome: menu completeness, toolbar, context bar, health indicators | DS-SHELL-menu/toolbar/context/health |
+| **UI-1** | Shell chrome: menu completeness, toolbar, context bar, health indicators; core panel-toggle shortcuts + focus (ADR-0007 §12); minimal command palette soon after shell IA (not blocking first IA PR) | DS-SHELL-*, DS-PLATFORM-shortcuts, DS-INTERACT-kbd |
 | **UI-2** | Explorer multi-section (project/DB/APEX/REST/favorites/pinned/recent) | DS-EXPLORER-* |
 | **UI-3** | Mission workspace (replace Chat): timeline, stages, composer, history | DS-MISSION-*, DS-WORKFLOW-* |
 | **UI-4** | Inspector panel (progress, classification, objects, actions) | DS-INSPECTOR-* |
 | **UI-5** | Workspace editors in center; relocate SQL Editor; object/package/APEX/REST/diff | DS-WORKSPACE-* |
 | **UI-6** | Developer Console in-shell; migrate MCP Activity from floating window | DS-CONSOLE-* |
-| **UI-7** | Design system tokens + components (+ density/motion/focus) in parallel | DS-DESIGN-*, DS-COMPONENTS-* |
+| **UI-7** | Design system tokens + component library in parallel. Checklist: Compact/Comfortable density modes + switcher (Default already used in shell); Spec motion duration table + panel/timeline choreography; focus token polish (2px accent). Shell still gates: no decorative motion, immediate resize, skeletons preferred, `prefers-reduced-motion`. Quick Open (`Ctrl+P`) when file/object search exists. | DS-DESIGN-*, DS-COMPONENTS-*, DS-DESIGN-density, DS-DESIGN-motion, DS-PLATFORM-motion |
 | **UI-8** | Dialog/wizard chrome + connection wizard + preferences | DS-DIALOGS-*, DS-CONN-* |
 | **UI-9** | Apply stub / gap-marking conventions across layout (ADR-0007 §11) | policy |
 
