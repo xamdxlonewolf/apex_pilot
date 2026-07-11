@@ -1,9 +1,8 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { DeveloperConsole } from "./DeveloperConsole";
-import { FileTree } from "./FileTree";
+import { Explorer } from "./Explorer";
 import { MissionComposer } from "./MissionComposer";
-import { SchemaBrowser } from "./SchemaBrowser";
 import { SqlSheet } from "./SqlSheet";
 import { ProjectMappings } from "./StartupFunnel";
 import {
@@ -37,7 +36,7 @@ type WorkspaceTab = Readonly<{
 }>;
 
 const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>(["mission", "sql"]);
-const INSPECTOR_TAB_KINDS = new Set<WorkspaceTabKind>(["schema", "mappings", "file"]);
+const INSPECTOR_TAB_KINDS = new Set<WorkspaceTabKind>(["mappings", "file"]);
 
 const isCenterTab = (tab: WorkspaceTab): boolean => CENTER_TAB_KINDS.has(tab.kind);
 const isInspectorTab = (tab: WorkspaceTab): boolean => INSPECTOR_TAB_KINDS.has(tab.kind);
@@ -48,7 +47,6 @@ const defaultCenterTabs = (): WorkspaceTab[] => [
 ];
 
 const defaultInspectorTabs = (): WorkspaceTab[] => [
-  { id: "schema", kind: "schema", title: "Schema" },
   { id: "mappings", kind: "mappings", title: "Mappings" },
 ];
 
@@ -81,9 +79,6 @@ const restoreWorkspaceTabs = (
       ...defaultCenterTabs().filter((tab) => tab.kind === "sql"),
       ...tabs.filter(isInspectorTab),
     ];
-  }
-  if (!tabs.some((tab) => tab.kind === "schema")) {
-    tabs = [...tabs, ...defaultInspectorTabs().filter((tab) => tab.kind === "schema")];
   }
   if (!tabs.some((tab) => tab.kind === "mappings")) {
     tabs = [...tabs, ...defaultInspectorTabs().filter((tab) => tab.kind === "mappings")];
@@ -644,7 +639,7 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Explorer"
           >
-            <FileTree
+            <Explorer
               rootPath={openedProject.project.root_path}
               showJunk={layout.showJunkFiles}
               onToggleJunk={() =>
@@ -654,6 +649,16 @@ export const IdeWorkspace = ({
                 }))
               }
               onOpenFile={onOpenFile}
+              schema={{
+                backendConfig,
+                connectedConnection,
+                isBackendOnline,
+                projectSchemaOverride,
+                workingSchema,
+                onWorkingSchemaChange: handleWorkingSchemaChange,
+                onActivityRefresh,
+                onSaveSummary: (summary) => void saveSchemaSummary(summary),
+              }}
             />
             {layout.showMission || layout.showInspector ? (
               <PanelSplitter
@@ -763,18 +768,6 @@ export const IdeWorkspace = ({
                 <p className="pane-muted connection-strip-message">{saveMessage}</p>
               ) : null}
               <div className="pane-body">
-                {activeInspectorTab?.kind === "schema" ? (
-                  <SchemaBrowser
-                    backendConfig={backendConfig}
-                    connectedConnection={connectedConnection}
-                    isBackendOnline={isBackendOnline}
-                    projectSchemaOverride={projectSchemaOverride}
-                    workingSchema={workingSchema}
-                    onWorkingSchemaChange={handleWorkingSchemaChange}
-                    onActivityRefresh={onActivityRefresh}
-                    onSaveSummary={(summary) => void saveSchemaSummary(summary)}
-                  />
-                ) : null}
                 {activeInspectorTab?.kind === "mappings" ? (
                   <ProjectMappings
                     backendConfig={backendConfig}

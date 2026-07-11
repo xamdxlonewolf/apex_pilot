@@ -501,8 +501,9 @@ describe("App", () => {
     expect(consoleRegion).not.toHaveTextContent(/\bUI-\d+/);
     expect(consoleRegion).not.toHaveTextContent(/sample row|execution succeeded|mock timeline/i);
 
-    const newSql = screen.getByRole("button", { name: "New SQL" });
-    const run = screen.getByRole("button", { name: "Run" });
+    const toolbar = screen.getByRole("toolbar", { name: "Toolbar" });
+    const newSql = within(toolbar).getByRole("button", { name: "New SQL" });
+    const run = within(toolbar).getByRole("button", { name: "Run" });
     expect(newSql).toBeDisabled();
     expect(run).toBeDisabled();
     expect(newSql).toHaveAttribute("title", "Not implemented yet");
@@ -532,6 +533,29 @@ describe("App", () => {
     expect(send).toBeDisabled();
     expect(send).toHaveAttribute("title", "Not implemented yet");
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+
+    // Explorer multi-section + schema home (issue #31): sections present; schema not a
+    // permanent Inspector tool tab; schema browsing reachable from Explorer Database.
+    const explorer = screen.getByRole("region", { name: "Explorer" });
+    const explorerSections = within(explorer).getByRole("navigation", {
+      name: "Explorer sections",
+    });
+    for (const name of ["Files", "Database", "APEX", "REST", "Favorites", "Pinned", "Recent"]) {
+      expect(within(explorerSections).getByRole("button", { name })).toBeInTheDocument();
+    }
+    const inspectorTabs = within(screen.getByRole("region", { name: "Inspector" })).getByRole(
+      "tablist",
+      { name: "Inspector tabs" },
+    );
+    expect(within(inspectorTabs).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Schema browser")).not.toBeInTheDocument();
+    fireEvent.click(within(explorerSections).getByRole("button", { name: "Database" }));
+    expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
+    fireEvent.click(within(explorerSections).getByRole("button", { name: "APEX" }));
+    const stubSurface = within(explorer).getByTestId("stub-surface");
+    expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
+    expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
+    expect(within(stubSurface).queryByText(/sample row|EMPLOYEE|mock timeline/i)).not.toBeInTheDocument();
   });
 
   it("hosts SQL Editor in center workspace tabs only and never in the Inspector", async () => {
@@ -1201,7 +1225,17 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeInTheDocument();
     });
 
-    // After connect, schema auto-selects from session context and loads summary.
+    // Schema browsing lives under Explorer Database — not a permanent Inspector tab.
+    const explorer = screen.getByRole("region", { name: "Explorer" });
+    fireEvent.click(within(explorer).getByRole("button", { name: "Database" }));
+    expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Inspector" })).queryByRole("tab", {
+        name: /^schema$/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    // After connect + opening Database, schema auto-selects from session context and loads summary.
     expect(await screen.findByRole("button", { name: /loading/i })).toBeDisabled();
     expect(screen.getByLabelText("Schema")).toHaveValue("APP");
     expect(screen.getByText(/db connected: dev/i)).toBeInTheDocument();

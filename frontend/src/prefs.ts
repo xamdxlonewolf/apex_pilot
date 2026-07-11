@@ -21,7 +21,7 @@ export type ProfileLayoutPrefs = Readonly<{
   showConsole: boolean;
   showJunkFiles: boolean;
   skipDestructiveSqlPrompt: boolean;
-  rightTools: ReadonlyArray<"schema" | "files" | "mappings">;
+  rightTools: ReadonlyArray<"files" | "mappings">;
 }>;
 
 export type DensityMode = "compact" | "default" | "comfortable";
@@ -89,7 +89,7 @@ export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   showConsole: false,
   showJunkFiles: false,
   skipDestructiveSqlPrompt: false,
-  rightTools: ["schema", "mappings"],
+  rightTools: ["mappings"],
 });
 
 export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs => {
@@ -127,7 +127,15 @@ export const loadProjectTabs = (projectId: string): ProjectTabState => {
     if (!raw) {
       return { openTabs: [], activeTabId: null };
     }
-    return JSON.parse(raw) as ProjectTabState;
+    const parsed = JSON.parse(raw) as ProjectTabState;
+    const openTabs = (parsed.openTabs ?? []).filter(
+      (tab) => tab.kind === "sql" || tab.kind === "file" || tab.kind === "mappings",
+    );
+    const activeTabId =
+      parsed.activeTabId && openTabs.some((tab) => tab.id === parsed.activeTabId)
+        ? parsed.activeTabId
+        : openTabs[0]?.id ?? null;
+    return { openTabs, activeTabId };
   } catch {
     return { openTabs: [], activeTabId: null };
   }
