@@ -98,6 +98,7 @@ export const App = () => {
   const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
   const [activeActivitySessionId, setActiveActivitySessionId] = useState<string | null>(null);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [mcpFocusRequest, setMcpFocusRequest] = useState(0);
   const [openedProject, setOpenedProject] = useState<OpenedProject | null>(null);
   const [wizardMode, setWizardMode] = useState<WizardMode | null>(null);
   const [requestClose, setRequestClose] = useState(false);
@@ -252,10 +253,21 @@ export const App = () => {
   );
 
   const openMcp = useCallback(async () => {
+    if (projectOpen) {
+      setMcpOpen(false);
+      setLayout((current) => ({ ...current, showConsole: true }));
+      setMcpFocusRequest((token) => token + 1);
+      return;
+    }
+    // Interim only: console is unavailable until a project is open.
     const openedNative = await openMcpActivityWindow();
     if (!openedNative) {
       setMcpOpen(true);
     }
+  }, [projectOpen]);
+
+  const handleMcpFocusHandled = useCallback(() => {
+    setMcpFocusRequest(0);
   }, []);
 
   const togglePanel = useCallback(
@@ -531,7 +543,13 @@ export const App = () => {
             type="button"
             role="menuitem"
             disabled={!canOpenMcp}
-            title={setupLocked ? "Finish setup before opening MCP Activity." : "MCP Activity"}
+            title={
+              setupLocked
+                ? "Finish setup before opening MCP Activity."
+                : projectOpen
+                  ? "Open MCP Activity in Developer Console"
+                  : "MCP Activity (interim until a project is open)"
+            }
             onClick={() => void openMcp()}
           >
             MCP Activity
@@ -561,7 +579,10 @@ export const App = () => {
             layout={layout}
             onLayoutChange={setLayout}
             activityCount={activityEntries.length}
+            activityEntries={activityEntries}
             activeActivitySessionId={activeActivitySessionId}
+            mcpFocusRequest={mcpFocusRequest}
+            onMcpFocusHandled={handleMcpFocusHandled}
             onActivityRefresh={refreshActivity}
             onOpenMcp={() => void openMcp()}
             sqlDirty={sqlDirty}

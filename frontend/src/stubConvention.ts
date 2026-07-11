@@ -4,8 +4,9 @@ import type { ButtonHTMLAttributes } from "react";
  * Shared Stub convention constants (ADR-0007 §11 / UI-9).
  *
  * Planning IDs (`DS-*` / `UI-*`) and Gap markings stay in docs/tickets/comments —
- * never in user-visible stub UI. Working interim paths (e.g. floating MCP) must
- * not use Stub chrome.
+ * never in user-visible stub UI. Working interim paths (e.g. no-project floating
+ * MCP fallback) must not use Stub chrome. Product MCP Activity lives in the
+ * Developer Console tab.
  */
 
 /** Exact chrome badge text for unfinished Spec surfaces. */

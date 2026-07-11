@@ -250,7 +250,7 @@ describe("App", () => {
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeDisabled();
   });
 
-  it("opens MCP activity as a floating window with a collapsible tree", async () => {
+  it("keeps interim floating MCP when no project is open (console unavailable)", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",
       bearerToken: "test-token",
@@ -484,18 +484,16 @@ describe("App", () => {
     expect(within(consoleTabs).getByRole("tab", { name: "Tasks" })).toBeInTheDocument();
     expect(within(consoleRegion).getByText("Stub")).toBeInTheDocument();
     expect(within(consoleRegion).getByText("Not implemented yet")).toBeInTheDocument();
-    for (const tabTitle of [
-      "Output",
-      "MCP Activity",
-      "SQL History",
-      "Oracle Messages",
-      "Tasks",
-      "Problems",
-    ]) {
+    for (const tabTitle of ["Output", "SQL History", "Oracle Messages", "Tasks", "Problems"]) {
       fireEvent.click(within(consoleTabs).getByRole("tab", { name: tabTitle }));
       expect(within(consoleRegion).getByText("Stub")).toBeInTheDocument();
       expect(within(consoleRegion).getByText("Not implemented yet")).toBeInTheDocument();
     }
+    fireEvent.click(within(consoleTabs).getByRole("tab", { name: "MCP Activity" }));
+    const mcpPanel = within(consoleRegion).getByRole("tabpanel");
+    expect(mcpPanel).not.toHaveTextContent("Stub");
+    expect(mcpPanel).not.toHaveTextContent("Not implemented yet");
+    expect(mcpPanel).toHaveTextContent(/no mcp tool activity yet|not connected to a database/i);
     expect(consoleRegion).not.toHaveTextContent(/\bGap\b/);
     expect(consoleRegion).not.toHaveTextContent(/\bDS-/);
     expect(consoleRegion).not.toHaveTextContent(/\bUI-\d+/);
@@ -508,13 +506,19 @@ describe("App", () => {
     expect(newSql).toHaveAttribute("title", "Not implemented yet");
     expect(run).toHaveAttribute("title", "Not implemented yet");
 
-    // Working interim MCP path is not Stub-badged (migration until Console tabs land).
+    // Product path: toolbar MCP Activity opens the Console tab, not the floating overlay.
+    fireEvent.click(within(consoleTabs).getByRole("tab", { name: "Problems" }));
+    expect(within(consoleTabs).getByRole("tab", { name: "Problems" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
-    const mcp = await screen.findByLabelText("MCP Activity");
-    expect(mcp).toBeInTheDocument();
-    expect(mcp).not.toHaveTextContent("Stub");
-    expect(mcp).not.toHaveTextContent("Not implemented yet");
-    expect(mcp).not.toHaveTextContent(/\bGap\b/);
+    expect(within(consoleTabs).getByRole("tab", { name: "MCP Activity" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.queryByRole("dialog", { name: "MCP Activity" })).not.toBeInTheDocument();
+    expect(within(consoleRegion).getByRole("tabpanel")).not.toHaveTextContent("Stub");
 
     // Mission center surface is present before Agent Core with explicit stub treatment.
     const mission = screen.getByRole("region", { name: "Mission" });

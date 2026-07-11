@@ -26,6 +26,23 @@ Run the Tauri desktop shell:
 pnpm tauri dev
 ```
 
+## Tauri e2e smoke (machine-local)
+
+Vitest owns jsdom / browser-fallback Console and MCP presentation tests
+(`pnpm test`). For native shell + MCP → Developer Console migration smoke:
+
+```powershell
+# Default: skips unless you opt in (CI-safe)
+pnpm test:e2e:tauri
+
+# Opt in when Rust/Cargo (and Tauri platform deps) are installed
+$env:TAURI_E2E = "1"
+pnpm test:e2e:tauri
+```
+
+See [`e2e/README.md`](./e2e/README.md) for the gate table and prerequisites.
+Do not add Playwright product suites or figure pixel-match for this path.
+
 ## Backend Configuration
 
 The desktop shell can check backend health, list SQLcl saved connections, connect,
