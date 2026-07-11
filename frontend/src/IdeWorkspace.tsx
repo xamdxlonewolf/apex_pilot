@@ -18,7 +18,7 @@ import {
   clampExplorerWidth,
   clampInspectorWidth,
 } from "./panelLayout";
-import { type ProfileLayoutPrefs, loadProjectDefaults, loadProjectTabs, saveProjectDefaults, saveProjectTabs } from "./prefs";
+import { type ProfileLayoutPrefs, loadProjectDefaults, loadProjectTabs, saveProjectDefaults, saveProjectTabs, type WorkspaceTabKind } from "./prefs";
 import { type FileTreeNode, joinPath, readTextFile } from "./projectFs";
 import {
   backendHealthLabel,
@@ -30,11 +30,88 @@ import { stubActionProps } from "./stubConvention";
 
 type WorkspaceTab = Readonly<{
   id: string;
-  kind: "schema" | "sql" | "file" | "mappings";
+  kind: WorkspaceTabKind;
   title: string;
   path?: string;
   content?: string;
 }>;
+
+const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>(["mission", "sql"]);
+const INSPECTOR_TAB_KINDS = new Set<WorkspaceTabKind>(["schema", "mappings", "file"]);
+
+const isCenterTab = (tab: WorkspaceTab): boolean => CENTER_TAB_KINDS.has(tab.kind);
+const isInspectorTab = (tab: WorkspaceTab): boolean => INSPECTOR_TAB_KINDS.has(tab.kind);
+
+const defaultCenterTabs = (): WorkspaceTab[] => [
+  { id: "mission", kind: "mission", title: "Mission" },
+  { id: "sql", kind: "sql", title: "SQL Editor" },
+];
+
+const defaultInspectorTabs = (): WorkspaceTab[] => [
+  { id: "schema", kind: "schema", title: "Schema" },
+  { id: "mappings", kind: "mappings", title: "Mappings" },
+];
+
+const restoreWorkspaceTabs = (
+  saved: ReturnType<typeof loadProjectTabs>,
+): Readonly<{
+  tabs: WorkspaceTab[];
+  activeCenterTabId: string | null;
+  activeInspectorTabId: string | null;
+}> => {
+  const restored: WorkspaceTab[] =
+    saved.openTabs.length > 0
+      ? saved.openTabs
+          .filter((tab) => CENTER_TAB_KINDS.has(tab.kind) || INSPECTOR_TAB_KINDS.has(tab.kind))
+          .map((tab) => ({
+            id: tab.id,
+            kind: tab.kind,
+            title: tab.kind === "sql" ? "SQL Editor" : tab.title,
+            path: tab.path,
+          }))
+      : [...defaultCenterTabs(), ...defaultInspectorTabs()];
+
+  let tabs = restored;
+  if (!tabs.some((tab) => tab.kind === "mission")) {
+    tabs = [...defaultCenterTabs().filter((tab) => tab.kind === "mission"), ...tabs];
+  }
+  if (!tabs.some((tab) => tab.kind === "sql")) {
+    tabs = [
+      ...tabs.filter(isCenterTab),
+      ...defaultCenterTabs().filter((tab) => tab.kind === "sql"),
+      ...tabs.filter(isInspectorTab),
+    ];
+  }
+  if (!tabs.some((tab) => tab.kind === "schema")) {
+    tabs = [...tabs, ...defaultInspectorTabs().filter((tab) => tab.kind === "schema")];
+  }
+  if (!tabs.some((tab) => tab.kind === "mappings")) {
+    tabs = [...tabs, ...defaultInspectorTabs().filter((tab) => tab.kind === "mappings")];
+  }
+
+  const centerTabs = tabs.filter(isCenterTab);
+  const inspectorTabs = tabs.filter(isInspectorTab);
+  const centerIds = new Set(centerTabs.map((tab) => tab.id));
+  const inspectorIds = new Set(inspectorTabs.map((tab) => tab.id));
+
+  const activeCenterTabId =
+    (saved.activeCenterTabId && centerIds.has(saved.activeCenterTabId)
+      ? saved.activeCenterTabId
+      : null) ??
+    (saved.activeTabId && centerIds.has(saved.activeTabId) ? saved.activeTabId : null) ??
+    centerTabs[0]?.id ??
+    null;
+
+  const activeInspectorTabId =
+    (saved.activeInspectorTabId && inspectorIds.has(saved.activeInspectorTabId)
+      ? saved.activeInspectorTabId
+      : null) ??
+    (saved.activeTabId && inspectorIds.has(saved.activeTabId) ? saved.activeTabId : null) ??
+    inspectorTabs[0]?.id ??
+    null;
+
+  return { tabs, activeCenterTabId, activeInspectorTabId };
+};
 
 type IdeWorkspaceProps = Readonly<{
   backendConfig: BackendConfig;
@@ -192,7 +269,8 @@ export const IdeWorkspace = ({
   const projectId = openedProject.project.project_id;
   const [tabsProjectId, setTabsProjectId] = useState<string | null>(null);
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [activeCenterTabId, setActiveCenterTabId] = useState<string | null>(null);
+  const [activeInspectorTabId, setActiveInspectorTabId] = useState<string | null>(null);
   const [workingSchema, setWorkingSchema] = useState("");
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -201,23 +279,12 @@ export const IdeWorkspace = ({
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
     const defaults = loadProjectDefaults(projectId);
-    const restored: WorkspaceTab[] =
-      saved.openTabs.length > 0
-        ? saved.openTabs.map((tab) => ({
-            id: tab.id,
-            kind: tab.kind,
-            title: tab.title,
-            path: tab.path,
-          }))
-        : [
-            { id: "schema", kind: "schema", title: "Schema" },
-            { id: "sql", kind: "sql", title: "SQL Sheet" },
-            { id: "mappings", kind: "mappings", title: "Mappings" },
-          ];
+    const restored = restoreWorkspaceTabs(saved);
     const schema = defaults.schemaName ?? defaultSchemaFromManifest(openedProject) ?? null;
     setTabsProjectId(projectId);
-    setTabs(restored);
-    setActiveTabId(saved.activeTabId ?? restored[0]?.id ?? null);
+    setTabs(restored.tabs);
+    setActiveCenterTabId(restored.activeCenterTabId);
+    setActiveInspectorTabId(restored.activeInspectorTabId);
     setProjectSchemaOverride(schema);
     setWorkingSchema(schema ?? "");
     setSaveMessage(null);
@@ -257,9 +324,11 @@ export const IdeWorkspace = ({
         title: tab.title,
         path: tab.path,
       })),
-      activeTabId,
+      activeTabId: activeCenterTabId ?? activeInspectorTabId,
+      activeCenterTabId,
+      activeInspectorTabId,
     });
-  }, [activeTabId, openedProject.project.project_id, tabs]);
+  }, [activeCenterTabId, activeInspectorTabId, openedProject.project.project_id, tabs]);
 
   useEffect(() => {
     if (!isBackendOnline || isConnecting || connections.length === 0) {
@@ -318,14 +387,22 @@ export const IdeWorkspace = ({
 
   const openOrFocus = (tab: WorkspaceTab) => {
     setTabs((current) => (current.some((item) => item.id === tab.id) ? current : [...current, tab]));
-    setActiveTabId(tab.id);
+    if (isCenterTab(tab)) {
+      setActiveCenterTabId(tab.id);
+    } else {
+      setActiveInspectorTabId(tab.id);
+    }
   };
 
   const closeTab = (tabId: string) => {
     setTabs((current) => {
+      const closing = current.find((tab) => tab.id === tabId);
       const next = current.filter((tab) => tab.id !== tabId);
-      if (activeTabId === tabId) {
-        setActiveTabId(next[0]?.id ?? null);
+      if (closing && isCenterTab(closing) && activeCenterTabId === tabId) {
+        setActiveCenterTabId(next.find(isCenterTab)?.id ?? null);
+      }
+      if (closing && isInspectorTab(closing) && activeInspectorTabId === tabId) {
+        setActiveInspectorTabId(next.find(isInspectorTab)?.id ?? null);
       }
       return next;
     });
@@ -394,7 +471,11 @@ export const IdeWorkspace = ({
     }
   };
 
-  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
+  const centerTabs = tabs.filter(isCenterTab);
+  const inspectorTabs = tabs.filter(isInspectorTab);
+  const activeCenterTab = centerTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
+  const activeInspectorTab =
+    inspectorTabs.find((tab) => tab.id === activeInspectorTabId) ?? null;
   const backendHealth = backendHealthLabel(backendStatus);
   const mcpHealth = mcpHealthLabel(activityCount, Boolean(activeActivitySessionId));
   const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
@@ -591,7 +672,44 @@ export const IdeWorkspace = ({
 
         {layout.showMission ? (
           <section className="ide-region ide-region--mission" role="region" aria-label="Mission">
-            <MissionComposer projectName={openedProject.project.name} />
+            <div className="ide-pane ide-pane--center">
+              <div className="pane-header pane-header--tabs">
+                <div className="tab-strip" role="tablist" aria-label="Center workspace tabs">
+                  {centerTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab.id === activeCenterTabId}
+                      className={tab.id === activeCenterTabId ? "tab tab--active" : "tab"}
+                      onClick={() => setActiveCenterTabId(tab.id)}
+                    >
+                      {tab.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="pane-body">
+                {activeCenterTab?.kind === "mission" ? (
+                  <MissionComposer projectName={openedProject.project.name} />
+                ) : null}
+                {activeCenterTab?.kind === "sql" ? (
+                  <SqlSheet
+                    backendConfig={backendConfig}
+                    connectedConnection={connectedConnection}
+                    workingSchema={workingSchema}
+                    isBackendOnline={isBackendOnline}
+                    skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
+                    dirty={sqlDirty}
+                    onDirtyChange={onSqlDirtyChange}
+                    onActivityRefresh={onActivityRefresh}
+                  />
+                ) : null}
+                {!activeCenterTab ? (
+                  <p className="pane-muted">Open a center workspace tab.</p>
+                ) : null}
+              </div>
+            </div>
           </section>
         ) : null}
 
@@ -616,14 +734,14 @@ export const IdeWorkspace = ({
             <div className="ide-pane ide-pane--right">
               <div className="pane-header pane-header--tabs">
                 <div className="tab-strip" role="tablist" aria-label="Inspector tabs">
-                  {tabs.map((tab) => (
+                  {inspectorTabs.map((tab) => (
                     <button
                       key={tab.id}
                       type="button"
                       role="tab"
-                      aria-selected={tab.id === activeTabId}
-                      className={tab.id === activeTabId ? "tab tab--active" : "tab"}
-                      onClick={() => setActiveTabId(tab.id)}
+                      aria-selected={tab.id === activeInspectorTabId}
+                      className={tab.id === activeInspectorTabId ? "tab tab--active" : "tab"}
+                      onClick={() => setActiveInspectorTabId(tab.id)}
                     >
                       {tab.title}
                       {tab.kind === "file" ? (
@@ -645,7 +763,7 @@ export const IdeWorkspace = ({
                 <p className="pane-muted connection-strip-message">{saveMessage}</p>
               ) : null}
               <div className="pane-body">
-                {activeTab?.kind === "schema" ? (
+                {activeInspectorTab?.kind === "schema" ? (
                   <SchemaBrowser
                     backendConfig={backendConfig}
                     connectedConnection={connectedConnection}
@@ -657,19 +775,7 @@ export const IdeWorkspace = ({
                     onSaveSummary={(summary) => void saveSchemaSummary(summary)}
                   />
                 ) : null}
-                {activeTab?.kind === "sql" ? (
-                  <SqlSheet
-                    backendConfig={backendConfig}
-                    connectedConnection={connectedConnection}
-                    workingSchema={workingSchema}
-                    isBackendOnline={isBackendOnline}
-                    skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
-                    dirty={sqlDirty}
-                    onDirtyChange={onSqlDirtyChange}
-                    onActivityRefresh={onActivityRefresh}
-                  />
-                ) : null}
-                {activeTab?.kind === "mappings" ? (
+                {activeInspectorTab?.kind === "mappings" ? (
                   <ProjectMappings
                     backendConfig={backendConfig}
                     connections={connections}
@@ -677,13 +783,13 @@ export const IdeWorkspace = ({
                     onOpenedProjectChange={onOpenedProjectChange}
                   />
                 ) : null}
-                {activeTab?.kind === "file" ? (
+                {activeInspectorTab?.kind === "file" ? (
                   <div className="file-preview">
-                    <p className="pane-muted">{activeTab.path}</p>
-                    <pre>{activeTab.content}</pre>
+                    <p className="pane-muted">{activeInspectorTab.path}</p>
+                    <pre>{activeInspectorTab.content}</pre>
                   </div>
                 ) : null}
-                {!activeTab ? <p className="pane-muted">Open an Inspector tab.</p> : null}
+                {!activeInspectorTab ? <p className="pane-muted">Open an Inspector tab.</p> : null}
               </div>
             </div>
           </section>
