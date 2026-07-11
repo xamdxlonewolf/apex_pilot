@@ -37,13 +37,13 @@
       "handoffPath": "handoffs/issue-32-mission-composer-stub.md",
       "startedAt": "2026-07-11T21:42:34.193Z",
       "finishedAt": "2026-07-11T21:47:55.905Z",
-      "lastUpdate": "2026-07-11T21:47:55.905Z",
+      "lastUpdate": "2026-07-11T21:47:58.734Z",
       "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": "unit-test-verified"
     },
     {
       "name": "issue-37-developer-console-scaffold",
@@ -76,12 +76,12 @@
       "agentId": "bc-e38bcb2d-3b25-4191-807e-580572ecfae4",
       "runId": "run-bc418eef-0b14-4dd0-8678-4cbf606d274e",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-41-density-modes-motion.md",
       "startedAt": "2026-07-11T21:42:40.678Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:42:45.052Z",
+      "finishedAt": "2026-07-11T21:50:17.586Z",
+      "lastUpdate": "2026-07-11T21:50:17.586Z",
       "note": "respawned by self-planner (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
@@ -126,6 +126,10 @@
     {
       "at": "2026-07-11T21:46:28.297Z",
       "message": "issue-37-developer-console-scaffold: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-07-11T21:47:58.734Z",
+      "message": "issue-32-mission-composer-stub: verification self-reported (unit-test-verified)"
     }
   ]
 }
