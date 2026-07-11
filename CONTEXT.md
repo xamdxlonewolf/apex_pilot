@@ -41,6 +41,17 @@ _Avoid_: Burying connection/schema only inside a right tools strip
 **Toolbar**:
 The always-on action chrome above the workspace regions (Spec shell).
 
+**Stub**:
+A Design Spec surface present in the real layout whose backend or feature is
+not live yet — shown with honest unfinished affordances, never fake success.
+_Avoid_: Coming soon, WIP badge, Beta (as the unfinished-surface label), Gap (as
+a user-visible badge)
+
+**Gap**:
+A Design Spec surface with no clear Roadmap or PR ownership path — a planning
+signal only, marked in Roadmap / PR notes until an owner exists.
+_Avoid_: Showing Gap as product UI chrome; conflating Gap with Stub
+
 ### Workflow & connection
 
 **Mission Control**:

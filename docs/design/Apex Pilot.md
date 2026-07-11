@@ -63,6 +63,7 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - Close project returns to picker with unsaved prompt; one project per window (prefer new window for another project).
 - Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop Design Spec]] / ADR-0007.
 - Implementation strategy: screen/shell-first Spec layout; design tokens/components grow as screens need them; exact figure pixel-match is not a first-PR gate.
+- Stub / gap conventions (ADR-0007 §11 / UI-9): primary copy `Not implemented yet`; optional secondary for missing dependency; chrome badge `Stub`; disable unfinished actions; no fake success data; `DS-*`/`UI-*` docs-only; Gap is Roadmap planning-only (`Gap:` + `DS-*` + Gaps/orphans until owned); working interim paths are not Stub-badged.
 - Project storage should use a committed JSON manifest, initially `apex-pilot.json`, for portable project facts.
 - Local SQLite should store private/user/runtime facts such as local profiles, retention policy, logical environment to SQLcl saved connection mappings, and connection-to-APEX-workspace mappings.
 - Project manifests should store logical environments, not actual SQLcl saved connection names.

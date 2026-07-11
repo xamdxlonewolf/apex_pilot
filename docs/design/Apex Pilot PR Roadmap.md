@@ -136,7 +136,8 @@ Authoritative UI/UX for the overhaul: [[Apex Pilot Desktop Design Spec]] (+ figu
 
 Purpose: migrate from the interim 9B.1 shell to Design Spec Mission Control.
 Screen/shell-first; design tokens/components grow as screens need them. Exact
-figure pixel-match is not a first-PR gate. Stub/gap-marking conventions: UI-9.
+figure pixel-match is not a first-PR gate. Stub/gap-marking conventions: UI-9
+(locked in ADR-0007 Decision §11).
 
 | ID | Scope | Design Spec |
 | --- | --- | --- |
@@ -149,7 +150,13 @@ figure pixel-match is not a first-PR gate. Stub/gap-marking conventions: UI-9.
 | **UI-6** | Developer Console in-shell; migrate MCP Activity from floating window | DS-CONSOLE-* |
 | **UI-7** | Design system tokens + components (+ density/motion/focus) in parallel | DS-DESIGN-*, DS-COMPONENTS-* |
 | **UI-8** | Dialog/wizard chrome + connection wizard + preferences | DS-DIALOGS-*, DS-CONN-* |
-| **UI-9** | Stub / gap-marking conventions across layout | policy (grilling stub ticket) |
+| **UI-9** | Apply stub / gap-marking conventions across layout (ADR-0007 §11) | policy |
+
+### Gaps / orphans
+
+Use `Gap: <DS-*>` lines here when a Design Spec surface has no clear UI-* / PR
+owner. Remove the Gap line once a path exists. (Product UI uses Stub badges only;
+Gap is planning-only.)
 
 Capability relocation (not deletion): SQL Editor → center workspace; Schema →
 Explorer/DB + viewers; Mappings → connection/profile/preferences UX; right pane

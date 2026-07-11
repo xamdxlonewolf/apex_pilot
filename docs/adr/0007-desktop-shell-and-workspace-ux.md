@@ -96,6 +96,29 @@ Apex Pilot’s accepted desktop shell is the Design Spec Mission Control layout:
     tokens and shared components growing as screens need them. Exact pixel-match
     to figure_1 / figure_2 is not a gate for first Spec-shell PRs; visual intent
     and IA are.
+11. **Stub and gap-marking conventions** (locked by
+    [Grilling: Lock stub copy and gap-marking conventions](https://github.com/xamdxlonewolf/apex_pilot/issues/19);
+    Roadmap **UI-9** applies them across layout):
+    - **Primary user copy:** exactly `Not implemented yet`.
+    - **Optional secondary:** one short line naming the missing dependency or
+      capability when it reduces confusion. No ship dates, no fake progress.
+    - **Chrome badge:** exactly `Stub` on the hosting chrome (section title,
+      tab, dialog title, etc.) when a Spec surface is present but unfinished.
+    - **Interactive controls:** keep Spec layout; disable actions that cannot
+      work yet; hint with the stub language. Never fake a successful run.
+    - **No fake data:** no sample rows, fake SQL results, or mock success
+      timelines. Real in-flight loading (spinners/skeletons) is not a stub.
+    - **Planning IDs:** `DS-*` / `UI-*` stay in docs, tickets, and code comments
+      — never in user-visible stub UI.
+    - **Migration / interim:** a still-working old path (e.g. floating MCP until
+      Developer Console) is not badged Stub; document the migration in ADR /
+      Roadmap only. Non-functional placeholders use Stub conventions.
+    - **Gap (docs only):** if a Design Spec surface has no clear Roadmap / PR
+      path, mark it in planning docs with a `Gap:` line citing the stable
+      `DS-*` id, add or update the owning UI-* / PR item, and keep it under an
+      explicit Gaps / orphans subsection until claimed. Product UI still shows
+      Stub once the surface is placed — never a user-visible Gap badge. Remove
+      the Gap line once a path exists (the surface may remain Stub until built).
 
 ### Historical interim (PR 9B.1 — superseded as target)
 
@@ -131,9 +154,9 @@ Shipped for sequencing, no longer the accepted Decision:
 - Prefer `@tauri-apps/plugin-dialog` and `@tauri-apps/plugin-fs` for pickers and
   tree reads.
 - Do not auto-install prerequisites; keep guided preflight from ADR-0006.
-- Do not enable Mission send until Agent Core; use honest stubs.
-- Roadmap UI overhaul items (UI-0…UI-9) track Spec surfaces; stub/gap-marking
-  conventions are owned separately.
+- Do not enable Mission send until Agent Core; use honest stubs per Decision §11.
+- Roadmap UI overhaul items (UI-0…UI-9) track Spec surfaces; **UI-9** is the
+  apply-across-layout pointer to Decision §11 (not a second policy source).
 - Wizard chrome may grow richer per Design Spec without changing ADR-0006’s
   backend ownership of create/open/clone/preflight/mappings.
 
