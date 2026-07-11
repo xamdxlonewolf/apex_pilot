@@ -100,14 +100,14 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-07-11T21:58:31.916Z",
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:58:21.550Z",
+      "lastUpdate": "2026-07-11T21:58:31.916Z",
       "note": "respawned by local-cli (was error; attempts=1)",
-      "attempts": 1,
+      "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
@@ -230,6 +230,14 @@
     {
       "at": "2026-07-11T21:58:23.524Z",
       "message": "issue-31-explorer-multi-section: respawned by local-cli (was error)"
+    },
+    {
+      "at": "2026-07-11T21:58:24.642Z",
+      "message": "issue-38-mcp-activity-console: respawned by local-cli (was error)"
+    },
+    {
+      "at": "2026-07-11T21:58:31.485Z",
+      "message": "issue-34-sql-editor-center: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
