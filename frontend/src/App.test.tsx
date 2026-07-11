@@ -413,12 +413,21 @@ describe("App", () => {
     expect(mcp).not.toHaveTextContent("Not implemented yet");
     expect(mcp).not.toHaveTextContent(/\bGap\b/);
 
-    // Interim Mission content still hosts chat until Mission tickets land.
+    // Mission center surface is present before Agent Core with explicit stub treatment.
     const mission = screen.getByRole("region", { name: "Mission" });
     expect(mission).toBeInTheDocument();
-    expect(mission).not.toHaveTextContent("Stub");
-    expect(screen.getByLabelText("Chat")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(mission).toHaveTextContent("Mission");
+    expect(mission).toHaveTextContent("Stub");
+    expect(mission).toHaveTextContent("Not implemented yet");
+    expect(mission).not.toHaveTextContent(/\bGap\b/);
+    expect(mission).not.toHaveTextContent(/\bDS-/);
+    expect(mission).not.toHaveTextContent(/\bUI-\d+/);
+    expect(mission).not.toHaveTextContent(/sample row|execution succeeded|mock timeline|streaming/i);
+    expect(screen.queryByLabelText("Chat")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Mission composer")).toBeInTheDocument();
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(send).toBeDisabled();
+    expect(send).toHaveAttribute("title", "Not implemented yet");
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
   });
 
