@@ -170,15 +170,15 @@
         "issue-31-explorer-multi-section",
         "issue-34-sql-editor-center"
       ],
-      "agentId": null,
-      "runId": null,
-      "parentAgentId": null,
+      "agentId": "bc-9db80378-f8de-4728-b2cc-49cc457d4b9c",
+      "runId": "run-941dfdb3-5f55-4855-b1b5-11595a207666",
+      "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
       "status": "running",
       "resultStatus": null,
       "handoffPath": null,
       "startedAt": "2026-07-11T22:20:05.147Z",
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T22:20:05.147Z",
+      "lastUpdate": "2026-07-11T22:20:08.938Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
@@ -197,17 +197,18 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-07-11T22:20:09.266Z",
       "finishedAt": null,
-      "lastUpdate": null,
+      "lastUpdate": "2026-07-11T22:20:09.266Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
-      "verification": null
+      "verification": null,
+      "attempts": 1
     },
     {
       "name": "issue-42-quick-open",
@@ -342,6 +343,10 @@
     {
       "at": "2026-07-11T22:20:04.756Z",
       "message": "issue-36-inspector-panel: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-07-11T22:20:08.941Z",
+      "message": "issue-35-center-editor-stubs: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
     }
   ]
 }
