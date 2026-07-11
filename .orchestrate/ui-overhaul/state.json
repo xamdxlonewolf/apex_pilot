@@ -88,6 +88,76 @@
       "prNumber": null,
       "failureMode": null,
       "verification": "unit-test-verified"
+    },
+    {
+      "name": "issue-34-sql-editor-center",
+      "type": "worker",
+      "branch": "orch/ui-overhaul/issue-34-sql-editor-center",
+      "startingRef": "main",
+      "dependsOn": [
+        "issue-32-mission-composer-stub"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "running",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": "2026-07-11T21:55:25.821Z",
+      "finishedAt": null,
+      "lastUpdate": "2026-07-11T21:55:25.821Z",
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null,
+      "attempts": 1
+    },
+    {
+      "name": "issue-31-explorer-multi-section",
+      "type": "worker",
+      "branch": "orch/ui-overhaul/issue-31-explorer-multi-section",
+      "startingRef": "main",
+      "dependsOn": [
+        "issue-30-explorer-project-files"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
+    },
+    {
+      "name": "issue-38-mcp-activity-console",
+      "type": "worker",
+      "branch": "orch/ui-overhaul/issue-38-mcp-activity-console",
+      "startingRef": "main",
+      "dependsOn": [
+        "issue-37-developer-console-scaffold"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
     }
   ],
   "attention": [

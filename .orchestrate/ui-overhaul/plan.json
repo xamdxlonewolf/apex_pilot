@@ -83,6 +83,62 @@
         "cd frontend && pnpm test && pnpm typecheck both pass"
       ],
       "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Switching density between Compact and Comfortable changes the shell density attribute and persists; reduced-motion still disables non-essential motion."
+    },
+    {
+      "name": "issue-34-sql-editor-center",
+      "type": "worker",
+      "openPR": true,
+      "model": "gpt-5.3-codex-high-fast",
+      "dependsOn": ["issue-32-mission-composer-stub"],
+      "scopedGoal": "Implement GitHub issue #34 (\"SQL Editor to center workspace\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 34 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Today the SQL editor `frontend/src/SqlSheet.tsx` is rendered as an Inspector (right-pane) tab in `frontend/src/IdeWorkspace.tsx` (tab kind \"sql\"). Move the SQL Editor so it is hosted ONLY in center workspace tabs and is NEVER editable from the Inspector / right pane. The center region currently renders `<MissionComposer>` (from merged issue #32); introduce a center tabbed workspace where the SQL Editor is a center tab and Mission remains a center surface (do not delete Mission). Remove the SQL tab from the Inspector tab strip. PRESERVE the existing classify / prompt / block explainability for SQL Editor paths (SqlSheet already routes through the guarded façades in `frontend/src/backend.ts`). Add NO new SQL execution path — continue using only the existing guarded façades in `frontend/src/backend.ts`. Follow strict TDD: add failing Vitest assertions (jsdom) that (a) the SQL Editor renders in the center workspace, (b) SQL is not editable from the Inspector/right pane, (c) classify/prompt/block explainability is preserved, then implement. Follow Stub conventions (`frontend/src/StubSurface.tsx`, `frontend/src/stubConvention.ts`) for any unfinished chrome. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx"],
+      "acceptance": [
+        "SQL Editor is hosted in center workspace tabs only",
+        "SQL is not editable from the Inspector / right pane",
+        "Classify / prompt / block explainability preserved for SQL Editor paths",
+        "No new SQL execution path; still through existing guarded façades",
+        "Vitest asserts SQL Editor location and safety explainability in jsdom",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- SQL Editor opens in a center workspace tab; the Inspector/right pane offers no SQL editing; classify/prompt/block messaging still shows for SQL paths."
+    },
+    {
+      "name": "issue-31-explorer-multi-section",
+      "type": "worker",
+      "openPR": true,
+      "model": "gpt-5.3-codex-high-fast",
+      "dependsOn": ["issue-30-explorer-project-files"],
+      "scopedGoal": "Implement GitHub issue #31 (\"Explorer - multi-section + schema home\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 31 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged issue #30 (Explorer project files: `frontend/src/FileTree.tsx`, `frontend/src/projectFs.ts`, Explorer region in `frontend/src/IdeWorkspace.tsx`). Give the Explorer multi-section navigation for: DB objects, APEX, REST, favorites, pinned, and recent items (use Stub conventions where unfinished). Move schema browsing (`frontend/src/SchemaBrowser.tsx`) so it is reachable from Explorer / object viewers and is NO LONGER a permanent right-pane (Inspector) tool tab — remove the permanent \"schema\" Inspector tab in `frontend/src/IdeWorkspace.tsx`. Stub sections must follow Stub conventions (`frontend/src/StubSurface.tsx`, `frontend/src/stubConvention.ts`): badge \"Stub\", copy \"Not implemented yet\", disabled actions, no fake data. Follow strict TDD: add failing Vitest assertions for multi-section presence and schema-home relocation observable in the shell, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/SqlSheet.tsx", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx", "frontend/src/MissionComposer.tsx"],
+      "acceptance": [
+        "Explorer exposes sections for DB, APEX, REST, favorites, pinned, and recent (Stub where unfinished)",
+        "Schema browsing reachable from Explorer / object viewers, not a permanent right-pane tool tab",
+        "Stub sections follow Stub conventions (badge, copy, disabled actions, no fake data)",
+        "Vitest covers multi-section presence and schema-home relocation observable in the shell",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Explorer shows DB/APEX/REST/favorites/pinned/recent sections (Stub where unfinished); schema browsing is reachable from Explorer and no longer a permanent Inspector tab."
+    },
+    {
+      "name": "issue-38-mcp-activity-console",
+      "type": "worker",
+      "openPR": true,
+      "model": "gpt-5.3-codex-high-fast",
+      "dependsOn": ["issue-37-developer-console-scaffold"],
+      "scopedGoal": "Implement GitHub issue #38 (\"MCP Activity to Console + Tauri e2e smoke\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 38 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged issue #37 (Developer Console with tabs: `frontend/src/DeveloperConsole.tsx`, wired in `frontend/src/IdeWorkspace.tsx`). Make MCP Activity an in-shell Developer Console tab (feed the existing MCP activity data — see `frontend/src/McpActivityWindow.tsx` and `frontend/src/ActivityTree.tsx` — into the Console's MCP Activity tab). Retire the floating/overlay MCP window as the PRODUCT path after migration (it may remain as a documented interim, but it must no longer be the target). Introduce the lightest Tauri-capable e2e harness the repo can sustain and add high-value smoke covering the native shell plus the MCP → Console migration; keep Vitest owning jsdom/browser-fallback presentation paths. Do NOT add standalone Playwright product suites or figure pixel-match suites. Document or gate machine-local prerequisites for the Tauri e2e so CI policy stays explicit (e.g. a README/docs note and an npm script that no-ops or skips gracefully when the native toolchain is absent). Follow strict TDD for the Vitest-observable Console/MCP presentation. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff; document how to run the Tauri e2e smoke.",
+      "pathsAllowed": ["frontend/**"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/SqlSheet.tsx", "frontend/src/MissionComposer.tsx"],
+      "acceptance": [
+        "MCP Activity is available as a Developer Console tab",
+        "Floating/overlay MCP is no longer the product target after migration",
+        "Light Tauri e2e harness exists with high-value smoke for native shell and MCP → Console migration",
+        "Machine-local prerequisites for Tauri e2e are documented or gated so CI policy stays explicit",
+        "Vitest still covers jsdom Console/MCP presentation paths",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n- Tauri e2e smoke runs (or skips gracefully with a documented gate) when the native toolchain is present\n## Manual\n- MCP Activity renders inside the Developer Console tab; the floating overlay is no longer the primary path."
     }
   ]
 }
