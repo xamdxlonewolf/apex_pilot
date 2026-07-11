@@ -12,6 +12,7 @@ import {
   clampInspectorWidth,
 } from "./panelLayout";
 import {
+  type DensityMode,
   type ProfileLayoutPrefs,
   defaultProfileLayout,
   loadProfileLayout,
@@ -25,6 +26,12 @@ type AppSettingsProps = Readonly<{
   onProfilesChange: (profiles: LocalProfile[], selectedProfileId: string) => void;
   onClose: () => void;
 }>;
+
+const densityOptions: ReadonlyArray<Readonly<{ value: DensityMode; label: string }>> = [
+  { value: "compact", label: "Compact" },
+  { value: "default", label: "Default" },
+  { value: "comfortable", label: "Comfortable" },
+];
 
 export const AppSettings = ({
   backendConfig,
@@ -187,6 +194,25 @@ export const AppSettings = ({
       <section className="settings-section" aria-labelledby="settings-app-heading">
         <h2 id="settings-app-heading">App preferences</h2>
         <p className="pane-muted">Stored for the active profile on this machine.</p>
+        <label>
+          Density
+          <select
+            value={layout.density}
+            onChange={(event) =>
+              persistLayout({
+                ...layout,
+                density: event.target.value as DensityMode,
+              })
+            }
+            disabled={!activeProfileId}
+          >
+            {densityOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="checkbox-row">
           <input
             type="checkbox"

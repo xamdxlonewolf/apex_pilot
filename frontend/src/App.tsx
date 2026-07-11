@@ -211,6 +211,13 @@ export const App = () => {
     saveProfileLayout(profileId, layout);
   }, [layout, profileId]);
 
+  useEffect(() => {
+    if (wizardMode !== null || !profileId) {
+      return;
+    }
+    setLayout(loadProfileLayout(profileId));
+  }, [profileId, wizardMode]);
+
   const connectSelectedConnection = useCallback(
     async (connectionName?: string) => {
       const target = (connectionName ?? selectedConnection).trim();

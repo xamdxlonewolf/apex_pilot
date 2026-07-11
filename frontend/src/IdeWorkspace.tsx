@@ -62,6 +62,11 @@ type IdeWorkspaceProps = Readonly<{
 
 // Survives StrictMode remounts; component refs alone do not.
 const autoConnectStarted = new Set<string>();
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+const prefersReducedMotion = (): boolean =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia(reducedMotionQuery).matches;
 
 /** Test-only: clear auto-connect dedupe so cases can re-trigger. */
 export const resetAutoConnectGuardsForTests = (): void => {
@@ -191,6 +196,7 @@ export const IdeWorkspace = ({
   const [workingSchema, setWorkingSchema] = useState("");
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(prefersReducedMotion);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -225,6 +231,23 @@ export const IdeWorkspace = ({
       onSelectedConnectionChange(connection);
     }
   }, [openedProject, onSelectedConnectionChange]);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+    const media = window.matchMedia(reducedMotionQuery);
+    const onChange = (event: MediaQueryListEvent) => {
+      setReduceMotion(event.matches);
+    };
+    setReduceMotion(media.matches);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    }
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
+  }, []);
 
   useEffect(() => {
     saveProjectTabs(openedProject.project.project_id, {
@@ -393,7 +416,8 @@ export const IdeWorkspace = ({
       className={
         layout.showConsole ? "ide-workspace ide-workspace--console-open" : "ide-workspace"
       }
-      data-density="default"
+      data-density={layout.density}
+      data-motion={reduceMotion ? "reduced" : "standard"}
       style={{
         ["--left-width" as string]: `${layout.leftWidth}px`,
         ["--right-width" as string]: `${layout.rightWidth}px`,
