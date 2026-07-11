@@ -20,12 +20,11 @@ wins over conflicting UI ADRs. Update ADRs and these notes when decisions lock.
 | [`Apex Pilot PR Roadmap.md`](./Apex%20Pilot%20PR%20Roadmap.md) | PR sequencing / addendum plan |
 | [`Apex Pilot.md`](./Apex%20Pilot.md) | Product overview + locked decisions |
 
-## Not present in vault (as of this sync)
+## Superseded note
 
-- `Apex Pilot Desktop UX` — wiki-linked from the Roadmap and product note, and
-  named in ADR-0007, but **no file** was found beside the other notes. Treat
-  Design Spec + ADR-0007 as the interim UX paper trail until that note is
-  recovered or explicitly superseded.
+- `Apex Pilot Desktop UX` was removed from the vault and replaced by
+  *Apex Pilot Desktop Design Spec* (+ figures). Roadmap / product-note wiki
+  links and ADR-0007 now point at the Design Spec.
 
 ## Sync policy
 

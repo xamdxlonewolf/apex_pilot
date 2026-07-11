@@ -24,7 +24,7 @@ Expected vault paths (from map Notes):
 | *Apex Pilot PR Roadmap* | `…/obsidian_vault/programming/` (exact filename unknown) |
 | *Apex Pilot* product note | same folder |
 | *Apex Pilot Desktop Design Spec* | previously recovered TOC/fragments only |
-| *Apex Pilot Desktop UX* (named in ADR-0007) | never opened |
+| *Apex Pilot Desktop UX* (named in older ADR-0007 text) | **Removed** — replaced by Design Spec |
 
 Mount probes (`/mnt/c/…`, `/mnt/d/…`, workspace copies) all failed. Prior cloud
 transcripts named these notes as alignment targets but **never read their
@@ -164,8 +164,8 @@ Body unread. Using Design Spec identity (§8 fragments) vs repo framing
 | Local-first | Strong in ADR-0001 | Local First principle | Keep |
 | Vocabulary | chat, tools, files, MCP Activity window | Mission, Inspector, Explorer, Developer Console, context bar | Full glossary pass (+ CONTEXT.md) |
 
-Also check whether the product note still points at the interim **Apex Pilot
-Desktop UX** note (ADR-0007) as authority — map says **Design Spec wins**.
+Also check whether the product note still uses interim 9B.1 chat/shell language —
+map says **Design Spec wins** (Desktop UX note removed).
 
 ---
 
@@ -204,6 +204,6 @@ Not vault edits — candidates after grilling locks:
 ## 8. Follow-ups
 
 1. Vault-mounted re-read of *Apex Pilot PR Roadmap* + *Apex Pilot* → amend this file.  
-2. Optionally recover *Apex Pilot Desktop UX* note and mark it superseded by Design Spec.  
+2. Desktop UX note removed — Design Spec is the authority; keep ADR-0007 marked interim.  
 3. Copy `figure_1` / `figure_2` into `.scratch/ui-overhaul/figures/` for layout proof.  
 4. Do **not** implement UI or edit vault in this ticket.

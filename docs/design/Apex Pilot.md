@@ -51,7 +51,7 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - PR 9 and later should use the addendum roadmap in [[Apex Pilot PR Roadmap]] rather than renumbering completed PRs.
 - PR 9B (Project Initialization Wizard + Preflight) is complete and merged: wizard/preflight APIs plus interim UI. See [[Apex Pilot PR Roadmap]].
 - PR 9B delivered: desktop project menu (New/Open/Recent/Close/Settings); preflight for Git, SQLcl, Java, Python, MCP smoke, and manifest; retention selection; local env→SQLcl mapping and optional APEX workspace mapping; guided install instructions with no auto-install; and remote clone via installed Git only.
-- Next UX work is PR 9B.1 (Desktop Shell & Workspace UX): in progress on `pr9b.1-desktop-shell-ux`. Locked UX decisions live in [[Apex Pilot Desktop UX]].
+- Next UX work after the merged PR 9B.1 interim shell is the Design Spec overhaul. Authoritative UI/UX: [[Apex Pilot Desktop Design Spec]] (+ figures).
 - Sequence: PR 9B → PR 9B.1 → then Agent Core / PR 9D; land 9B.1 before heavy Agent Core UI reliance.
 - Startup funnel: silent health check → full preflight if first-time or unhealthy → profile if needed → recent-projects picker → workspace.
 - Shell: dense IDE chrome; menus and bottom status bar always; left/right panes only when a project is open. Visual direction is IDE, not stacked cards.
@@ -62,7 +62,7 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - SQL sheet: power-user; logs all; confirms destructive/security by default; per-profile setting may skip destructive prompts.
 - MCP Activity: separate floating window; default filter active connection; optional show all.
 - Close project returns to picker with unsaved prompt; one project per window (prefer new window for another project).
-- Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop UX]].
+- Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop Design Spec]] / ADR-0007 (interim); Design Spec wins on conflict.
 - Project storage should use a committed JSON manifest, initially `apex-pilot.json`, for portable project facts.
 - Local SQLite should store private/user/runtime facts such as local profiles, retention policy, logical environment to SQLcl saved connection mappings, and connection-to-APEX-workspace mappings.
 - Project manifests should store logical environments, not actual SQLcl saved connection names.
@@ -113,4 +113,4 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 [[FastAPI]]
 [[Agent Skills]]
 [[Apex Pilot PR Roadmap]]
-[[Apex Pilot Desktop UX]]
+[[Apex Pilot Desktop Design Spec]]

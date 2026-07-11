@@ -13,8 +13,11 @@ Accepted
 PR 9B delivered project wizard and preflight APIs with an interim stacked-cards
 UI. Agent Core and the CLI launcher need a dense IDE shell: startup funnel,
 always-on chrome, project panes, schema/SQL tools against MCP, and a floating
-MCP Activity window. Locked product decisions live in the Apex Pilot Desktop UX
-note.
+MCP Activity window. Interim shell decisions for PR 9B.1 live in this ADR.
+Authoritative UI/UX direction is now the Obsidian / repo note
+[Apex Pilot Desktop Design Spec](../design/Apex%20Pilot%20Desktop%20Design%20Spec.txt)
+(plus figure_1 / figure_2). Where this ADR conflicts with the Design Spec, the
+Design Spec wins and this ADR should be revised.
 
 ## Decision Drivers
 

@@ -6,7 +6,9 @@ This note captures the updated PR split plan after completing PR 8 and reviewing
 
 - PR 8 is complete.
 - PR 9B (Project Initialization Wizard + Preflight) is complete and merged: wizard/preflight APIs plus interim UI.
-- Next is PR 9B.1 (Desktop Shell & Workspace UX): in progress on `pr9b.1-desktop-shell-ux`. It owns the redesign. See [[Apex Pilot Desktop UX]].
+- Next is PR 9B.1 (Desktop Shell & Workspace UX): complete/merged as the interim
+  IDE shell (chat / tool tabs / floating MCP Activity). Authoritative overhaul
+  target is [[Apex Pilot Desktop Design Spec]] (+ figures).
 - Remaining PR 9+ addendum work is still plannable around that sequence.
 - Existing completed PR numbers should stay stable.
 - New work should use lettered addendum PRs rather than renumbering completed history.
@@ -66,7 +68,8 @@ flowchart TD
 - Add Application Mode after the approval workflow.
 - Application Mode must not auto-approve destructive DDL.
 - Keep GUI project open/new/recent flows in the desktop app and add a VS Code-style CLI launcher after the project wizard.
-- PR 9B is merged (wizard/preflight APIs and interim UI); the desktop shell/workspace redesign is PR 9B.1 (planned, not started). Details in [[Apex Pilot Desktop UX]].
+- PR 9B is merged (wizard/preflight APIs and interim UI); PR 9B.1 (interim dense
+  IDE shell) is also merged. Further UI overhaul follows [[Apex Pilot Desktop Design Spec]].
 - Dependency order: PR 9B → PR 9B.1 → then Agent Core / PR 9D. PR 9B.1 should land before heavy Agent Core UI reliance.
 
 ## Near-Term Addendum PRs
@@ -105,11 +108,11 @@ Scope:
 
 ### PR 9B.1: Desktop Shell & Workspace UX
 
-Status: in progress (branch `pr9b.1-desktop-shell-ux`).
+Status: complete / merged (interim IDE shell; Design Spec overhaul still open).
 
-Purpose: replace the interim project UI with the locked dense IDE shell and workspace UX before Agent Core leans on the desktop surface.
+Purpose: replace the interim project UI with a dense IDE shell and workspace UX before Agent Core leans on the desktop surface.
 
-Scope:
+Scope (as shipped — interim vs Design Spec):
 - Startup funnel: silent health check → full preflight if first-time/unhealthy → profile if needed → recent-projects picker → workspace.
 - Always-on menus and bottom status bar; left/right panes only when a project is open.
 - Left project file tree (junk hidden by default); center chat with real composer (send disabled until Agent Core); right shared tab strip for schema/files/SQL sheets with dockable tools.
@@ -118,7 +121,7 @@ Scope:
 - Native folder pickers primary; Tauri FS for files; backend for MCP/metadata.
 - Visual direction: IDE chrome, not stacked cards.
 
-Locked details: [[Apex Pilot Desktop UX]].
+Authoritative UI/UX for the overhaul: [[Apex Pilot Desktop Design Spec]] (+ figures). Where 9B.1 / ADR-0007 conflict with the Design Spec, the Design Spec wins.
 
 ### PR 9D: CLI Launcher + Project Window Integration
 
@@ -186,7 +189,7 @@ Add global and project-level template management after the minimal bootstrap pat
 ## Related
 
 [[Apex Pilot]]
-[[Apex Pilot Desktop UX]]
+[[Apex Pilot Desktop Design Spec]]
 [[Oracle]]
 [[Oracle APEX]]
 [[SQLcl]]

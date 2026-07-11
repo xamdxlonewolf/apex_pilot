@@ -51,7 +51,7 @@ Vault Roadmap § PR 9B.1 still commits to:
 - Center **chat** (send disabled until Agent Core)
 - Right shared tab strip for schema/files/SQL sheets
 - **MCP Activity floating window**
-- Locked details → `[[Apex Pilot Desktop UX]]` (**file missing** in vault)
+- Locked details → `[[Apex Pilot Desktop Design Spec]]` (+ figures; replaces removed Desktop UX note)
 
 Design Spec + figures require Explorer | Mission | Inspector | bottom MCP/console
 Activity — see `docs/design/figures/`.
@@ -68,7 +68,7 @@ Confirmed (no longer inferred):
 | Center | Chat always present; send disabled until Agent Core | Mission workspace | Glossary + UX bullets |
 | Right | Tool tabs (schema/files/SQL) | Inspector | Replace |
 | Observability | MCP Activity separate floating window | In-shell activity / console (figures) | Replace |
-| Authority pointer | Locked UX in `[[Apex Pilot Desktop UX]]` | Design Spec wins (map #14) | Point at Design Spec; mark Desktop UX missing/superseded |
+| Authority pointer | Was `[[Apex Pilot Desktop UX]]` (removed) | Design Spec wins (map #14) | Links retargeted to Design Spec |
 | Sequence | 9B → 9B.1 → Agent Core / 9D | Need UI overhaul epic after/alongside 9B.1 | Add UI-0… items to Roadmap |
 | Invariants | SQLcl MCP-only, guarded façades, no password/result rows | Same | **Keep** |
 
@@ -77,15 +77,11 @@ should survive the UI vocabulary rewrite.
 
 ---
 
-## Missing vault file
+## Superseded vault note
 
-`Apex Pilot Desktop UX` is wiki-linked from Roadmap + product note and named in
-ADR-0007, but **no file** exists in the vault programming folder. Options for
-grilling #18:
-
-1. Recover from backup / another vault path, or
-2. Explicitly supersede it with Design Spec + ADR-0007 rewrite, and remove dead
-   wiki links when editing vault/repo copies.
+`Apex Pilot Desktop UX` was **removed** and replaced by *Apex Pilot Desktop
+Design Spec* (+ figures). Repo copies of the Roadmap / product note and
+ADR-0007 now point at the Design Spec.
 
 ---
 
@@ -97,7 +93,7 @@ grilling #18:
 3. Reframe Agent Core from “enable chat send” → power **Mission** + workflow.  
 4. Retarget MCP Activity from floating window → **Developer Console** tab
    (Design Spec / figures).  
-5. Update Related links: Design Spec + figures; drop or supersede Desktop UX.
+5. Related links already retargeted to Design Spec; Desktop UX removed.
 
 Suggested product-note edits: same glossary/framing table above; keep design
 invariants and non-UI locked decisions.
@@ -108,4 +104,4 @@ invariants and non-UI locked decisions.
 
 - “Vault pass confirms orphan: **DS-INSPECTOR-*** — absent from *Apex Pilot PR Roadmap* body.”  
 - “Vault 9B.1 still locks floating MCP — conflicts **DS-CONSOLE-mcp** / figure_2.”  
-- “Product note chat-first + Desktop UX link — realign to Design Spec authority.”
+- “Product note chat-first framing — realign to Design Spec Mission Control authority.”
