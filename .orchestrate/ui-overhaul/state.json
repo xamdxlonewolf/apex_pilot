@@ -197,15 +197,15 @@
       "agentId": "bc-20ae318f-3f64-48ce-bf1a-4a1076ad302b",
       "runId": "run-eb0751c3-0afb-43fa-a60e-79930bde9747",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-35-center-editor-stubs.md",
       "startedAt": "2026-07-11T22:20:09.266Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T22:20:12.975Z",
+      "finishedAt": "2026-07-11T22:30:36.673Z",
+      "lastUpdate": "2026-07-11T22:30:36.673Z",
       "note": null,
       "slackTs": null,
-      "prNumber": null,
+      "prNumber": 56,
       "failureMode": null,
       "verification": null,
       "attempts": 1
@@ -219,15 +219,15 @@
         "issue-30-explorer-project-files",
         "issue-31-explorer-multi-section"
       ],
-      "agentId": null,
-      "runId": null,
-      "parentAgentId": null,
+      "agentId": "bc-b122a0f4-98a6-4ebd-922b-86cc7cf3fb37",
+      "runId": "run-7bcb55ce-21d5-425e-a73c-c97b93393b1a",
+      "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
       "status": "running",
       "resultStatus": null,
       "handoffPath": null,
       "startedAt": "2026-07-11T22:20:13.246Z",
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T22:20:13.246Z",
+      "lastUpdate": "2026-07-11T22:20:19.257Z",
       "note": null,
       "slackTs": null,
       "prNumber": null,
@@ -352,6 +352,26 @@
     {
       "at": "2026-07-11T22:20:12.976Z",
       "message": "issue-42-quick-open: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-07-11T22:25:13.514Z",
+      "message": "issue-35-center-editor-stubs: tool_call idle 300539ms; last=none since wait start (2026-07-11T22:20:12.975Z)"
+    },
+    {
+      "at": "2026-07-11T22:29:09.986Z",
+      "message": "issue-36-inspector-panel: SSE idle 317507ms, polled status=running; watchdog still waiting"
+    },
+    {
+      "at": "2026-07-11T22:29:09.987Z",
+      "message": "issue-36-inspector-panel: tool_call idle 317508ms; last=2026-07-11T22:23:52.479Z"
+    },
+    {
+      "at": "2026-07-11T22:29:20.038Z",
+      "message": "issue-42-quick-open: SSE idle 319461ms, polled status=running; watchdog still waiting"
+    },
+    {
+      "at": "2026-07-11T22:29:20.039Z",
+      "message": "issue-42-quick-open: tool_call idle 319462ms; last=2026-07-11T22:24:00.577Z"
     }
   ]
 }
