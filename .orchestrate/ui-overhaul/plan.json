@@ -235,6 +235,24 @@
         "cd frontend && pnpm test && pnpm typecheck both pass"
       ],
       "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Mappings live in connection/profile/preferences UX (not the Inspector); layout prefs and project tab arrangement persist across sessions."
+    },
+    {
+      "name": "issue-40-dialog-wizard-chrome",
+      "type": "worker",
+      "openPR": true,
+      "model": "grok-4.5",
+      "dependsOn": ["issue-39-preferences-layout-mapping-home"],
+      "scopedGoal": "Implement GitHub issue #40 (\"Dialog and wizard chrome\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 40 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged #39 (preferences / connection UX). Apply richer Spec dialog/wizard chrome to the connection wizard and related funnel surfaces (see `frontend/src/StartupFunnel.tsx`, `frontend/src/ProjectMappings.tsx`, and the connection/create/open/clone/preflight funnel) to improve UX WITHOUT rewriting the ADR-0006 backend contracts for create/open/clone/preflight/mappings (no `backend/` edits and no new backend calls — keep using the existing frontend API helpers in `frontend/src/backend.ts`). Offline / empty / degraded dialog states must stay honest — use Stub conventions (`frontend/src/StubSurface.tsx`, `frontend/src/stubConvention.ts`) where unfinished; NO fake success. Follow strict TDD: add failing Vitest assertions for observable dialog/wizard chrome behavior in the funnel, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx", "frontend/src/MissionComposer.tsx", "frontend/src/SqlSheet.tsx", "frontend/src/InspectorPanel.tsx"],
+      "acceptance": [
+        "Connection wizard and related funnel dialogs use Spec dialog/wizard chrome",
+        "Backend ownership of create/open/clone/preflight/mappings remains unchanged",
+        "Offline / empty / degraded dialog states stay honest (Stub where unfinished; no fake success)",
+        "Vitest covers observable dialog/wizard chrome behavior in the funnel",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- The connection wizard and funnel dialogs use richer Spec chrome; offline/empty/degraded states stay honest; backend contracts unchanged."
     }
   ]
 }
