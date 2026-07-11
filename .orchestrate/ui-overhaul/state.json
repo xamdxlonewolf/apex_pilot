@@ -129,13 +129,13 @@
       "handoffPath": "handoffs/issue-31-explorer-multi-section.md",
       "startedAt": "2026-07-11T21:58:35.413Z",
       "finishedAt": "2026-07-11T22:03:55.242Z",
-      "lastUpdate": "2026-07-11T22:03:55.242Z",
+      "lastUpdate": "2026-07-11T22:03:58.071Z",
       "note": "respawned by local-cli (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
       "prNumber": 53,
       "failureMode": null,
-      "verification": null
+      "verification": "live-ui-verified"
     },
     {
       "name": "issue-38-mcp-activity-console",
@@ -148,16 +148,16 @@
       "agentId": "bc-f1014483-7f6d-4b9a-9358-11a50e7e6460",
       "runId": "run-531aa559-5fd1-434c-92e7-69f4974cd854",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-38-mcp-activity-console.md",
       "startedAt": "2026-07-11T21:58:38.334Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:58:40.967Z",
+      "finishedAt": "2026-07-11T22:12:28.021Z",
+      "lastUpdate": "2026-07-11T22:12:28.022Z",
       "note": "respawned by local-cli (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
-      "prNumber": null,
+      "prNumber": 54,
       "failureMode": null,
       "verification": null
     }
@@ -250,6 +250,18 @@
     {
       "at": "2026-07-11T22:02:13.870Z",
       "message": "issue-34-sql-editor-center: verification self-reported (unit-test-verified)"
+    },
+    {
+      "at": "2026-07-11T22:03:58.071Z",
+      "message": "issue-31-explorer-multi-section: verification self-reported (live-ui-verified)"
+    },
+    {
+      "at": "2026-07-11T22:07:41.958Z",
+      "message": "issue-38-mcp-activity-console: SSE idle 325607ms, polled status=running; watchdog still waiting"
+    },
+    {
+      "at": "2026-07-11T22:07:41.959Z",
+      "message": "issue-38-mcp-activity-console: tool_call idle 325608ms; last=2026-07-11T22:02:16.350Z"
     }
   ]
 }
