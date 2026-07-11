@@ -10,14 +10,14 @@
       "agentId": null,
       "runId": null,
       "parentAgentId": null,
-      "status": "pending",
+      "status": "running",
       "resultStatus": null,
       "handoffPath": null,
-      "startedAt": null,
+      "startedAt": "2026-07-11T21:42:31.071Z",
       "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:42:12.593Z",
+      "lastUpdate": "2026-07-11T21:42:31.071Z",
       "note": "respawned by self-planner (was error; attempts=1)",
-      "attempts": 1,
+      "attempts": 2,
       "slackTs": null,
       "prNumber": null,
       "failureMode": null,
@@ -118,6 +118,10 @@
     {
       "at": "2026-07-11T21:42:15.674Z",
       "message": "issue-37-developer-console-scaffold: respawned by self-planner (was error)"
+    },
+    {
+      "at": "2026-07-11T21:42:16.823Z",
+      "message": "issue-41-density-modes-motion: respawned by self-planner (was error)"
     }
   ]
 }
