@@ -7,6 +7,7 @@ import { SqlSheet } from "./SqlSheet";
 import { ProjectMappings } from "./StartupFunnel";
 import {
   type BackendConfig,
+  type BackendStatus,
   type OpenedProject,
   type SavedConnection,
   type SchemaSummary,
@@ -21,6 +22,12 @@ import {
   saveProjectTabs,
 } from "./prefs";
 import { type FileTreeNode, joinPath, readTextFile } from "./projectFs";
+import {
+  backendHealthLabel,
+  connectionHealthLabel,
+  environmentIdentity,
+  mcpHealthLabel,
+} from "./shellHealth";
 
 type WorkspaceTab = Readonly<{
   id: string;
@@ -32,6 +39,7 @@ type WorkspaceTab = Readonly<{
 
 type IdeWorkspaceProps = Readonly<{
   backendConfig: BackendConfig;
+  backendStatus: BackendStatus;
   isBackendOnline: boolean;
   connections: SavedConnection[];
   openedProject: OpenedProject;
@@ -42,7 +50,10 @@ type IdeWorkspaceProps = Readonly<{
   onConnect: (connectionName?: string) => Promise<void> | void;
   isConnecting: boolean;
   profileId: string | null;
+  activityCount: number;
+  activeActivitySessionId: string | null;
   onActivityRefresh: () => Promise<void>;
+  onOpenMcp: () => void;
   sqlDirty: boolean;
   onSqlDirtyChange: (dirty: boolean) => void;
 }>;
@@ -86,6 +97,7 @@ const defaultConnectionFromMappings = (openedProject: OpenedProject): string | n
 
 export const IdeWorkspace = ({
   backendConfig,
+  backendStatus,
   isBackendOnline,
   connections,
   openedProject,
@@ -96,7 +108,10 @@ export const IdeWorkspace = ({
   onConnect,
   isConnecting,
   profileId,
+  activityCount,
+  activeActivitySessionId,
   onActivityRefresh,
+  onOpenMcp,
   sqlDirty,
   onSqlDirtyChange,
 }: IdeWorkspaceProps) => {
@@ -299,147 +314,213 @@ export const IdeWorkspace = ({
   };
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
+  const backendHealth = backendHealthLabel(backendStatus);
+  const mcpHealth = mcpHealthLabel(activityCount, Boolean(activeActivitySessionId));
+  const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
+  const environment = environmentIdentity(openedProject.manifest);
 
   return (
     <div
       className="ide-workspace"
+      data-density="default"
       style={{
         ["--left-width" as string]: `${layout.leftWidth}px`,
         ["--right-width" as string]: `${layout.rightWidth}px`,
       }}
     >
-      <FileTree
-        rootPath={openedProject.project.root_path}
-        showJunk={layout.showJunkFiles}
-        onToggleJunk={() =>
-          setLayout((current) => ({ ...current, showJunkFiles: !current.showJunkFiles }))
-        }
-        onOpenFile={onOpenFile}
-      />
-
-      <ChatPane projectName={openedProject.project.name} />
-
-      <aside className="ide-pane ide-pane--right" aria-label="Tools">
-        <div className="pane-header pane-header--tabs">
-          <div className="tab-strip" role="tablist" aria-label="Tool tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={tab.id === activeTabId}
-                className={tab.id === activeTabId ? "tab tab--active" : "tab"}
-                onClick={() => setActiveTabId(tab.id)}
-              >
-                {tab.title}
-                {tab.kind === "file" ? (
-                  <span
-                    className="tab-close"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      closeTab(tab.id);
-                    }}
-                  >
-                    ×
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="connection-strip">
-          <label htmlFor="workspace-connection">
-            Connection
-            <select
-              id="workspace-connection"
-              value={selectedConnection}
-              onChange={(event) => onSelectedConnectionChange(event.target.value)}
-              disabled={!isBackendOnline || isConnecting || connections.length === 0}
-            >
-              {connections.length === 0 ? <option value="">No connections</option> : null}
-              {connections.map((connection) => (
-                <option key={connection.name} value={connection.name}>
-                  {connection.display_name
-                    ? `${connection.display_name} (${connection.name})`
-                    : connection.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={() => void onConnect()}
-            disabled={!isBackendOnline || isConnecting || !selectedConnection}
-            aria-busy={isConnecting}
-          >
-            {isConnecting
-              ? "Connecting…"
-              : connectedConnection === selectedConnection
-                ? "Connected · Reconnect"
-                : connectedConnection
-                  ? "Switch connection"
-                  : "Connect"}
-          </button>
-          <span
-            className={
-              connectedConnection
-                ? "connection-state connection-state--ok"
-                : "connection-state"
-            }
-            role="status"
-          >
-            {isConnecting
-              ? `Connecting to ${selectedConnection}…`
+      <div className="ide-toolbar" role="toolbar" aria-label="Toolbar">
+        <button type="button" className="chrome-button" disabled title="Not implemented yet">
+          New SQL
+        </button>
+        <button type="button" className="chrome-button" disabled title="Not implemented yet">
+          Run
+        </button>
+        <button
+          type="button"
+          className="chrome-button"
+          onClick={() => void onConnect()}
+          disabled={!isBackendOnline || isConnecting || !selectedConnection}
+          aria-busy={isConnecting}
+        >
+          {isConnecting
+            ? "Connecting…"
+            : connectedConnection === selectedConnection
+              ? "Connected · Reconnect"
               : connectedConnection
-                ? `Connected: ${connectedConnection}${workingSchema ? ` · schema ${workingSchema}` : ""}`
-                : "Not connected"}
+                ? "Switch connection"
+                : "Connect"}
+        </button>
+        <button type="button" className="chrome-button" onClick={onOpenMcp}>
+          MCP Activity
+        </button>
+      </div>
+
+      <div className="ide-context-bar" role="region" aria-label="Context Bar">
+        <span className="context-field" aria-label="Project">
+          <span className="context-label">Project</span>
+          <strong>{openedProject.project.name}</strong>
+        </span>
+        <label className="context-field" htmlFor="workspace-connection">
+          <span className="context-label">Connection</span>
+          <select
+            id="workspace-connection"
+            value={selectedConnection}
+            onChange={(event) => onSelectedConnectionChange(event.target.value)}
+            disabled={!isBackendOnline || isConnecting || connections.length === 0}
+          >
+            {connections.length === 0 ? <option value="">No connections</option> : null}
+            {connections.map((connection) => (
+              <option key={connection.name} value={connection.name}>
+                {connection.display_name
+                  ? `${connection.display_name} (${connection.name})`
+                  : connection.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="context-field" htmlFor="workspace-working-schema">
+          <span className="context-label">Working Schema</span>
+          <input
+            id="workspace-working-schema"
+            value={workingSchema}
+            onChange={(event) => handleWorkingSchemaChange(event.target.value)}
+            placeholder="Schema"
+            spellCheck={false}
+          />
+        </label>
+        <span className="context-field" aria-label="Environment">
+          <span className="context-label">Environment</span>
+          <strong>{environment}</strong>
+        </span>
+        <div className="context-health" role="group" aria-label="Health indicators">
+          <span
+            className={`health-pill health-pill--${backendHealth.tone}`}
+            aria-label="Backend health"
+          >
+            {backendHealth.label}
+          </span>
+          <span className={`health-pill health-pill--${mcpHealth.tone}`} aria-label="MCP health">
+            {mcpHealth.label}
+          </span>
+          <span
+            className={`health-pill health-pill--${connectionHealth.tone}`}
+            aria-label="Connection health"
+          >
+            {connectionHealth.label}
           </span>
         </div>
-        {saveMessage ? <p className="pane-muted connection-strip-message">{saveMessage}</p> : null}
+      </div>
 
-        <div className="pane-body">
-          {activeTab?.kind === "schema" ? (
-            <SchemaBrowser
-              backendConfig={backendConfig}
-              connectedConnection={connectedConnection}
-              isBackendOnline={isBackendOnline}
-              projectSchemaOverride={projectSchemaOverride}
-              workingSchema={workingSchema}
-              onWorkingSchemaChange={handleWorkingSchemaChange}
-              onActivityRefresh={onActivityRefresh}
-              onSaveSummary={(summary) => void saveSchemaSummary(summary)}
-            />
-          ) : null}
-          {activeTab?.kind === "sql" ? (
-            <SqlSheet
-              backendConfig={backendConfig}
-              connectedConnection={connectedConnection}
-              workingSchema={workingSchema}
-              isBackendOnline={isBackendOnline}
-              skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
-              dirty={sqlDirty}
-              onDirtyChange={onSqlDirtyChange}
-              onActivityRefresh={onActivityRefresh}
-            />
-          ) : null}
-          {activeTab?.kind === "mappings" ? (
-            <ProjectMappings
-              backendConfig={backendConfig}
-              connections={connections}
-              openedProject={openedProject}
-              onOpenedProjectChange={onOpenedProjectChange}
-            />
-          ) : null}
-          {activeTab?.kind === "file" ? (
-            <div className="file-preview">
-              <p className="pane-muted">{activeTab.path}</p>
-              <pre>{activeTab.content}</pre>
+      <div className="ide-workspace-body">
+        <section className="ide-region ide-region--explorer" role="region" aria-label="Explorer">
+          <FileTree
+            rootPath={openedProject.project.root_path}
+            showJunk={layout.showJunkFiles}
+            onToggleJunk={() =>
+              setLayout((current) => ({ ...current, showJunkFiles: !current.showJunkFiles }))
+            }
+            onOpenFile={onOpenFile}
+          />
+        </section>
+
+        <section className="ide-region ide-region--mission" role="region" aria-label="Mission">
+          <ChatPane projectName={openedProject.project.name} />
+        </section>
+
+        <section className="ide-region ide-region--inspector" role="region" aria-label="Inspector">
+          <div className="ide-pane ide-pane--right">
+            <div className="pane-header pane-header--tabs">
+              <div className="tab-strip" role="tablist" aria-label="Inspector tabs">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab.id === activeTabId}
+                    className={tab.id === activeTabId ? "tab tab--active" : "tab"}
+                    onClick={() => setActiveTabId(tab.id)}
+                  >
+                    {tab.title}
+                    {tab.kind === "file" ? (
+                      <span
+                        className="tab-close"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          closeTab(tab.id);
+                        }}
+                      >
+                        ×
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : null}
-          {!activeTab ? <p className="pane-muted">Open a tool tab.</p> : null}
+            {saveMessage ? (
+              <p className="pane-muted connection-strip-message">{saveMessage}</p>
+            ) : null}
+            <div className="pane-body">
+              {activeTab?.kind === "schema" ? (
+                <SchemaBrowser
+                  backendConfig={backendConfig}
+                  connectedConnection={connectedConnection}
+                  isBackendOnline={isBackendOnline}
+                  projectSchemaOverride={projectSchemaOverride}
+                  workingSchema={workingSchema}
+                  onWorkingSchemaChange={handleWorkingSchemaChange}
+                  onActivityRefresh={onActivityRefresh}
+                  onSaveSummary={(summary) => void saveSchemaSummary(summary)}
+                />
+              ) : null}
+              {activeTab?.kind === "sql" ? (
+                <SqlSheet
+                  backendConfig={backendConfig}
+                  connectedConnection={connectedConnection}
+                  workingSchema={workingSchema}
+                  isBackendOnline={isBackendOnline}
+                  skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
+                  dirty={sqlDirty}
+                  onDirtyChange={onSqlDirtyChange}
+                  onActivityRefresh={onActivityRefresh}
+                />
+              ) : null}
+              {activeTab?.kind === "mappings" ? (
+                <ProjectMappings
+                  backendConfig={backendConfig}
+                  connections={connections}
+                  openedProject={openedProject}
+                  onOpenedProjectChange={onOpenedProjectChange}
+                />
+              ) : null}
+              {activeTab?.kind === "file" ? (
+                <div className="file-preview">
+                  <p className="pane-muted">{activeTab.path}</p>
+                  <pre>{activeTab.content}</pre>
+                </div>
+              ) : null}
+              {!activeTab ? <p className="pane-muted">Open an Inspector tab.</p> : null}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section
+        className="ide-region ide-region--console"
+        role="region"
+        aria-label="Developer Console"
+      >
+        <div className="pane-header">
+          <strong>Developer Console</strong>
+          <span className="stub-badge">Stub</span>
         </div>
-      </aside>
+        <div className="console-body">
+          <p>Not implemented yet</p>
+          <p className="pane-muted">
+            Console tabs need the Developer Console ticket. Use View → MCP Activity for the interim
+            floating path.
+          </p>
+        </div>
+      </section>
     </div>
   );
 };
