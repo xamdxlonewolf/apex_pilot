@@ -7,6 +7,7 @@ import {
   type SavedConnection,
   createProfile,
 } from "./backend";
+import { DialogChrome } from "./DialogChrome";
 import {
   EXPLORER_MIN_WIDTH,
   INSPECTOR_MIN_WIDTH,
@@ -111,13 +112,16 @@ export const AppSettings = ({
   };
 
   return (
-    <div className="funnel-screen" aria-label="Settings">
-      <h1>Settings</h1>
-      <p className="pane-muted">
-        Profile and app preferences for this machine. Environment → SQLcl / APEX mappings stay with
-        the open project.
-      </p>
-
+    <DialogChrome
+      title="Settings"
+      description="Profile and app preferences for this machine. Environment → SQLcl / APEX mappings stay with the open project. Preferences are not a wizard."
+      aria-label="Settings"
+      primaryAction={
+        <button type="button" onClick={onClose}>
+          Done
+        </button>
+      }
+    >
       <section className="settings-section" aria-labelledby="settings-profile-heading">
         <h2 id="settings-profile-heading">Local profile</h2>
         {profiles.length > 0 ? (
@@ -307,12 +311,7 @@ export const AppSettings = ({
         )}
       </section>
 
-      <div className="funnel-actions">
-        <button type="button" onClick={onClose}>
-          Done
-        </button>
-      </div>
       {message ? <p className="pane-muted">{message}</p> : null}
-    </div>
+    </DialogChrome>
   );
 };
