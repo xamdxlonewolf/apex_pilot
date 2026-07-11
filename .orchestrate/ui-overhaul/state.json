@@ -105,13 +105,13 @@
       "handoffPath": "handoffs/issue-34-sql-editor-center.md",
       "startedAt": "2026-07-11T21:58:31.916Z",
       "finishedAt": "2026-07-11T22:02:13.018Z",
-      "lastUpdate": "2026-07-11T22:02:13.018Z",
+      "lastUpdate": "2026-07-11T22:02:13.870Z",
       "note": "respawned by local-cli (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
       "prNumber": 52,
       "failureMode": null,
-      "verification": null
+      "verification": "unit-test-verified"
     },
     {
       "name": "issue-31-explorer-multi-section",
@@ -124,16 +124,16 @@
       "agentId": "bc-024f7426-e19f-40fa-8c9c-39226bc680c0",
       "runId": "run-1fb40ab4-6cc7-42e2-b81e-3ea93268e5bd",
       "parentAgentId": "bc-177fa387-f826-43dd-add2-86f06a7fe356",
-      "status": "running",
-      "resultStatus": null,
-      "handoffPath": null,
+      "status": "handed-off",
+      "resultStatus": "finished",
+      "handoffPath": "handoffs/issue-31-explorer-multi-section.md",
       "startedAt": "2026-07-11T21:58:35.413Z",
-      "finishedAt": null,
-      "lastUpdate": "2026-07-11T21:58:38.103Z",
+      "finishedAt": "2026-07-11T22:03:55.242Z",
+      "lastUpdate": "2026-07-11T22:03:55.242Z",
       "note": "respawned by local-cli (was error; attempts=1)",
       "attempts": 2,
       "slackTs": null,
-      "prNumber": null,
+      "prNumber": 53,
       "failureMode": null,
       "verification": null
     },
@@ -246,6 +246,10 @@
     {
       "at": "2026-07-11T21:58:38.104Z",
       "message": "issue-38-mcp-activity-console: model \"grok-4.5\" not in MODEL_CATALOG (spawning anyway). Run `bun cli.ts models` to see known slugs."
+    },
+    {
+      "at": "2026-07-11T22:02:13.870Z",
+      "message": "issue-34-sql-editor-center: verification self-reported (unit-test-verified)"
     }
   ]
 }
