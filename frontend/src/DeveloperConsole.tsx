@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { McpActivityPanel } from "./McpActivityPanel";
 import { StubSurface } from "./StubSurface";
+import type { ActivityEntry } from "./backend";
 
 type ConsoleTabId =
   | "problems"
@@ -30,7 +32,7 @@ const CONSOLE_TABS: ReadonlyArray<ConsoleTab> = [
   {
     id: "mcp-activity",
     title: "MCP Activity",
-    secondary: "Use View -> MCP Activity for the interim floating path.",
+    secondary: "",
   },
   {
     id: "sql-history",
@@ -49,11 +51,33 @@ const CONSOLE_TABS: ReadonlyArray<ConsoleTab> = [
   },
 ];
 
-export const DeveloperConsole = () => {
+type DeveloperConsoleProps = Readonly<{
+  entries: ActivityEntry[];
+  connectionName: string | null;
+  activeSessionId: string | null;
+  mcpFocusRequest?: number;
+  onMcpFocusHandled?: () => void;
+}>;
+
+export const DeveloperConsole = ({
+  entries,
+  connectionName,
+  activeSessionId,
+  mcpFocusRequest = 0,
+  onMcpFocusHandled,
+}: DeveloperConsoleProps) => {
   const [activeTabId, setActiveTabId] = useState<ConsoleTabId>(CONSOLE_TABS[0].id);
   const activeTab = CONSOLE_TABS.find((tab) => tab.id === activeTabId) ?? CONSOLE_TABS[0];
   const activeTabButtonId = `developer-console-tab-${activeTab.id}`;
   const activePanelId = `developer-console-panel-${activeTab.id}`;
+
+  useEffect(() => {
+    if (mcpFocusRequest <= 0) {
+      return;
+    }
+    setActiveTabId("mcp-activity");
+    onMcpFocusHandled?.();
+  }, [mcpFocusRequest, onMcpFocusHandled]);
 
   return (
     <div className="ide-pane ide-pane--console">
@@ -85,7 +109,15 @@ export const DeveloperConsole = () => {
         aria-labelledby={activeTabButtonId}
         className="console-tab-panel"
       >
-        <StubSurface title={activeTab.title} secondary={activeTab.secondary} bodyClassName="console-body" />
+        {activeTab.id === "mcp-activity" ? (
+          <McpActivityPanel
+            entries={entries}
+            connectionName={connectionName}
+            activeSessionId={activeSessionId}
+          />
+        ) : (
+          <StubSurface title={activeTab.title} secondary={activeTab.secondary} bodyClassName="console-body" />
+        )}
       </div>
     </div>
   );

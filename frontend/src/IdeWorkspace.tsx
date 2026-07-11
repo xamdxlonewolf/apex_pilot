@@ -6,6 +6,7 @@ import { MissionComposer } from "./MissionComposer";
 import { SqlSheet } from "./SqlSheet";
 import { ProjectMappings } from "./StartupFunnel";
 import {
+  type ActivityEntry,
   type BackendConfig,
   type BackendStatus,
   type OpenedProject,
@@ -125,7 +126,10 @@ type IdeWorkspaceProps = Readonly<{
     next: ProfileLayoutPrefs | ((current: ProfileLayoutPrefs) => ProfileLayoutPrefs),
   ) => void;
   activityCount: number;
+  activityEntries: ActivityEntry[];
   activeActivitySessionId: string | null;
+  mcpFocusRequest: number;
+  onMcpFocusHandled: () => void;
   onActivityRefresh: () => Promise<void>;
   onOpenMcp: () => void;
   sqlDirty: boolean;
@@ -255,7 +259,10 @@ export const IdeWorkspace = ({
   layout,
   onLayoutChange,
   activityCount,
+  activityEntries,
   activeActivitySessionId,
+  mcpFocusRequest,
+  onMcpFocusHandled,
   onActivityRefresh,
   onOpenMcp,
   sqlDirty,
@@ -812,7 +819,13 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Developer Console"
           >
-            <DeveloperConsole />
+            <DeveloperConsole
+              entries={activityEntries}
+              connectionName={connectedConnection}
+              activeSessionId={activeActivitySessionId}
+              mcpFocusRequest={mcpFocusRequest}
+              onMcpFocusHandled={onMcpFocusHandled}
+            />
           </section>
         </div>
       ) : null}

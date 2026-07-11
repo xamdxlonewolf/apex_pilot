@@ -1,6 +1,4 @@
-import { useState } from "react";
-
-import { ActivityTree } from "./ActivityTree";
+import { McpActivityPanel } from "./McpActivityPanel";
 import type { ActivityEntry } from "./backend";
 
 type McpActivityWindowProps = Readonly<{
@@ -12,6 +10,11 @@ type McpActivityWindowProps = Readonly<{
   variant?: "overlay" | "window";
 }>;
 
+/**
+ * Interim floating / child-window host for MCP Activity.
+ * Product path is the Developer Console MCP Activity tab; this remains for
+ * no-project browser fallback and the optional Tauri `?view=mcp-activity` window.
+ */
 export const McpActivityWindow = ({
   open,
   onClose,
@@ -20,8 +23,6 @@ export const McpActivityWindow = ({
   activeSessionId,
   variant = "overlay",
 }: McpActivityWindowProps) => {
-  const [showAll, setShowAll] = useState(false);
-
   if (!open) {
     return null;
   }
@@ -36,27 +37,21 @@ export const McpActivityWindow = ({
         <div>
           <p className="chrome-label">MCP Activity</p>
           <h2>Tool calls</h2>
+          <p className="pane-muted">
+            Interim path — prefer Developer Console → MCP Activity when a project is open.
+          </p>
         </div>
         <div className="mcp-float-actions">
-          <label className="chrome-check">
-            <input
-              type="checkbox"
-              checked={showAll}
-              onChange={(event) => setShowAll(event.target.checked)}
-            />
-            Show all connections
-          </label>
           <button type="button" className="chrome-button" onClick={onClose}>
             Close
           </button>
         </div>
       </div>
       <div className="mcp-window-body">
-        <ActivityTree
+        <McpActivityPanel
           entries={entries}
           connectionName={connectionName}
           activeSessionId={activeSessionId}
-          showAll={showAll}
         />
       </div>
     </div>
