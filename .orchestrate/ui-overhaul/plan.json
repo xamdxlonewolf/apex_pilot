@@ -197,6 +197,44 @@
         "cd frontend && pnpm test && pnpm typecheck both pass"
       ],
       "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Ctrl+P opens Quick Open and can jump to a known project file/object; Ctrl+Shift+P palette still works."
+    },
+    {
+      "name": "issue-33-mission-timeline-stage",
+      "type": "worker",
+      "openPR": true,
+      "model": "grok-4.5",
+      "dependsOn": ["issue-32-mission-composer-stub", "issue-34-sql-editor-center"],
+      "scopedGoal": "Implement GitHub issue #33 (\"Mission - timeline and stage chrome\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 33 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged #32 (`frontend/src/MissionComposer.tsx`) and #34/#35 (the Mission surface is now the center \"mission\" tab in `frontend/src/IdeWorkspace.tsx`, rendering `MissionComposer`). Enrich the Mission surface so it shows the Spec timeline, a mission card, plan/SQL/review/exec stage chrome, and a history layout — stubbed where Agent Core is not ready — so streaming and stages can attach to the right information architecture later. Do this inside the Mission surface (extend `MissionComposer.tsx` and/or add Mission sub-components); do NOT restructure Explorer/Inspector/Console or the center tab host. Unfinished pieces MUST use Stub conventions (`frontend/src/StubSurface.tsx`, `frontend/src/stubConvention.ts`); NO fake success timelines or mock streaming. Follow strict TDD: add failing Vitest assertions for stage chrome presence (timeline, mission card, plan/SQL/review/exec stages, history) and Stub honesty where applicable, then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`; do not edit `backend/`; add no new SQL execution path. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx", "frontend/src/InspectorPanel.tsx", "frontend/src/Explorer.tsx", "frontend/src/SqlSheet.tsx"],
+      "acceptance": [
+        "Mission includes timeline, mission card, and plan/SQL/review/exec stage chrome per Spec intent",
+        "History layout is present (stubbed where needed)",
+        "Unfinished pieces use Stub conventions; no fake success timelines",
+        "Vitest asserts stage chrome presence and Stub honesty where applicable",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Mission shows a timeline, mission card, plan/SQL/review/exec stage chrome, and history layout with honest Stub treatment where Agent Core is not ready."
+    },
+    {
+      "name": "issue-39-preferences-layout-mapping-home",
+      "type": "worker",
+      "openPR": true,
+      "model": "grok-4.5",
+      "dependsOn": ["issue-36-inspector-panel"],
+      "scopedGoal": "Implement GitHub issue #39 (\"Preferences, layout persistence and Mapping home\") for the Apex Pilot frontend (React + TypeScript + Vite + Vitest in `frontend/`). Run `gh issue view 39 --repo xamdxlonewolf/apex_pilot --json title,body` first for full acceptance criteria. Builds on merged #36 (Inspector is now a pure `frontend/src/InspectorPanel.tsx` with a TEMPORARY Mappings prefs stub). Move Environment → SQLcl / APEX workspace Mappings into connection / profile / preferences UX (see `frontend/src/AppSettings.tsx` and the `ProjectMappings` component in `frontend/src/StartupFunnel.tsx`), and REMOVE the temporary Inspector Mappings stub from `frontend/src/InspectorPanel.tsx` so Mappings is not a permanent Inspector tab. Make profile-scoped layout prefs persist across sessions and project-scoped open tabs / Mission Control arrangement restore per Spec intent (local desktop storage is fine initially; `frontend/src/prefs.ts` already persists layout + project tabs — extend as needed, keep the UX contract stable so it can later move to SQLite). Do NOT change ADR-0006 backend ownership of create/open/clone/preflight/mappings (no `backend/` edits, no new backend calls). Follow strict TDD: add failing Vitest assertions for observable prefs/Mapping-home behavior in the shell (Mappings reachable from prefs/connection UX; not an Inspector tab; layout prefs persist), then implement. HARD INVARIANTS: never modify `apex/` folders or root `f*.sql`. Verify with `cd frontend && pnpm install && pnpm test && pnpm typecheck` — all green before handoff.",
+      "pathsAllowed": ["frontend/src/**", "frontend/**/*.test.ts", "frontend/**/*.test.tsx"],
+      "pathsForbidden": ["apex/**", "f*.sql", "backend/**", "frontend/src/FileTree.tsx", "frontend/src/projectFs.ts", "frontend/src/DeveloperConsole.tsx", "frontend/src/McpActivityWindow.tsx", "frontend/src/MissionComposer.tsx", "frontend/src/SqlSheet.tsx"],
+      "acceptance": [
+        "Mappings are reachable from connection / profile / preferences UX",
+        "Mappings are not a permanent Inspector tab",
+        "Profile-scoped layout prefs persist across sessions",
+        "Project-scoped open tabs / Mission Control arrangement restore per Spec intent",
+        "No change to ADR-0006 backend ownership of create/open/clone/preflight/mappings",
+        "Vitest covers observable prefs/Mapping-home behavior in the shell",
+        "cd frontend && pnpm test && pnpm typecheck both pass"
+      ],
+      "verify": "## Automated\n- cd frontend && pnpm install && pnpm test && pnpm typecheck (all green)\n## Manual\n- Mappings live in connection/profile/preferences UX (not the Inspector); layout prefs and project tab arrangement persist across sessions."
     }
   ]
 }

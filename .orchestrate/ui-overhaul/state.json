@@ -180,11 +180,11 @@
       "finishedAt": "2026-07-11T22:45:03.613Z",
       "lastUpdate": "2026-07-11T22:45:06.497Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 55,
       "failureMode": null,
-      "verification": "live-ui-verified",
-      "attempts": 1
+      "verification": "live-ui-verified"
     },
     {
       "name": "issue-35-center-editor-stubs",
@@ -204,11 +204,11 @@
       "finishedAt": "2026-07-11T22:30:36.673Z",
       "lastUpdate": "2026-07-11T22:30:39.519Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 56,
       "failureMode": null,
-      "verification": "unit-test-verified",
-      "attempts": 1
+      "verification": "unit-test-verified"
     },
     {
       "name": "issue-42-quick-open",
@@ -229,11 +229,58 @@
       "finishedAt": "2026-07-11T23:06:48.845Z",
       "lastUpdate": "2026-07-11T23:06:50.279Z",
       "note": null,
+      "attempts": 1,
       "slackTs": null,
       "prNumber": 57,
       "failureMode": null,
-      "verification": "unit-test-verified",
-      "attempts": 1
+      "verification": "unit-test-verified"
+    },
+    {
+      "name": "issue-33-mission-timeline-stage",
+      "type": "worker",
+      "branch": "orch/ui-overhaul/issue-33-mission-timeline-stage",
+      "startingRef": "main",
+      "dependsOn": [
+        "issue-32-mission-composer-stub",
+        "issue-34-sql-editor-center"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
+    },
+    {
+      "name": "issue-39-preferences-layout-mapping-home",
+      "type": "worker",
+      "branch": "orch/ui-overhaul/issue-39-preferences-layout-mapping-home",
+      "startingRef": "main",
+      "dependsOn": [
+        "issue-36-inspector-panel"
+      ],
+      "agentId": null,
+      "runId": null,
+      "parentAgentId": null,
+      "status": "pending",
+      "resultStatus": null,
+      "handoffPath": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "lastUpdate": null,
+      "note": null,
+      "slackTs": null,
+      "prNumber": null,
+      "failureMode": null,
+      "verification": null
     }
   ],
   "attention": [
