@@ -8,7 +8,6 @@ import {
   type ProjectSummary,
   type SavedConnection,
   BackendApiError,
-  closeCurrentProject,
   createProfile,
   createProject,
   getPreflight,
@@ -36,9 +35,6 @@ type StartupFunnelProps = Readonly<{
   onProfilesChange?: (profiles: LocalProfile[], selectedProfileId: string) => void;
   wizardMode: WizardMode | null;
   onWizardModeChange: (mode: WizardMode | null) => void;
-  requestClose?: boolean;
-  onCloseHandled?: () => void;
-  hasUnsavedWork?: boolean;
 }>;
 
 const retentionOptions = [
@@ -59,9 +55,6 @@ export const StartupFunnel = ({
   onProfilesChange,
   wizardMode,
   onWizardModeChange,
-  requestClose = false,
-  onCloseHandled,
-  hasUnsavedWork = false,
 }: StartupFunnelProps) => {
   void _connections;
   const [phase, setPhase] = useState<FunnelPhase>("booting");
@@ -156,35 +149,6 @@ export const StartupFunnel = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backendConfig, isBackendOnline, openedProject?.project.project_id, wizardMode]);
-
-  useEffect(() => {
-    if (!requestClose) {
-      return;
-    }
-    void (async () => {
-      if (hasUnsavedWork) {
-        const proceed = window.confirm("You have unsaved work. Close the project anyway?");
-        if (!proceed) {
-          onCloseHandled?.();
-          return;
-        }
-      }
-      setBusy(true);
-      try {
-        await closeCurrentProject(backendConfig);
-        onOpenedProjectChange(null);
-        setMessage("Project closed.");
-        onWizardModeChange(null);
-        goPhase("picker");
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not close project.");
-      } finally {
-        setBusy(false);
-        onCloseHandled?.();
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestClose]);
 
   const ensureProfile = async (): Promise<string> => {
     if (selectedProfileId) {

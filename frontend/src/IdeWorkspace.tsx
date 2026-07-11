@@ -5,6 +5,13 @@ import { Explorer } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
 import { MissionComposer } from "./MissionComposer";
 import { SqlSheet } from "./SqlSheet";
+import { StubSurface } from "./StubSurface";
+import {
+  CENTER_EDITOR_STUB_META,
+  isCenterEditorStubKind,
+  stubCenterEditorTab,
+  type CenterEditorStubKind,
+} from "./centerEditors";
 import {
   type ActivityEntry,
   type BackendConfig,
@@ -36,9 +43,21 @@ type WorkspaceTab = Readonly<{
   content?: string;
 }>;
 
-const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>(["mission", "sql", "file"]);
+const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>([
+  "mission",
+  "sql",
+  "object",
+  "package",
+  "apex",
+  "rest",
+  "diff",
+  "file",
+]);
 
 const isCenterTab = (tab: WorkspaceTab): boolean => CENTER_TAB_KINDS.has(tab.kind);
+
+const isCloseableCenterTab = (tab: WorkspaceTab): boolean =>
+  tab.kind !== "mission" && tab.kind !== "sql";
 
 const defaultCenterTabs = (): WorkspaceTab[] => [
   { id: "mission", kind: "mission", title: "Mission" },
@@ -58,7 +77,12 @@ const restoreWorkspaceTabs = (
           .map((tab) => ({
             id: tab.id,
             kind: tab.kind,
-            title: tab.kind === "sql" ? "SQL Editor" : tab.title,
+            title:
+              tab.kind === "sql"
+                ? "SQL Editor"
+                : isCenterEditorStubKind(tab.kind)
+                  ? CENTER_EDITOR_STUB_META[tab.kind].title
+                  : tab.title,
             path: tab.path,
           }))
       : defaultCenterTabs();
@@ -110,6 +134,8 @@ type IdeWorkspaceProps = Readonly<{
   onOpenMcp: () => void;
   sqlDirty: boolean;
   onSqlDirtyChange: (dirty: boolean) => void;
+  openCenterEditorKind?: CenterEditorStubKind | null;
+  openCenterEditorRequest?: number;
 }>;
 
 // Survives StrictMode remounts; component refs alone do not.
@@ -243,6 +269,8 @@ export const IdeWorkspace = ({
   onOpenMcp,
   sqlDirty,
   onSqlDirtyChange,
+  openCenterEditorKind = null,
+  openCenterEditorRequest = 0,
 }: IdeWorkspaceProps) => {
   const projectId = openedProject.project.project_id;
   const [tabsProjectId, setTabsProjectId] = useState<string | null>(null);
@@ -252,6 +280,7 @@ export const IdeWorkspace = ({
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(prefersReducedMotion);
+  const [handledEditorRequest, setHandledEditorRequest] = useState(0);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -264,6 +293,7 @@ export const IdeWorkspace = ({
     setProjectSchemaOverride(schema);
     setWorkingSchema(schema ?? "");
     setSaveMessage(null);
+    setHandledEditorRequest(0);
   }
 
   useEffect(() => {
@@ -274,6 +304,22 @@ export const IdeWorkspace = ({
       onSelectedConnectionChange(connection);
     }
   }, [openedProject, onSelectedConnectionChange]);
+
+  useEffect(() => {
+    if (
+      !openCenterEditorKind ||
+      openCenterEditorRequest <= 0 ||
+      openCenterEditorRequest === handledEditorRequest
+    ) {
+      return;
+    }
+    const tab = stubCenterEditorTab(openCenterEditorKind);
+    setTabs((current) =>
+      current.some((item) => item.id === tab.id) ? current : [...current, tab],
+    );
+    setActiveCenterTabId(tab.id);
+    setHandledEditorRequest(openCenterEditorRequest);
+  }, [handledEditorRequest, openCenterEditorKind, openCenterEditorRequest]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") {
@@ -661,9 +707,10 @@ export const IdeWorkspace = ({
                       onClick={() => setActiveCenterTabId(tab.id)}
                     >
                       {tab.title}
-                      {tab.kind === "file" ? (
+                      {isCloseableCenterTab(tab) ? (
                         <span
                           className="tab-close"
+                          aria-hidden="true"
                           onClick={(event) => {
                             event.stopPropagation();
                             closeTab(tab.id);
@@ -692,8 +739,16 @@ export const IdeWorkspace = ({
                     onActivityRefresh={onActivityRefresh}
                   />
                 ) : null}
-                {activeCenterTab?.kind === "file" ? (
-                  <div className="file-preview">
+                {activeCenterTab &&
+                isCenterEditorStubKind(activeCenterTab.kind) &&
+                !(activeCenterTab.kind === "file" && activeCenterTab.content !== undefined) ? (
+                  <StubSurface
+                    title={CENTER_EDITOR_STUB_META[activeCenterTab.kind].title}
+                    secondary={CENTER_EDITOR_STUB_META[activeCenterTab.kind].secondary}
+                  />
+                ) : null}
+                {activeCenterTab?.kind === "file" && activeCenterTab.content !== undefined ? (
+                  <div className="file-preview" aria-label="File preview">
                     <p className="pane-muted">{activeCenterTab.path}</p>
                     <pre>{activeCenterTab.content}</pre>
                   </div>

@@ -594,6 +594,68 @@ describe("App", () => {
     expect(within(mission).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
   });
 
+  it("hosts stubbed object / package / APEX / REST / diff / file editors in center workspace tabs", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.project-tabs.proj-1",
+      JSON.stringify({
+        openTabs: [
+          { id: "mission", kind: "mission", title: "Mission" },
+          { id: "sql", kind: "sql", title: "SQL Editor" },
+          { id: "stub:object", kind: "object", title: "Object Editor" },
+          { id: "stub:package", kind: "package", title: "Package Editor" },
+          { id: "stub:apex", kind: "apex", title: "APEX Editor" },
+          { id: "stub:rest", kind: "rest", title: "REST Editor" },
+          { id: "stub:diff", kind: "diff", title: "Diff Editor" },
+          { id: "stub:file", kind: "file", title: "File Editor" },
+          { id: "mappings", kind: "mappings", title: "Mappings" },
+        ],
+        activeTabId: "stub:object",
+        activeCenterTabId: "stub:object",
+        activeInspectorTabId: "mappings",
+      }),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const mission = await screen.findByRole("region", { name: "Mission" });
+    const centerTabs = within(mission).getByRole("tablist", {
+      name: "Center workspace tabs",
+    });
+    const stubTitles = [
+      "Object Editor",
+      "Package Editor",
+      "APEX Editor",
+      "REST Editor",
+      "Diff Editor",
+      "File Editor",
+    ];
+    for (const title of stubTitles) {
+      expect(within(centerTabs).getByRole("tab", { name: title })).toBeInTheDocument();
+    }
+
+    for (const title of stubTitles) {
+      fireEvent.click(within(centerTabs).getByRole("tab", { name: title }));
+      const stubSurface = within(mission).getByTestId("stub-surface");
+      expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
+      expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
+      expect(within(stubSurface).getByText(title)).toBeInTheDocument();
+      expect(within(stubSurface).queryByText(/\bGap\b/)).not.toBeInTheDocument();
+      expect(within(stubSurface).queryByText(/\bDS-/)).not.toBeInTheDocument();
+      expect(within(stubSurface).queryByText(/\bUI-\d+/)).not.toBeInTheDocument();
+      expect(
+        within(stubSurface).queryByText(/sample row|execution succeeded|mock timeline|EMPLOYEE/i),
+      ).not.toBeInTheDocument();
+    }
+
+    const inspector = screen.getByRole("region", { name: "Inspector" });
+    expect(within(inspector).queryByRole("tab", { name: /Object Editor|Package Editor/i })).not.toBeInTheDocument();
+  });
+
   it("makes the right pane a pure Inspector with progress/classification/summaries/checklist and no tool tabs", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",
@@ -619,6 +681,85 @@ describe("App", () => {
     expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("button", { name: /^Run$/i })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("button", { name: /^Execute$/i })).not.toBeInTheDocument();
+  });
+
+  it("prompts on Close Project when editors are dirty and returns to the recent-projects picker", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal("fetch", workspaceFetch());
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<App />);
+
+    const mission = await screen.findByRole("region", { name: "Mission" });
+    const centerTabs = within(mission).getByRole("tablist", {
+      name: "Center workspace tabs",
+    });
+    fireEvent.click(within(centerTabs).getByRole("tab", { name: "SQL Editor" }));
+    fireEvent.change(within(mission).getByLabelText("SQL"), {
+      target: { value: "select 1 from dual" },
+    });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Close$/i }));
+
+    await waitFor(() => {
+      expect(confirm).toHaveBeenCalledWith(
+        expect.stringMatching(/unsaved work/i),
+      );
+    });
+    expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Mission" })).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Recent projects" })).toBeInTheDocument();
+  });
+
+  it("keeps one project open when dirty Close Project is cancelled", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal("fetch", workspaceFetch());
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<App />);
+
+    const mission = await screen.findByRole("region", { name: "Mission" });
+    const centerTabs = within(mission).getByRole("tablist", {
+      name: "Center workspace tabs",
+    });
+    fireEvent.click(within(centerTabs).getByRole("tab", { name: "SQL Editor" }));
+    fireEvent.change(within(mission).getByLabelText("SQL"), {
+      target: { value: "select * from emp" },
+    });
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Close$/i }));
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalled();
+    });
+    expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Recent projects")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Context Bar" })).toHaveTextContent("Demo");
+  });
+
+  it("closes a clean project to the recent-projects picker without an unsaved prompt", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    vi.stubGlobal("fetch", workspaceFetch());
+    const confirm = vi.spyOn(window, "confirm");
+
+    render(<App />);
+
+    await screen.findByRole("region", { name: "Mission" });
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Close$/i }));
+
+    expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "Mission" })).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Recent projects" })).toBeInTheDocument();
   });
 
   it("switches workspace density via settings and persists the profile preference", async () => {
