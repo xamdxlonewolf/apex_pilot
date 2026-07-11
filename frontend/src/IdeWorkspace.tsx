@@ -1,6 +1,7 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ChatPane } from "./ChatPane";
+import { DeveloperConsole } from "./DeveloperConsole";
 import { FileTree } from "./FileTree";
 import { SchemaBrowser } from "./SchemaBrowser";
 import { SqlSheet } from "./SqlSheet";
@@ -25,7 +26,6 @@ import {
   environmentIdentity,
   mcpHealthLabel,
 } from "./shellHealth";
-import { StubSurface } from "./StubSurface";
 import { stubActionProps } from "./stubConvention";
 
 type WorkspaceTab = Readonly<{
@@ -689,11 +689,7 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Developer Console"
           >
-            <StubSurface
-              title="Developer Console"
-              bodyClassName="console-body"
-              secondary="Console tabs need the Developer Console ticket. Use View → MCP Activity for the interim floating path."
-            />
+            <DeveloperConsole />
           </section>
         </div>
       ) : null}

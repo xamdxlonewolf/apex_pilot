@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { App, resetConnectGuardsForTests } from "./App";
 import { resetAutoConnectGuardsForTests } from "./IdeWorkspace";
@@ -391,8 +391,33 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
     const consoleRegion = screen.getByRole("region", { name: "Developer Console" });
     expect(consoleRegion).toBeInTheDocument();
-    expect(consoleRegion).toHaveTextContent("Stub");
-    expect(consoleRegion).toHaveTextContent("Not implemented yet");
+    const consoleTabs = within(consoleRegion).getByRole("tablist", {
+      name: "Developer Console tabs",
+    });
+    expect(consoleTabs).toBeInTheDocument();
+    expect(within(consoleTabs).getByRole("tab", { name: "Problems" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(within(consoleTabs).getByRole("tab", { name: "Output" })).toBeInTheDocument();
+    expect(within(consoleTabs).getByRole("tab", { name: "MCP Activity" })).toBeInTheDocument();
+    expect(within(consoleTabs).getByRole("tab", { name: "SQL History" })).toBeInTheDocument();
+    expect(within(consoleTabs).getByRole("tab", { name: "Oracle Messages" })).toBeInTheDocument();
+    expect(within(consoleTabs).getByRole("tab", { name: "Tasks" })).toBeInTheDocument();
+    expect(within(consoleRegion).getByText("Stub")).toBeInTheDocument();
+    expect(within(consoleRegion).getByText("Not implemented yet")).toBeInTheDocument();
+    for (const tabTitle of [
+      "Output",
+      "MCP Activity",
+      "SQL History",
+      "Oracle Messages",
+      "Tasks",
+      "Problems",
+    ]) {
+      fireEvent.click(within(consoleTabs).getByRole("tab", { name: tabTitle }));
+      expect(within(consoleRegion).getByText("Stub")).toBeInTheDocument();
+      expect(within(consoleRegion).getByText("Not implemented yet")).toBeInTheDocument();
+    }
     expect(consoleRegion).not.toHaveTextContent(/\bGap\b/);
     expect(consoleRegion).not.toHaveTextContent(/\bDS-/);
     expect(consoleRegion).not.toHaveTextContent(/\bUI-\d+/);
