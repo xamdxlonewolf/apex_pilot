@@ -1,5 +1,61 @@
 # Orchestrate handoff — issues 29–42
 
+## Progress update (root planner run, agent bc-177fa387…e356)
+
+Root-planner workspace lives at `.orchestrate/ui-overhaul/` (`plan.json` +
+`state.json` + `handoffs/`). `CURSOR_API_KEY` **was** present this run.
+
+**Wave A complete and merged to `main`:**
+
+| Issue | PR | Status |
+|-------|----|--------|
+| #30 Explorer project files | #51 | merged |
+| #32 Mission composer Stub | #49 | merged |
+| #37 Developer Console scaffold | #48 | merged |
+| #41 Density modes + motion | #50 | merged |
+
+All four handed off `success` / `unit-test-verified`; merged sequentially into
+`main` (one trivial import conflict in `IdeWorkspace.tsx` resolved). Merged tree
+is green: `cd frontend && pnpm test` → 31 passing, `pnpm typecheck` → clean.
+
+**BLOCKED — Cursor account spend limit.** Round 2 (#34←#32, #31←#30, #38←#37)
+failed at spawn with:
+
+```
+[usage_limit_exceeded] Usage-based pricing required. Background Agent requires
+at least $2 remaining until your hard limit. Enable usage-based pricing and set
+a Spend Limit.
+```
+
+Wave A consumed the remaining budget. This is a deterministic account/billing
+gate (not transient); no code fix applies. **Action for Michael:** enable
+usage-based pricing / raise the Spend Limit for the account behind
+`CURSOR_API_KEY` at https://cursor.com/dashboard (Billing / Integrations).
+
+**Resume after billing is fixed** (from repo root, `bun` on PATH):
+
+```bash
+CLI=<orchestrate>/scripts/cli.ts
+# reset the three billing-failed tasks, then run the loop
+for t in issue-34-sql-editor-center issue-31-explorer-multi-section issue-38-mcp-activity-console; do
+  bun $CLI respawn .orchestrate/ui-overhaul "$t" --source local-cli
+done
+bun $CLI run --root .orchestrate/ui-overhaul
+```
+
+Then merge each PR into `main` after `cd frontend && pnpm test && pnpm typecheck`
+pass, and stage the remaining rounds in `plan.json`:
+- R2b: #33 (←#32,#34, serialized after #34 to avoid center-region conflict)
+- R3: #35 (←#34), #36 (←#31,#34), #42 (←#30,#31)
+- R4: #39 (←#36)
+- R5: #40 (←#39)
+
+Set `"model": "gpt-5.3-codex-high-fast"` on every worker: the orchestrate
+skill's `MODEL_CATALOG` default (`gpt-5.5` with `reasoning=high;fast=true`) is
+stale — the backend `/v1/models` requires a `context` param, so the default is
+rejected as `invalid_model`. Validated slugs: `gpt-5.3-codex-high-fast`,
+`claude-opus-4-8`.
+
 ## Blocker for `/orchestrate`
 
 This cloud session did **not** have `CURSOR_API_KEY` set

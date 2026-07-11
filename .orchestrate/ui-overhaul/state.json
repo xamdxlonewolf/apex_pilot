@@ -107,11 +107,11 @@
       "finishedAt": null,
       "lastUpdate": "2026-07-11T21:55:34.893Z",
       "note": "spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…",
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": "unknown",
-      "verification": null,
-      "attempts": 1
+      "verification": null
     },
     {
       "name": "issue-31-explorer-multi-section",
@@ -131,11 +131,11 @@
       "finishedAt": null,
       "lastUpdate": "2026-07-11T21:55:44.841Z",
       "note": "spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…",
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": "unknown",
-      "verification": null,
-      "attempts": 1
+      "verification": null
     },
     {
       "name": "issue-38-mcp-activity-console",
@@ -155,11 +155,11 @@
       "finishedAt": null,
       "lastUpdate": "2026-07-11T21:55:55.390Z",
       "note": "spawn failed after 3 transient sub-attempts: ConfigurationError: [usage_limit_exceeded] Usage-based pricing required. Background Agent requires at least $2 remaining until your hard limit. Enable usage-based pricing and set a Spend Limit at http…",
+      "attempts": 1,
       "slackTs": null,
       "prNumber": null,
       "failureMode": "unknown",
-      "verification": null,
-      "attempts": 1
+      "verification": null
     }
   ],
   "attention": [
