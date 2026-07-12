@@ -37,12 +37,19 @@ hosted **inside** the Product Header — not a second stacked chrome strip.
 ## Check for updates
 
 Help → **Check for updates…** opens one **Updates** dialog with per-component
-rows (Application, Oracle system skills, …). Exact updatable inventory is fog
-for a later ticket; this decision only locks the entry point and multi-item
-dialog pattern.
+rows. Inventory locked by
+[Grilling: Updates dialog updatable inventory](https://github.com/xamdxlonewolf/apex_pilot/issues/84):
+
+1. **Application** (shell + bundled backend as one unit)
+2. **Oracle system skills** (sparse `apex/` + `db/` checkout)
+3. **Prerequisites:** SQLcl, Java, OS (status/check when wired; no JDK install
+   from Apex Pilot — guided fix stays preflight)
+
+Stub-honest until wired; per-row Check disabled until real; footer Close only.
+Git/DB drift is **not** an Updates row (separate sync surface).
 
 ## Explicit non-goals (this ticket)
 
 - Activity Rail ↔ Focus Mode pairing chrome (sibling grilling ticket)
 - Implementing native Tauri menus / Product Header UI (task ticket)
-- Full Updates dialog component list
+- Wiring real update checkers (later tasks once inventory is locked)
