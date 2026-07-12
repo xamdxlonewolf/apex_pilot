@@ -17,15 +17,16 @@ Ship a Mission Control shell that matches figure_1 / figure_2 as north star: Act
 ## Decisions so far
 
 - [Research: Gap inventory current shell vs figure_1/2](https://github.com/xamdxlonewolf/apex_pilot/issues/62) — Regions exist (Explorer/Mission/Inspector/Console/Toolbar/Context Bar); largest gaps are Activity Rail, Focus Modes, stage-driven Inspector, progressive New SQL/Run, real code editors, Product Header + native App Menu. Asset: `.scratch/ui-overhaul/figure-matching-gap-inventory.md`
+- [Grilling: Focus Mode set and default landing](https://github.com/xamdxlonewolf/apex_pilot/issues/63) — Modes are Agent / SQL / Files / Review; default Agent on project open; Agent = Mission primacy with editors remaining dual-primary peers (not minimized away).
 
 ## Not yet specified
 
-- Exact Focus Mode names and default landing when a project opens
 - Full App Menu inventory vs Product Header / Toolbar ownership
 - Code-editor library choice (Monaco vs alternatives) and language pack set
 - Database/APEX object open-to-view detail (read-only viewer vs editable buffer; refresh vs FS sync)
 - Developer Console craft depth vs figure_1 (tab inventory largely placed; MCP live, other tabs Stub — how much visual match in first IA slices?)
 - Density / motion figure craft pass vs prefs that already ship (ADR-0007 §12 carryover)
+- Exact pane weights / layout recipe per Focus Mode (implementation detail once auto-switch is decided)
 
 ## Out of scope
 
