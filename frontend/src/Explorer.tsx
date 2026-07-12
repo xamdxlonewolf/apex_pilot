@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 
+import { ApexBrowser, type ApexOpenTarget, type ApexWorkspaceMappingItem } from "./ApexBrowser";
 import {
   type BackendConfig,
   type SchemaSummary,
@@ -7,7 +8,7 @@ import {
 import { FileTree } from "./FileTree";
 import { type ActivityRailId } from "./focusMode";
 import { type FileTreeNode } from "./projectFs";
-import { SchemaBrowser } from "./SchemaBrowser";
+import { SchemaBrowser, type SchemaOpenTarget } from "./SchemaBrowser";
 import { StubSurface } from "./StubSurface";
 import { stubActionProps } from "./stubConvention";
 
@@ -36,12 +37,7 @@ const EXPLORER_POSTURES: ReadonlyArray<ExplorerPosture> = [
     secondary: "Code posture arrives with repository object browsing.",
   },
   { id: "database", title: "Database", stub: false },
-  {
-    id: "apex",
-    title: "APEX",
-    stub: true,
-    secondary: "APEX application browsing arrives with APEX metadata integration.",
-  },
+  { id: "apex", title: "APEX", stub: false },
   {
     id: "review",
     title: "Review",
@@ -60,6 +56,7 @@ export type ExplorerSchemaProps = Readonly<{
   onActivityRefresh: () => Promise<void>;
   onSaveSummary?: (summary: SchemaSummary) => void;
   onSummaryChange?: (summary: SchemaSummary | null) => void;
+  onOpenObject?: (target: SchemaOpenTarget) => void;
 }>;
 
 type ExplorerProps = Readonly<{
@@ -68,6 +65,8 @@ type ExplorerProps = Readonly<{
   onToggleJunk: () => void;
   onOpenFile: (node: FileTreeNode) => void;
   schema: ExplorerSchemaProps;
+  apexMappings: ReadonlyArray<ApexWorkspaceMappingItem>;
+  onOpenApex: (target: ApexOpenTarget) => void;
   /** Activity Rail posture that drives the Explorer body. */
   activePosture: ExplorerSectionId;
   /** When set, Explorer requests a posture jump (Quick Open object). */
@@ -101,6 +100,8 @@ const SectionBody = ({
   onToggleJunk,
   onOpenFile,
   schema,
+  apexMappings,
+  onOpenApex,
 }: Readonly<{
   posture: ExplorerPosture;
   rootPath: string;
@@ -108,6 +109,8 @@ const SectionBody = ({
   onToggleJunk: () => void;
   onOpenFile: (node: FileTreeNode) => void;
   schema: ExplorerSchemaProps;
+  apexMappings: ReadonlyArray<ApexWorkspaceMappingItem>;
+  onOpenApex: (target: ApexOpenTarget) => void;
 }>): ReactNode => {
   if (posture.id === "files") {
     return (
@@ -133,9 +136,13 @@ const SectionBody = ({
           onActivityRefresh={schema.onActivityRefresh}
           onSaveSummary={schema.onSaveSummary}
           onSummaryChange={schema.onSummaryChange}
+          onOpenObject={schema.onOpenObject}
         />
       </div>
     );
+  }
+  if (posture.id === "apex") {
+    return <ApexBrowser mappings={apexMappings} onOpenApex={onOpenApex} />;
   }
   return <StubSectionBody posture={posture} />;
 };
@@ -146,6 +153,8 @@ export const Explorer = ({
   onToggleJunk,
   onOpenFile,
   schema,
+  apexMappings,
+  onOpenApex,
   activePosture,
   focusSection = null,
   onFocusSectionHandled,
@@ -179,6 +188,8 @@ export const Explorer = ({
           onToggleJunk={onToggleJunk}
           onOpenFile={onOpenFile}
           schema={schema}
+          apexMappings={apexMappings}
+          onOpenApex={onOpenApex}
         />
       </div>
     </aside>

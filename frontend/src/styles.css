@@ -304,10 +304,10 @@ button:disabled {
   --pane-header-padding: 4px 8px;
   --pane-body-padding: 8px;
   --tab-padding: 4px 8px;
-  --tree-row-height: 30px;
-  --tree-row-padding: 3px 4px;
-  --list-row-height: 30px;
-  --list-row-padding: 8px;
+  --tree-row-height: 22px;
+  --tree-row-padding: 1px 4px;
+  --list-row-height: 24px;
+  --list-row-padding: 4px 6px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
@@ -335,10 +335,10 @@ button:disabled {
   --pane-header-padding: 3px 8px;
   --pane-body-padding: 6px;
   --tab-padding: 3px 8px;
-  --tree-row-height: 26px;
-  --tree-row-padding: 2px 4px;
-  --list-row-height: 26px;
-  --list-row-padding: 6px;
+  --tree-row-height: 20px;
+  --tree-row-padding: 0 4px;
+  --list-row-height: 22px;
+  --list-row-padding: 3px 5px;
 }
 
 .ide-workspace[data-density="comfortable"] {
@@ -358,10 +358,10 @@ button:disabled {
   --pane-header-padding: 5px 9px;
   --pane-body-padding: 10px;
   --tab-padding: 5px 10px;
-  --tree-row-height: 34px;
-  --tree-row-padding: 5px 6px;
-  --list-row-height: 34px;
-  --list-row-padding: 10px;
+  --tree-row-height: 28px;
+  --tree-row-padding: 3px 6px;
+  --list-row-height: 30px;
+  --list-row-padding: 8px;
 }
 
 .ide-workspace[data-motion="reduced"] {
@@ -1116,11 +1116,21 @@ button:disabled {
 }
 
 .explorer-files,
-.explorer-database {
+.explorer-database,
+.explorer-apex {
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
+}
+
+.explorer-files-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: var(--pane-header-min-height, 34px);
+  padding: 0 2px;
 }
 
 .explorer-files .pane-header {
@@ -1131,6 +1141,7 @@ button:disabled {
 
 .explorer-files-body {
   min-height: 0;
+  overflow: auto;
 }
 
 .explorer-stub-body {
@@ -1144,6 +1155,61 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.object-browse-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.object-browse-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--list-row-height, 24px);
+  padding: var(--list-row-padding, 4px 6px);
+  border: 0;
+  border-radius: 3px;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.object-browse-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 6%);
+}
+
+.object-browse-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.object-browse-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.object-browse-meta {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.center-object-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
 }
 
 .inspector-panel {
@@ -1258,10 +1324,13 @@ button:disabled {
   margin: 0;
   padding: 0;
   list-style: none;
+  font-size: 0.82rem;
 }
 
 .file-tree .file-tree {
-  margin-left: 12px;
+  margin-left: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--chrome-border) 70%, transparent);
+  padding-left: 6px;
 }
 
 .file-tree-item {
@@ -1270,21 +1339,42 @@ button:disabled {
 
 .file-tree-button {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   width: 100%;
-  min-height: var(--tree-row-height, 30px);
-  padding: var(--tree-row-padding, 3px 4px);
+  min-height: var(--tree-row-height, 22px);
+  padding: var(--tree-row-padding, 1px 4px);
   border: 0;
-  border-radius: 3px;
+  border-radius: 2px;
   color: var(--text);
-  font-weight: 500;
+  font-weight: 400;
   text-align: left;
   background: transparent;
+  cursor: pointer;
 }
 
 .file-tree-button:hover {
   background: rgb(255 255 255 / 6%);
+}
+
+.file-tree-twist {
+  display: inline-flex;
+  width: 0.9rem;
+  flex-shrink: 0;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.file-tree-twist--file {
+  opacity: 0.55;
+}
+
+.file-tree-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-tree-item--protected .file-tree-button {
@@ -1293,7 +1383,7 @@ button:disabled {
 
 .file-tree-button em {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-style: normal;
 }
 

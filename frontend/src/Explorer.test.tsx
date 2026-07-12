@@ -14,45 +14,32 @@ const schemaProps = {
   onActivityRefresh: vi.fn(async () => undefined),
 };
 
+const baseProps = {
+  rootPath: "C:/tmp/demo",
+  showJunk: false,
+  onToggleJunk: () => undefined,
+  onOpenFile: () => undefined,
+  schema: schemaProps,
+  apexMappings: [] as ReadonlyArray<{ workspace_name: string; sqlcl_connection_name: string }>,
+  onOpenApex: () => undefined,
+};
+
 describe("Explorer rail-driven postures", () => {
   it("hosts schema browsing under Database and stubs unfinished postures", () => {
-    const { rerender } = render(
-      <Explorer
-        rootPath="C:/tmp/demo"
-        showJunk={false}
-        onToggleJunk={() => undefined}
-        onOpenFile={() => undefined}
-        schema={schemaProps}
-        activePosture="files"
-      />,
-    );
+    const { rerender } = render(<Explorer {...baseProps} activePosture="files" />);
 
     const explorer = screen.getByLabelText("Explorer navigation");
     expect(within(explorer).queryByLabelText("Schema browser")).not.toBeInTheDocument();
 
-    rerender(
-      <Explorer
-        rootPath="C:/tmp/demo"
-        showJunk={false}
-        onToggleJunk={() => undefined}
-        onOpenFile={() => undefined}
-        schema={schemaProps}
-        activePosture="database"
-      />,
-    );
+    rerender(<Explorer {...baseProps} activePosture="database" />);
     expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
 
-    for (const posture of ["agent", "code", "apex", "review"] as const) {
-      rerender(
-        <Explorer
-          rootPath="C:/tmp/demo"
-          showJunk={false}
-          onToggleJunk={() => undefined}
-          onOpenFile={() => undefined}
-          schema={schemaProps}
-          activePosture={posture}
-        />,
-      );
+    rerender(<Explorer {...baseProps} activePosture="apex" />);
+    expect(within(explorer).getByLabelText("APEX browser")).toBeInTheDocument();
+    expect(within(explorer).getByTestId("stub-surface")).toBeInTheDocument();
+
+    for (const posture of ["agent", "code", "review"] as const) {
+      rerender(<Explorer {...baseProps} activePosture={posture} />);
       const stubSurface = within(explorer).getByTestId("stub-surface");
       expect(within(stubSurface).getByTestId("stub-badge")).toHaveTextContent(STUB_BADGE);
       expect(within(stubSurface).getByText(STUB_PRIMARY_COPY)).toBeInTheDocument();
@@ -72,17 +59,26 @@ describe("Explorer rail-driven postures", () => {
   });
 
   it("keeps project files reachable from the Files posture", () => {
+    render(<Explorer {...baseProps} activePosture="files" />);
+
+    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+  });
+
+  it("opens mapped APEX workspaces from the APEX posture", () => {
+    const onOpenApex = vi.fn();
     render(
       <Explorer
-        rootPath="C:/tmp/demo"
-        showJunk={false}
-        onToggleJunk={() => undefined}
-        onOpenFile={() => undefined}
-        schema={schemaProps}
-        activePosture="files"
+        {...baseProps}
+        activePosture="apex"
+        apexMappings={[{ workspace_name: "HR_WS", sqlcl_connection_name: "dev" }]}
+        onOpenApex={onOpenApex}
       />,
     );
 
-    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /HR_WS/i }));
+    expect(onOpenApex).toHaveBeenCalledWith({
+      workspaceName: "HR_WS",
+      connectionName: "dev",
+    });
   });
 });

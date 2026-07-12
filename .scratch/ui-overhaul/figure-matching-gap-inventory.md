@@ -65,8 +65,8 @@ is a sibling grilling ticket, not resolved here.
 | --- | --- | --- |
 | Narrow left Activity Rail icons switching Explorer posture (Files, Agent/Mission, Code, Database, …) | No rail; Explorer section buttons inside the left pane | **Missing** (rail) |
 | Files = real FS tree (local/git source of truth) | `FileTree` via Tauri FS; APEX/`f*.sql` protected | **Match** (capability) |
-| Database / APEX postures with open-to-view objects | Database via `SchemaBrowser`; APEX/REST/favorites/pinned/recent Stub | **Partial** |
-| Cursor-informed FS density/craft | Functional tree; not Cursor-grade density/craft | **Partial** (craft) |
+| Database / APEX postures with open-to-view objects | Database via `SchemaBrowser` with openable tables; APEX via mapped workspaces (honest empty Stub when unmapped); deep metadata still Stub | **Partial** (browse+open wired; metadata fog) |
+| Cursor-informed FS density/craft | Dense tree rows + indent guides; density modes tighten further | **Partial** (density craft improved; figure polish later) |
 | Recent files strip (figure_1) | Recent Explorer section is Stub; no figure-like recent strip | **Partial** / Stub |
 
 **Gap:** Add Activity Rail as primary posture switch; keep hybrid Explorer

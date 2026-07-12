@@ -1,11 +1,13 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ActivityRail } from "./ActivityRail";
+import { type ApexOpenTarget } from "./ApexBrowser";
 import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
 import { MissionComposer } from "./MissionComposer";
 import { QuickOpenHost } from "./QuickOpenHost";
+import { type SchemaOpenTarget } from "./SchemaBrowser";
 import { SqlSheet, WORKSPACE_SQL_FORM_ID, type SqlRunState } from "./SqlSheet";
 import { StubSurface } from "./StubSurface";
 import {
@@ -96,9 +98,10 @@ const restoreWorkspaceTabs = (
             title:
               tab.kind === "sql"
                 ? "SQL Editor"
-                : isCenterEditorStubKind(tab.kind)
-                  ? CENTER_EDITOR_STUB_META[tab.kind].title
-                  : tab.title,
+                : tab.title ||
+                  (isCenterEditorStubKind(tab.kind)
+                    ? CENTER_EDITOR_STUB_META[tab.kind].title
+                    : tab.title),
             path: tab.path,
           }))
       : defaultEditorTabs();
@@ -538,6 +541,26 @@ export const IdeWorkspace = ({
     })();
   };
 
+  const onOpenObject = (target: SchemaOpenTarget) => {
+    const qualified = `${target.schemaName}.${target.objectName}`;
+    setFocusedObjectName(qualified);
+    openOrFocus({
+      id: `object:${target.schemaName}.${target.objectType}.${target.objectName}`,
+      kind: "object",
+      title: target.objectName,
+      path: `${target.objectType} ${qualified}`,
+    });
+  };
+
+  const onOpenApex = (target: ApexOpenTarget) => {
+    openOrFocus({
+      id: `apex:${target.connectionName}:${target.workspaceName}`,
+      kind: "apex",
+      title: target.workspaceName,
+      path: `${target.connectionName} · ${target.workspaceName}`,
+    });
+  };
+
   const onQuickOpenSelect = (item: QuickOpenItem) => {
     if (item.kind === "file" && item.path) {
       const root = openedProject.project.root_path;
@@ -552,12 +575,20 @@ export const IdeWorkspace = ({
       return;
     }
     if (item.kind === "object") {
-      const qualified = item.detail ?? item.objectName ?? item.label;
+      const objectName = item.objectName ?? item.label;
+      const schemaName = item.schemaName ?? item.detail?.split(".")[0] ?? workingSchema;
+      const objectType = item.objectType ?? "TABLE";
+      const qualified = item.detail ?? `${schemaName}.${objectName}`;
       setFocusedObjectName(qualified);
       if (!layout.showExplorer) {
         onLayoutChange((current) => ({ ...current, showExplorer: true }));
       }
       setExplorerFocusSection("database");
+      onOpenObject({
+        schemaName,
+        objectType,
+        objectName,
+      });
     }
   };
 
@@ -843,6 +874,8 @@ export const IdeWorkspace = ({
                 focusSection={explorerFocusSection}
                 onFocusSectionHandled={() => setExplorerFocusSection(null)}
                 focusedObjectName={focusedObjectName}
+                apexMappings={openedProject.apex_workspace_mappings}
+                onOpenApex={onOpenApex}
                 schema={{
                   backendConfig,
                   connectedConnection,
@@ -853,6 +886,7 @@ export const IdeWorkspace = ({
                   onActivityRefresh,
                   onSaveSummary: (summary) => void saveSchemaSummary(summary),
                   onSummaryChange: onSchemaSummaryChange,
+                  onOpenObject,
                 }}
               />
             </div>
@@ -959,10 +993,15 @@ export const IdeWorkspace = ({
                   {activeCenterTab &&
                   isCenterEditorStubKind(activeCenterTab.kind) &&
                   !(activeCenterTab.kind === "file" && activeCenterTab.content !== undefined) ? (
-                    <StubSurface
-                      title={CENTER_EDITOR_STUB_META[activeCenterTab.kind].title}
-                      secondary={CENTER_EDITOR_STUB_META[activeCenterTab.kind].secondary}
-                    />
+                    <div className="center-object-viewer" aria-label={`${activeCenterTab.kind} viewer`}>
+                      {activeCenterTab.path ? (
+                        <p className="pane-muted">{activeCenterTab.path}</p>
+                      ) : null}
+                      <StubSurface
+                        title={activeCenterTab.title}
+                        secondary={CENTER_EDITOR_STUB_META[activeCenterTab.kind].secondary}
+                      />
+                    </div>
                   ) : null}
                   {activeCenterTab?.kind === "file" && activeCenterTab.content !== undefined ? (
                     <div className="file-preview" aria-label="File preview">
