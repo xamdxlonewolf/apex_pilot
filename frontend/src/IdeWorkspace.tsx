@@ -1,5 +1,6 @@
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 
+import { ActivityRail } from "./ActivityRail";
 import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
@@ -21,6 +22,16 @@ import {
   type SavedConnection,
   type SchemaSummary,
 } from "./backend";
+import {
+  DEFAULT_ACTIVITY_RAIL,
+  applyFocusModeSelection,
+  applyRailSelection,
+  editorPeerKindFromTab,
+  focusModeFromWork,
+  railForFocusMode,
+  type ActivityRailId,
+  type FocusMode,
+} from "./focusMode";
 import {
   clampConsoleHeight,
   clampExplorerWidth,
@@ -51,8 +62,8 @@ type WorkspaceTab = Readonly<{
   content?: string;
 }>;
 
-const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>([
-  "mission",
+/** Editor peer tabs — Mission is a dual-primary peer, not a center tab. */
+const EDITOR_TAB_KINDS = new Set<WorkspaceTabKind>([
   "sql",
   "object",
   "package",
@@ -62,13 +73,11 @@ const CENTER_TAB_KINDS = new Set<WorkspaceTabKind>([
   "file",
 ]);
 
-const isCenterTab = (tab: WorkspaceTab): boolean => CENTER_TAB_KINDS.has(tab.kind);
+const isEditorTab = (tab: WorkspaceTab): boolean => EDITOR_TAB_KINDS.has(tab.kind);
 
-const isCloseableCenterTab = (tab: WorkspaceTab): boolean =>
-  tab.kind !== "mission" && tab.kind !== "sql";
+const isCloseableEditorTab = (tab: WorkspaceTab): boolean => tab.kind !== "sql";
 
-const defaultCenterTabs = (): WorkspaceTab[] => [
-  { id: "mission", kind: "mission", title: "Mission" },
+const defaultEditorTabs = (): WorkspaceTab[] => [
   { id: "sql", kind: "sql", title: "SQL Editor" },
 ];
 
@@ -81,7 +90,7 @@ const restoreWorkspaceTabs = (
   const restored: WorkspaceTab[] =
     saved.openTabs.length > 0
       ? saved.openTabs
-          .filter((tab) => CENTER_TAB_KINDS.has(tab.kind))
+          .filter((tab) => EDITOR_TAB_KINDS.has(tab.kind))
           .map((tab) => ({
             id: tab.id,
             kind: tab.kind,
@@ -93,26 +102,24 @@ const restoreWorkspaceTabs = (
                   : tab.title,
             path: tab.path,
           }))
-      : defaultCenterTabs();
+      : defaultEditorTabs();
 
   let tabs = restored;
-  if (!tabs.some((tab) => tab.kind === "mission")) {
-    tabs = [...defaultCenterTabs().filter((tab) => tab.kind === "mission"), ...tabs];
-  }
   if (!tabs.some((tab) => tab.kind === "sql")) {
-    tabs = [...tabs, ...defaultCenterTabs().filter((tab) => tab.kind === "sql")];
+    tabs = [...tabs, ...defaultEditorTabs()];
   }
 
-  const centerTabs = tabs.filter(isCenterTab);
-  const centerIds = new Set(centerTabs.map((tab) => tab.id));
+  const editorTabs = tabs.filter(isEditorTab);
+  const editorIds = new Set(editorTabs.map((tab) => tab.id));
 
-  const activeCenterTabId =
-    (saved.activeCenterTabId && centerIds.has(saved.activeCenterTabId)
+  const preferred =
+    (saved.activeCenterTabId && editorIds.has(saved.activeCenterTabId)
       ? saved.activeCenterTabId
       : null) ??
-    (saved.activeTabId && centerIds.has(saved.activeTabId) ? saved.activeTabId : null) ??
-    centerTabs[0]?.id ??
-    null;
+    (saved.activeTabId && editorIds.has(saved.activeTabId) ? saved.activeTabId : null);
+
+  const activeCenterTabId =
+    preferred ?? editorTabs.find((tab) => tab.kind === "sql")?.id ?? editorTabs[0]?.id ?? null;
 
   return { tabs, activeCenterTabId };
 };
@@ -145,6 +152,8 @@ type IdeWorkspaceProps = Readonly<{
   onSqlDirtyChange: (dirty: boolean) => void;
   openCenterEditorKind?: CenterEditorStubKind | null;
   openCenterEditorRequest?: number;
+  focusMode: FocusMode;
+  onFocusModeChange: (mode: FocusMode) => void;
 }>;
 
 // Survives StrictMode remounts; component refs alone do not.
@@ -281,6 +290,8 @@ export const IdeWorkspace = ({
   onSqlDirtyChange,
   openCenterEditorKind = null,
   openCenterEditorRequest = 0,
+  focusMode,
+  onFocusModeChange,
 }: IdeWorkspaceProps) => {
   const projectId = openedProject.project.project_id;
   const [tabsProjectId, setTabsProjectId] = useState<string | null>(null);
@@ -296,6 +307,7 @@ export const IdeWorkspace = ({
     null,
   );
   const [focusedObjectName, setFocusedObjectName] = useState<string | null>(null);
+  const [activityRail, setActivityRail] = useState<ActivityRailId>(DEFAULT_ACTIVITY_RAIL);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -312,7 +324,56 @@ export const IdeWorkspace = ({
     setSchemaObjects([]);
     setFocusedObjectName(null);
     setExplorerFocusSection(null);
+    setActivityRail(DEFAULT_ACTIVITY_RAIL);
   }
+
+  const onActivityRailSelect = (rail: ActivityRailId) => {
+    const next = applyRailSelection(rail, focusMode);
+    onFocusModeChange(next.focusMode);
+    setActivityRail(next.rail);
+  };
+
+  const activateEditorTab = (tabId: string, kindHint?: WorkspaceTabKind) => {
+    setActiveCenterTabId(tabId);
+    const kind = kindHint ?? tabs.find((item) => item.id === tabId)?.kind;
+    const peer = editorPeerKindFromTab(kind);
+    if (peer === "mission" || peer === null) {
+      return;
+    }
+    const nextMode = focusModeFromWork(focusMode, { type: "editor-focus", peer });
+    if (nextMode !== focusMode) {
+      const next = applyFocusModeSelection(nextMode, activityRail);
+      onFocusModeChange(next.focusMode);
+      setActivityRail(next.rail);
+    }
+  };
+
+  const focusMissionPeer = () => {
+    const nextMode = focusModeFromWork(focusMode, { type: "mission-focus" });
+    if (nextMode !== focusMode) {
+      const next = applyFocusModeSelection(nextMode, activityRail);
+      onFocusModeChange(next.focusMode);
+      setActivityRail(next.rail);
+    }
+  };
+
+  useEffect(() => {
+    if (!explorerFocusSection) {
+      return;
+    }
+    const next = applyRailSelection(explorerFocusSection, focusMode);
+    onFocusModeChange(next.focusMode);
+    setActivityRail(next.rail);
+    setExplorerFocusSection(null);
+  }, [explorerFocusSection, focusMode, onFocusModeChange]);
+
+  // Keep rail in sync when Focus Mode is set from App menu / palette (SQL leaves rail).
+  useEffect(() => {
+    const paired = railForFocusMode(focusMode);
+    if (paired) {
+      setActivityRail(paired);
+    }
+  }, [focusMode]);
 
   useEffect(() => {
     const defaults = loadProjectDefaults(openedProject.project.project_id);
@@ -335,7 +396,7 @@ export const IdeWorkspace = ({
     setTabs((current) =>
       current.some((item) => item.id === tab.id) ? current : [...current, tab],
     );
-    setActiveCenterTabId(tab.id);
+    activateEditorTab(tab.id, tab.kind);
     setHandledEditorRequest(openCenterEditorRequest);
   }, [handledEditorRequest, openCenterEditorKind, openCenterEditorRequest]);
 
@@ -427,15 +488,21 @@ export const IdeWorkspace = ({
 
   const openOrFocus = (tab: WorkspaceTab) => {
     setTabs((current) => (current.some((item) => item.id === tab.id) ? current : [...current, tab]));
-    setActiveCenterTabId(tab.id);
+    activateEditorTab(tab.id, tab.kind);
   };
 
   const closeTab = (tabId: string) => {
     setTabs((current) => {
       const closing = current.find((tab) => tab.id === tabId);
       const next = current.filter((tab) => tab.id !== tabId);
-      if (closing && isCenterTab(closing) && activeCenterTabId === tabId) {
-        setActiveCenterTabId(next.find(isCenterTab)?.id ?? null);
+      if (closing && isEditorTab(closing) && activeCenterTabId === tabId) {
+        const fallback = next.find(isEditorTab) ?? null;
+        if (fallback) {
+          // Defer so we don't nest focus-mode updates inside the tabs updater.
+          queueMicrotask(() => activateEditorTab(fallback.id, fallback.kind));
+        } else {
+          setActiveCenterTabId(null);
+        }
       }
       return next;
     });
@@ -535,17 +602,18 @@ export const IdeWorkspace = ({
     }
   };
 
-  const centerTabs = tabs.filter(isCenterTab);
-  const activeCenterTab = centerTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
+  const editorTabs = tabs.filter(isEditorTab);
+  const activeCenterTab = editorTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
   const backendHealth = backendHealthLabel(backendStatus);
   const mcpHealth = mcpHealthLabel(activityCount, Boolean(activeActivitySessionId));
   const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
   const environment = environmentIdentity(openedProject.manifest);
+  const missionPrimacy = focusMode === "agent" || focusMode === "review" ? "primary" : "secondary";
+  const editorsPrimacy = focusMode === "sql" || focusMode === "files" ? "primary" : "secondary";
 
   const bodyColumns = [
     layout.showExplorer ? `${layout.leftWidth}px` : null,
-    // Spec §17 Conversation minimum width when Mission is visible.
-    layout.showMission ? "minmax(600px, 1fr)" : null,
+    "minmax(600px, 1fr)",
     layout.showInspector ? `${layout.rightWidth}px` : null,
   ]
     .filter(Boolean)
@@ -560,6 +628,7 @@ export const IdeWorkspace = ({
       }
       data-density={layout.density}
       data-motion={reduceMotion ? "reduced" : "standard"}
+      data-focus-mode={focusMode}
       style={{
         ["--left-width" as string]: `${layout.leftWidth}px`,
         ["--right-width" as string]: `${layout.rightWidth}px`,
@@ -713,114 +782,156 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Explorer"
           >
-            <Explorer
-              rootPath={openedProject.project.root_path}
-              showJunk={layout.showJunkFiles}
-              onToggleJunk={() =>
-                onLayoutChange((current) => ({
-                  ...current,
-                  showJunkFiles: !current.showJunkFiles,
-                }))
-              }
-              onOpenFile={onOpenFile}
-              focusSection={explorerFocusSection}
-              onFocusSectionHandled={() => setExplorerFocusSection(null)}
-              focusedObjectName={focusedObjectName}
-              schema={{
-                backendConfig,
-                connectedConnection,
-                isBackendOnline,
-                projectSchemaOverride,
-                workingSchema,
-                onWorkingSchemaChange: handleWorkingSchemaChange,
-                onActivityRefresh,
-                onSaveSummary: (summary) => void saveSchemaSummary(summary),
-                onSummaryChange: onSchemaSummaryChange,
-              }}
-            />
-            {layout.showMission || layout.showInspector ? (
-              <PanelSplitter
-                axis="explorer"
-                label="Resize Explorer"
-                onDelta={(delta) =>
+            <div className="explorer-with-rail">
+              <ActivityRail active={activityRail} onSelect={onActivityRailSelect} />
+              <Explorer
+                rootPath={openedProject.project.root_path}
+                showJunk={layout.showJunkFiles}
+                onToggleJunk={() =>
                   onLayoutChange((current) => ({
                     ...current,
-                    leftWidth: clampExplorerWidth(current.leftWidth + delta),
+                    showJunkFiles: !current.showJunkFiles,
                   }))
                 }
+                onOpenFile={onOpenFile}
+                activePosture={activityRail}
+                focusSection={explorerFocusSection}
+                onFocusSectionHandled={() => setExplorerFocusSection(null)}
+                focusedObjectName={focusedObjectName}
+                schema={{
+                  backendConfig,
+                  connectedConnection,
+                  isBackendOnline,
+                  projectSchemaOverride,
+                  workingSchema,
+                  onWorkingSchemaChange: handleWorkingSchemaChange,
+                  onActivityRefresh,
+                  onSaveSummary: (summary) => void saveSchemaSummary(summary),
+                  onSummaryChange: onSchemaSummaryChange,
+                }}
               />
-            ) : null}
+            </div>
+            <PanelSplitter
+              axis="explorer"
+              label="Resize Explorer"
+              onDelta={(delta) =>
+                onLayoutChange((current) => ({
+                  ...current,
+                  leftWidth: clampExplorerWidth(current.leftWidth + delta),
+                }))
+              }
+            />
           </section>
         ) : null}
 
-        {layout.showMission ? (
-          <section className="ide-region ide-region--mission" role="region" aria-label="Mission">
-            <div className="ide-pane ide-pane--center">
-              <div className="pane-header pane-header--tabs">
-                <div className="tab-strip" role="tablist" aria-label="Center workspace tabs">
-                  {centerTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab.id === activeCenterTabId}
-                      className={tab.id === activeCenterTabId ? "tab tab--active" : "tab"}
-                      onClick={() => setActiveCenterTabId(tab.id)}
-                    >
-                      {tab.title}
-                      {isCloseableCenterTab(tab) ? (
-                        <span
-                          className="tab-close"
-                          aria-hidden="true"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            closeTab(tab.id);
-                          }}
-                        >
-                          ×
-                        </span>
-                      ) : null}
-                    </button>
-                  ))}
+        <section
+          className="ide-region ide-region--workspace"
+          role="region"
+          aria-label="Workspace"
+          data-focus-mode={focusMode}
+        >
+          <div
+            className="workspace-peers"
+            data-mission-visible={layout.showMission ? "true" : "false"}
+          >
+            {layout.showMission ? (
+              <section
+                className={
+                  missionPrimacy === "primary"
+                    ? "workspace-peer workspace-peer--mission workspace-peer--primary"
+                    : "workspace-peer workspace-peer--mission workspace-peer--secondary"
+                }
+                role="region"
+                aria-label="Mission"
+                data-primacy={missionPrimacy}
+                onFocusCapture={focusMissionPeer}
+                onClick={focusMissionPeer}
+              >
+                <div className="ide-pane ide-pane--mission">
+                  <div className="pane-header">
+                    <strong>Mission</strong>
+                  </div>
+                  <div className="pane-body">
+                    <MissionComposer projectName={openedProject.project.name} />
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            <section
+              className={
+                editorsPrimacy === "primary"
+                  ? "workspace-peer workspace-peer--editors workspace-peer--primary"
+                  : "workspace-peer workspace-peer--editors workspace-peer--secondary"
+              }
+              role="region"
+              aria-label="Editors"
+              data-primacy={editorsPrimacy}
+            >
+              <div className="ide-pane ide-pane--center">
+                <div className="pane-header pane-header--tabs">
+                  <div className="tab-strip" role="tablist" aria-label="Editor workspace tabs">
+                    {editorTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab.id === activeCenterTabId}
+                        className={tab.id === activeCenterTabId ? "tab tab--active" : "tab"}
+                        onClick={() => activateEditorTab(tab.id, tab.kind)}
+                      >
+                        {tab.title}
+                        {isCloseableEditorTab(tab) ? (
+                          <span
+                            className="tab-close"
+                            aria-hidden="true"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              closeTab(tab.id);
+                            }}
+                          >
+                            ×
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="pane-body">
+                  {activeCenterTab?.kind === "sql" ? (
+                    <SqlSheet
+                      backendConfig={backendConfig}
+                      connectedConnection={connectedConnection}
+                      workingSchema={workingSchema}
+                      isBackendOnline={isBackendOnline}
+                      skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
+                      dirty={sqlDirty}
+                      onDirtyChange={onSqlDirtyChange}
+                      onActivityRefresh={onActivityRefresh}
+                    />
+                  ) : null}
+                  {activeCenterTab &&
+                  isCenterEditorStubKind(activeCenterTab.kind) &&
+                  !(activeCenterTab.kind === "file" && activeCenterTab.content !== undefined) ? (
+                    <StubSurface
+                      title={CENTER_EDITOR_STUB_META[activeCenterTab.kind].title}
+                      secondary={CENTER_EDITOR_STUB_META[activeCenterTab.kind].secondary}
+                    />
+                  ) : null}
+                  {activeCenterTab?.kind === "file" && activeCenterTab.content !== undefined ? (
+                    <div className="file-preview" aria-label="File preview">
+                      <p className="pane-muted">{activeCenterTab.path}</p>
+                      <pre>{activeCenterTab.content}</pre>
+                    </div>
+                  ) : null}
+                  {!activeCenterTab ? (
+                    <p className="pane-muted">Open an editor tab.</p>
+                  ) : null}
                 </div>
               </div>
-              <div className="pane-body">
-                {activeCenterTab?.kind === "mission" ? (
-                  <MissionComposer projectName={openedProject.project.name} />
-                ) : null}
-                {activeCenterTab?.kind === "sql" ? (
-                  <SqlSheet
-                    backendConfig={backendConfig}
-                    connectedConnection={connectedConnection}
-                    workingSchema={workingSchema}
-                    isBackendOnline={isBackendOnline}
-                    skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
-                    dirty={sqlDirty}
-                    onDirtyChange={onSqlDirtyChange}
-                    onActivityRefresh={onActivityRefresh}
-                  />
-                ) : null}
-                {activeCenterTab &&
-                isCenterEditorStubKind(activeCenterTab.kind) &&
-                !(activeCenterTab.kind === "file" && activeCenterTab.content !== undefined) ? (
-                  <StubSurface
-                    title={CENTER_EDITOR_STUB_META[activeCenterTab.kind].title}
-                    secondary={CENTER_EDITOR_STUB_META[activeCenterTab.kind].secondary}
-                  />
-                ) : null}
-                {activeCenterTab?.kind === "file" && activeCenterTab.content !== undefined ? (
-                  <div className="file-preview" aria-label="File preview">
-                    <p className="pane-muted">{activeCenterTab.path}</p>
-                    <pre>{activeCenterTab.content}</pre>
-                  </div>
-                ) : null}
-                {!activeCenterTab ? (
-                  <p className="pane-muted">Open a center workspace tab.</p>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        ) : null}
+            </section>
+          </div>
+        </section>
 
         {layout.showInspector ? (
           <section
@@ -828,18 +939,16 @@ export const IdeWorkspace = ({
             role="region"
             aria-label="Inspector"
           >
-            {(layout.showExplorer || layout.showMission) ? (
-              <PanelSplitter
-                axis="inspector"
-                label="Resize Inspector"
-                onDelta={(delta) =>
-                  onLayoutChange((current) => ({
-                    ...current,
-                    rightWidth: clampInspectorWidth(current.rightWidth - delta),
-                  }))
-                }
-              />
-            ) : null}
+            <PanelSplitter
+              axis="inspector"
+              label="Resize Inspector"
+              onDelta={(delta) =>
+                onLayoutChange((current) => ({
+                  ...current,
+                  rightWidth: clampInspectorWidth(current.rightWidth - delta),
+                }))
+              }
+            />
             <div className="ide-pane ide-pane--right">
               {saveMessage ? (
                 <p className="pane-muted connection-strip-message">{saveMessage}</p>
@@ -851,12 +960,6 @@ export const IdeWorkspace = ({
               />
             </div>
           </section>
-        ) : null}
-
-        {!layout.showExplorer && !layout.showMission && !layout.showInspector ? (
-          <p className="pane-muted workspace-empty">
-            All panels are hidden. Use View menu or panel shortcuts to restore them.
-          </p>
         ) : null}
       </div>
 

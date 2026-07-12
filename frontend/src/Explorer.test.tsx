@@ -14,43 +14,45 @@ const schemaProps = {
   onActivityRefresh: vi.fn(async () => undefined),
 };
 
-describe("Explorer multi-section + schema home", () => {
-  it("exposes Files, Database, APEX, REST, Favorites, Pinned, and Recent sections", () => {
-    render(
+describe("Explorer rail-driven postures", () => {
+  it("hosts schema browsing under Database and stubs unfinished postures", () => {
+    const { rerender } = render(
       <Explorer
         rootPath="C:/tmp/demo"
         showJunk={false}
         onToggleJunk={() => undefined}
         onOpenFile={() => undefined}
         schema={schemaProps}
-      />,
-    );
-
-    const explorer = screen.getByRole("navigation", { name: "Explorer sections" });
-    for (const name of ["Files", "Database", "APEX", "REST", "Favorites", "Pinned", "Recent"]) {
-      expect(within(explorer).getByRole("button", { name })).toBeInTheDocument();
-    }
-  });
-
-  it("hosts schema browsing under Database and stubs unfinished sections", () => {
-    render(
-      <Explorer
-        rootPath="C:/tmp/demo"
-        showJunk={false}
-        onToggleJunk={() => undefined}
-        onOpenFile={() => undefined}
-        schema={schemaProps}
+        activePosture="files"
       />,
     );
 
     const explorer = screen.getByLabelText("Explorer navigation");
     expect(within(explorer).queryByLabelText("Schema browser")).not.toBeInTheDocument();
 
-    fireEvent.click(within(explorer).getByRole("button", { name: "Database" }));
+    rerender(
+      <Explorer
+        rootPath="C:/tmp/demo"
+        showJunk={false}
+        onToggleJunk={() => undefined}
+        onOpenFile={() => undefined}
+        schema={schemaProps}
+        activePosture="database"
+      />,
+    );
     expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
 
-    for (const name of ["APEX", "REST", "Favorites", "Pinned", "Recent"]) {
-      fireEvent.click(within(explorer).getByRole("button", { name }));
+    for (const posture of ["agent", "code", "apex", "review"] as const) {
+      rerender(
+        <Explorer
+          rootPath="C:/tmp/demo"
+          showJunk={false}
+          onToggleJunk={() => undefined}
+          onOpenFile={() => undefined}
+          schema={schemaProps}
+          activePosture={posture}
+        />,
+      );
       const stubSurface = within(explorer).getByTestId("stub-surface");
       expect(within(stubSurface).getByTestId("stub-badge")).toHaveTextContent(STUB_BADGE);
       expect(within(stubSurface).getByText(STUB_PRIMARY_COPY)).toBeInTheDocument();
@@ -69,7 +71,7 @@ describe("Explorer multi-section + schema home", () => {
     }
   });
 
-  it("keeps project files reachable from the Files section", () => {
+  it("keeps project files reachable from the Files posture", () => {
     render(
       <Explorer
         rootPath="C:/tmp/demo"
@@ -77,12 +79,10 @@ describe("Explorer multi-section + schema home", () => {
         onToggleJunk={() => undefined}
         onOpenFile={() => undefined}
         schema={schemaProps}
+        activePosture="files"
       />,
     );
 
-    const explorer = screen.getByLabelText("Explorer navigation");
-    fireEvent.click(within(explorer).getByRole("button", { name: "Files" }));
-    expect(within(explorer).getByLabelText("Project file tree")).toBeInTheDocument();
-    expect(within(explorer).getByText("Show junk")).toBeInTheDocument();
+    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
   });
 });

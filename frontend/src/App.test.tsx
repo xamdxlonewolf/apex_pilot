@@ -521,7 +521,7 @@ describe("App", () => {
     expect(screen.queryByRole("dialog", { name: "MCP Activity" })).not.toBeInTheDocument();
     expect(within(consoleRegion).getByRole("tabpanel")).not.toHaveTextContent("Stub");
 
-    // Mission center surface is present before Agent Core with explicit stub treatment.
+    // Mission peer is present before Agent Core with explicit stub treatment.
     const mission = screen.getByRole("region", { name: "Mission" });
     expect(mission).toBeInTheDocument();
     expect(mission).toHaveTextContent("Mission");
@@ -536,31 +536,41 @@ describe("App", () => {
     const send = screen.getByRole("button", { name: "Send" });
     expect(send).toBeDisabled();
     expect(send).toHaveAttribute("title", "Not implemented yet");
-    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
 
-    // Explorer multi-section + schema home (issue #31): sections present; schema not a
-    // permanent Inspector tool tab; schema browsing reachable from Explorer Database.
-    const explorer = screen.getByRole("region", { name: "Explorer" });
-    const explorerSections = within(explorer).getByRole("navigation", {
-      name: "Explorer sections",
-    });
-    for (const name of ["Files", "Database", "APEX", "REST", "Favorites", "Pinned", "Recent"]) {
-      expect(within(explorerSections).getByRole("button", { name })).toBeInTheDocument();
+    // Activity Rail + dual-primary Workspace (Shell IA).
+    expect(screen.getByRole("region", { name: "Workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Editors" })).toBeInTheDocument();
+    const activityRail = screen.getByRole("navigation", { name: "Activity Rail" });
+    for (const name of ["Files", "Agent", "Code", "Database", "APEX", "Review"]) {
+      expect(within(activityRail).getByRole("button", { name })).toBeInTheDocument();
     }
+    expect(within(activityRail).getByRole("button", { name: "Agent" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("menuitemradio", { name: "Agent" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    // Files posture hosts the project tree; Database hosts schema browse.
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Files" }));
+    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+    const explorer = screen.getByRole("region", { name: "Explorer" });
     const inspector = screen.getByRole("region", { name: "Inspector" });
     expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Schema browser")).not.toBeInTheDocument();
-    fireEvent.click(within(explorerSections).getByRole("button", { name: "Database" }));
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
     expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
-    fireEvent.click(within(explorerSections).getByRole("button", { name: "APEX" }));
+    fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
     const stubSurface = within(explorer).getByTestId("stub-surface");
     expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
     expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
     expect(within(stubSurface).queryByText(/sample row|EMPLOYEE|mock timeline/i)).not.toBeInTheDocument();
   });
 
-  it("hosts SQL Editor in center workspace tabs only and never in the Inspector", async () => {
+  it("hosts SQL Editor in dual-primary Workspace editors only and never in the Inspector", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",
       bearerToken: "test-token",
@@ -570,28 +580,28 @@ describe("App", () => {
     render(<App />);
 
     const mission = await screen.findByRole("region", { name: "Mission" });
+    const editors = screen.getByRole("region", { name: "Editors" });
     const inspector = screen.getByRole("region", { name: "Inspector" });
 
-    const centerTabs = within(mission).getByRole("tablist", {
-      name: "Center workspace tabs",
+    const editorTabs = within(editors).getByRole("tablist", {
+      name: "Editor workspace tabs",
     });
-    expect(within(centerTabs).getByRole("tab", { name: "Mission" })).toBeInTheDocument();
-    expect(within(centerTabs).getByRole("tab", { name: "SQL Editor" })).toBeInTheDocument();
+    expect(within(editorTabs).queryByRole("tab", { name: "Mission" })).not.toBeInTheDocument();
+    expect(within(editorTabs).getByRole("tab", { name: "SQL Editor" })).toBeInTheDocument();
+    expect(within(mission).getByLabelText("Mission composer")).toBeInTheDocument();
 
     expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("tab", { name: /SQL/i })).not.toBeInTheDocument();
     expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
     expect(within(inspector).queryByLabelText(/^SQL$/)).not.toBeInTheDocument();
 
-    fireEvent.click(within(centerTabs).getByRole("tab", { name: "SQL Editor" }));
-    expect(within(mission).getByLabelText("SQL sheet")).toBeInTheDocument();
-    expect(within(mission).getByLabelText("SQL")).toBeInTheDocument();
+    fireEvent.click(within(editorTabs).getByRole("tab", { name: "SQL Editor" }));
+    expect(within(editors).getByLabelText("SQL sheet")).toBeInTheDocument();
+    expect(within(editors).getByLabelText("SQL")).toBeInTheDocument();
     expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
-
-    fireEvent.click(within(centerTabs).getByRole("tab", { name: "Mission" }));
+    // Sticky Agent: Mission peer remains present while editing SQL.
     expect(within(mission).getByLabelText("Mission composer")).toBeInTheDocument();
-    expect(within(mission).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
   });
 
   it("hosts stubbed object / package / APEX / REST / diff / file editors in center workspace tabs", async () => {
@@ -622,9 +632,9 @@ describe("App", () => {
 
     render(<App />);
 
-    const mission = await screen.findByRole("region", { name: "Mission" });
-    const centerTabs = within(mission).getByRole("tablist", {
-      name: "Center workspace tabs",
+    const editors = await screen.findByRole("region", { name: "Editors" });
+    const editorTabs = within(editors).getByRole("tablist", {
+      name: "Editor workspace tabs",
     });
     const stubTitles = [
       "Object Editor",
@@ -635,12 +645,12 @@ describe("App", () => {
       "File Editor",
     ];
     for (const title of stubTitles) {
-      expect(within(centerTabs).getByRole("tab", { name: title })).toBeInTheDocument();
+      expect(within(editorTabs).getByRole("tab", { name: title })).toBeInTheDocument();
     }
 
     for (const title of stubTitles) {
-      fireEvent.click(within(centerTabs).getByRole("tab", { name: title }));
-      const stubSurface = within(mission).getByTestId("stub-surface");
+      fireEvent.click(within(editorTabs).getByRole("tab", { name: title }));
+      const stubSurface = within(editors).getByTestId("stub-surface");
       expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
       expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
       expect(within(stubSurface).getByText(title)).toBeInTheDocument();
@@ -780,16 +790,16 @@ describe("App", () => {
 
     render(<App />);
 
-    const mission = await screen.findByRole("region", { name: "Mission" });
-    const centerTabs = within(mission).getByRole("tablist", {
-      name: "Center workspace tabs",
+    const editors = await screen.findByRole("region", { name: "Editors" });
+    const editorTabs = within(editors).getByRole("tablist", {
+      name: "Editor workspace tabs",
     });
-    expect(within(centerTabs).getByRole("tab", { name: "Package Editor" })).toHaveAttribute(
+    expect(within(editorTabs).getByRole("tab", { name: "Package Editor" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(within(centerTabs).queryByRole("tab", { name: /^Mappings$/i })).not.toBeInTheDocument();
-    expect(within(mission).getByTestId("stub-surface")).toHaveTextContent("Package Editor");
+    expect(within(editorTabs).queryByRole("tab", { name: /^Mappings$/i })).not.toBeInTheDocument();
+    expect(within(editors).getByTestId("stub-surface")).toHaveTextContent("Package Editor");
   });
 
   it("prompts on Close Project when editors are dirty and returns to the recent-projects picker", async () => {
@@ -802,12 +812,12 @@ describe("App", () => {
 
     render(<App />);
 
-    const mission = await screen.findByRole("region", { name: "Mission" });
-    const centerTabs = within(mission).getByRole("tablist", {
-      name: "Center workspace tabs",
+    const editors = await screen.findByRole("region", { name: "Editors" });
+    const editorTabs = within(editors).getByRole("tablist", {
+      name: "Editor workspace tabs",
     });
-    fireEvent.click(within(centerTabs).getByRole("tab", { name: "SQL Editor" }));
-    fireEvent.change(within(mission).getByLabelText("SQL"), {
+    fireEvent.click(within(editorTabs).getByRole("tab", { name: "SQL Editor" }));
+    fireEvent.change(within(editors).getByLabelText("SQL"), {
       target: { value: "select 1 from dual" },
     });
 
@@ -833,12 +843,12 @@ describe("App", () => {
 
     render(<App />);
 
-    const mission = await screen.findByRole("region", { name: "Mission" });
-    const centerTabs = within(mission).getByRole("tablist", {
-      name: "Center workspace tabs",
+    const editors = await screen.findByRole("region", { name: "Editors" });
+    const editorTabs = within(editors).getByRole("tablist", {
+      name: "Editor workspace tabs",
     });
-    fireEvent.click(within(centerTabs).getByRole("tab", { name: "SQL Editor" }));
-    fireEvent.change(within(mission).getByLabelText("SQL"), {
+    fireEvent.click(within(editorTabs).getByRole("tab", { name: "SQL Editor" }));
+    fireEvent.change(within(editors).getByLabelText("SQL"), {
       target: { value: "select * from emp" },
     });
 

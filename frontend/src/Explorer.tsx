@@ -1,33 +1,40 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import {
   type BackendConfig,
   type SchemaSummary,
 } from "./backend";
 import { FileTree } from "./FileTree";
+import { type ActivityRailId } from "./focusMode";
 import { type FileTreeNode } from "./projectFs";
 import { SchemaBrowser } from "./SchemaBrowser";
-import { StubBadge, StubSurface } from "./StubSurface";
+import { StubSurface } from "./StubSurface";
 import { stubActionProps } from "./stubConvention";
 
-export type ExplorerSectionId =
-  | "files"
-  | "database"
-  | "apex"
-  | "rest"
-  | "favorites"
-  | "pinned"
-  | "recent";
+/** Explorer posture driven by Activity Rail (plus Quick Open jumps). */
+export type ExplorerSectionId = ActivityRailId;
 
-type ExplorerSection = Readonly<{
+type ExplorerPosture = Readonly<{
   id: ExplorerSectionId;
   title: string;
   stub: boolean;
   secondary?: string;
 }>;
 
-const EXPLORER_SECTIONS: ReadonlyArray<ExplorerSection> = [
+const EXPLORER_POSTURES: ReadonlyArray<ExplorerPosture> = [
   { id: "files", title: "Files", stub: false },
+  {
+    id: "agent",
+    title: "Agent",
+    stub: true,
+    secondary: "Agent Explorer posture arrives with Mission-linked navigation.",
+  },
+  {
+    id: "code",
+    title: "Code",
+    stub: true,
+    secondary: "Code posture arrives with repository object browsing.",
+  },
   { id: "database", title: "Database", stub: false },
   {
     id: "apex",
@@ -36,28 +43,10 @@ const EXPLORER_SECTIONS: ReadonlyArray<ExplorerSection> = [
     secondary: "APEX application browsing arrives with APEX metadata integration.",
   },
   {
-    id: "rest",
-    title: "REST",
+    id: "review",
+    title: "Review",
     stub: true,
-    secondary: "REST module browsing arrives with ORDS metadata integration.",
-  },
-  {
-    id: "favorites",
-    title: "Favorites",
-    stub: true,
-    secondary: "Favorites arrive with persisted Explorer bookmarks.",
-  },
-  {
-    id: "pinned",
-    title: "Pinned",
-    stub: true,
-    secondary: "Pinned items arrive with persisted Explorer pins.",
-  },
-  {
-    id: "recent",
-    title: "Recent",
-    stub: true,
-    secondary: "Recent objects arrive with workspace navigation history.",
+    secondary: "Review Explorer posture arrives with AI SQL review navigation.",
   },
 ];
 
@@ -79,16 +68,18 @@ type ExplorerProps = Readonly<{
   onToggleJunk: () => void;
   onOpenFile: (node: FileTreeNode) => void;
   schema: ExplorerSchemaProps;
-  /** When set, Explorer switches to this section (Quick Open object jump). */
+  /** Activity Rail posture that drives the Explorer body. */
+  activePosture: ExplorerSectionId;
+  /** When set, Explorer requests a posture jump (Quick Open object). */
   focusSection?: ExplorerSectionId | null;
   onFocusSectionHandled?: () => void;
   focusedObjectName?: string | null;
 }>;
 
-const StubSectionBody = ({ section }: Readonly<{ section: ExplorerSection }>) => (
+const StubSectionBody = ({ posture }: Readonly<{ posture: ExplorerPosture }>) => (
   <StubSurface
-    title={section.title}
-    secondary={section.secondary}
+    title={posture.title}
+    secondary={posture.secondary}
     bodyClassName="explorer-stub-body"
     actions={
       <div className="explorer-stub-actions">
@@ -104,21 +95,21 @@ const StubSectionBody = ({ section }: Readonly<{ section: ExplorerSection }>) =>
 );
 
 const SectionBody = ({
-  section,
+  posture,
   rootPath,
   showJunk,
   onToggleJunk,
   onOpenFile,
   schema,
 }: Readonly<{
-  section: ExplorerSection;
+  posture: ExplorerPosture;
   rootPath: string;
   showJunk: boolean;
   onToggleJunk: () => void;
   onOpenFile: (node: FileTreeNode) => void;
   schema: ExplorerSchemaProps;
 }>): ReactNode => {
-  if (section.id === "files") {
+  if (posture.id === "files") {
     return (
       <FileTree
         rootPath={rootPath}
@@ -129,7 +120,7 @@ const SectionBody = ({
       />
     );
   }
-  if (section.id === "database") {
+  if (posture.id === "database") {
     return (
       <div className="explorer-database">
         <SchemaBrowser
@@ -146,7 +137,7 @@ const SectionBody = ({
       </div>
     );
   }
-  return <StubSectionBody section={section} />;
+  return <StubSectionBody posture={posture} />;
 };
 
 export const Explorer = ({
@@ -155,54 +146,34 @@ export const Explorer = ({
   onToggleJunk,
   onOpenFile,
   schema,
+  activePosture,
   focusSection = null,
   onFocusSectionHandled,
   focusedObjectName = null,
 }: ExplorerProps) => {
-  const [activeSectionId, setActiveSectionId] = useState<ExplorerSectionId>("files");
-  const activeSection =
-    EXPLORER_SECTIONS.find((section) => section.id === activeSectionId) ?? EXPLORER_SECTIONS[0];
+  const posture =
+    EXPLORER_POSTURES.find((item) => item.id === activePosture) ?? EXPLORER_POSTURES[0];
 
   useEffect(() => {
     if (!focusSection) {
       return;
     }
-    setActiveSectionId(focusSection);
     onFocusSectionHandled?.();
   }, [focusSection, onFocusSectionHandled]);
 
   return (
     <aside className="ide-pane ide-pane--left" aria-label="Explorer navigation">
       <div className="pane-header">
-        <strong>Explorer</strong>
+        <strong>{posture.title}</strong>
       </div>
-      <nav className="explorer-section-nav" aria-label="Explorer sections">
-        {EXPLORER_SECTIONS.map((section) => (
-          <button
-            key={section.id}
-            type="button"
-            className={
-              section.id === activeSection.id
-                ? "explorer-section-button explorer-section-button--active"
-                : "explorer-section-button"
-            }
-            aria-label={section.title}
-            aria-pressed={section.id === activeSection.id}
-            onClick={() => setActiveSectionId(section.id)}
-          >
-            <span aria-hidden="true">{section.title}</span>
-            {section.stub ? <StubBadge /> : null}
-          </button>
-        ))}
-      </nav>
-      {focusedObjectName && activeSection.id === "database" ? (
+      {focusedObjectName && posture.id === "database" ? (
         <p className="pane-muted explorer-focused-object" data-testid="explorer-focused-object">
           Focused object: {focusedObjectName}
         </p>
       ) : null}
-      <div className="pane-body explorer-section-body" data-section={activeSection.id}>
+      <div className="pane-body explorer-section-body" data-section={posture.id}>
         <SectionBody
-          section={activeSection}
+          posture={posture}
           rootPath={rootPath}
           showJunk={showJunk}
           onToggleJunk={onToggleJunk}
