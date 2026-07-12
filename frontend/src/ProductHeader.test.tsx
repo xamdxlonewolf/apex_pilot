@@ -71,6 +71,17 @@ describe("BrowserAppMenu", () => {
     expect(handlers.onUpdates).toHaveBeenCalled();
   });
 
+  it("routes Command Palette from Help (not Keyboard Shortcuts)", () => {
+    const handlers = baseHandlers();
+    render(<BrowserAppMenu state={baseState()} handlers={handlers} />);
+
+    expect(
+      screen.queryByRole("menuitem", { name: /Keyboard Shortcuts/i }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Command Palette/i }));
+    expect(handlers.onShortcuts).toHaveBeenCalled();
+  });
+
   it("routes Compare project to database when enabled", () => {
     const handlers = baseHandlers();
     render(<BrowserAppMenu state={baseState()} handlers={handlers} />);

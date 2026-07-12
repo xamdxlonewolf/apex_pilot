@@ -225,7 +225,7 @@ export const BrowserAppMenu = ({ state, handlers }: BrowserAppMenuProps) => {
           Documentation
         </button>
         <button type="button" role="menuitem" onClick={handlers.onShortcuts}>
-          Keyboard Shortcuts
+          Command Palette…
         </button>
         <button type="button" role="menuitem" onClick={handlers.onUpdates}>
           Check for updates…
