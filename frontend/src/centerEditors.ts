@@ -18,7 +18,8 @@ export const CENTER_EDITOR_STUB_META: Readonly<
 > = {
   object: {
     title: "Object Editor",
-    secondary: "Object viewing arrives with schema object metadata integration.",
+    secondary:
+      "Opened from Explorer. Column and source metadata arrives with schema object metadata integration.",
   },
   package: {
     title: "Package Editor",
@@ -26,7 +27,8 @@ export const CENTER_EDITOR_STUB_META: Readonly<
   },
   apex: {
     title: "APEX Editor",
-    secondary: "APEX page viewing arrives with APEX metadata integration.",
+    secondary:
+      "Opened from Explorer. Application and page catalogs arrive with APEX metadata integration.",
   },
   rest: {
     title: "REST Editor",

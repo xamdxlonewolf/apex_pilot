@@ -60,18 +60,26 @@ const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
   return (
     <ul className="file-tree" aria-label={depth === 0 ? "Project files" : undefined}>
       {nodes.map((node) => (
-        <li key={node.path} className={node.protected ? "file-tree-item file-tree-item--protected" : "file-tree-item"}>
+        <li
+          key={node.path}
+          className={
+            node.protected ? "file-tree-item file-tree-item--protected" : "file-tree-item"
+          }
+        >
           {node.kind === "dir" ? (
             <>
               <button
                 type="button"
                 className="file-tree-button"
+                aria-expanded={Boolean(expanded[node.path])}
                 onClick={() =>
                   setExpanded((current) => ({ ...current, [node.path]: !current[node.path] }))
                 }
               >
-                <span aria-hidden="true">{expanded[node.path] ? "▾" : "▸"}</span>
-                <span>{node.name}</span>
+                <span className="file-tree-twist" aria-hidden="true">
+                  {expanded[node.path] ? "▾" : "▸"}
+                </span>
+                <span className="file-tree-label">{node.name}</span>
                 {node.protected ? <em>APEX export</em> : null}
                 {node.protected ? <ProtectedMarkers /> : null}
                 {node.junk ? <em>junk</em> : null}
@@ -96,8 +104,10 @@ const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
                   : node.path
               }
             >
-              <span aria-hidden="true">·</span>
-              <span>{node.name}</span>
+              <span className="file-tree-twist file-tree-twist--file" aria-hidden="true">
+                ·
+              </span>
+              <span className="file-tree-label">{node.name}</span>
               {node.protected ? <ProtectedMarkers /> : null}
             </button>
           )}
@@ -114,15 +124,19 @@ export const FileTree = ({
   onOpenFile,
   embedded = false,
 }: FileTreeProps) => {
+  const toolbar = (
+    <div className={embedded ? "explorer-files-toolbar" : "pane-header"}>
+      {embedded ? null : <strong>Files</strong>}
+      <label className="chrome-check">
+        <input type="checkbox" checked={showJunk} onChange={onToggleJunk} />
+        Show junk
+      </label>
+    </div>
+  );
+
   const body = (
     <>
-      <div className="pane-header">
-        <strong>Files</strong>
-        <label className="chrome-check">
-          <input type="checkbox" checked={showJunk} onChange={onToggleJunk} />
-          Show junk
-        </label>
-      </div>
+      {toolbar}
       <div className={embedded ? "explorer-files-body" : "pane-body"}>
         <TreeBranch path={rootPath} depth={0} showJunk={showJunk} onOpenFile={onOpenFile} />
       </div>

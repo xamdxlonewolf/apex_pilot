@@ -9,6 +9,12 @@ import {
 } from "./backend";
 import { schemaFromSessionUser } from "./prefs";
 
+export type SchemaOpenTarget = Readonly<{
+  schemaName: string;
+  objectType: string;
+  objectName: string;
+}>;
+
 type SchemaBrowserProps = Readonly<{
   backendConfig: BackendConfig;
   connectedConnection: string | null;
@@ -21,6 +27,8 @@ type SchemaBrowserProps = Readonly<{
   onSaveSummary?: (summary: SchemaSummary) => void;
   /** Notify parent when the loaded schema catalog changes (Quick Open objects). */
   onSummaryChange?: (summary: SchemaSummary | null) => void;
+  /** Open a summarized schema object in the Workspace viewer. */
+  onOpenObject?: (target: SchemaOpenTarget) => void;
 }>;
 
 const withTimeout = <T,>(
@@ -65,6 +73,7 @@ export const SchemaBrowser = ({
   onActivityRefresh,
   onSaveSummary,
   onSummaryChange,
+  onOpenObject,
 }: SchemaBrowserProps) => {
   const [summary, setSummary] = useState<SchemaSummary | null>(null);
   const [draftSchema, setDraftSchema] = useState(workingSchema);
@@ -347,14 +356,31 @@ export const SchemaBrowser = ({
             ))}
           </ul>
           <h3>Tables</h3>
-          <ul className="dense-list">
-            {summary.tables.map((table) => (
-              <li key={table.table_name}>
-                <span>{table.table_name}</span>
-                <strong>{table.num_rows ?? "?"} rows</strong>
-              </li>
-            ))}
-          </ul>
+          {summary.tables.length === 0 ? (
+            <p className="pane-muted">No tables in this schema summary.</p>
+          ) : (
+            <ul className="object-browse-list" aria-label="Schema tables">
+              {summary.tables.map((table) => (
+                <li key={table.table_name}>
+                  <button
+                    type="button"
+                    className="object-browse-button"
+                    onClick={() =>
+                      onOpenObject?.({
+                        schemaName: summary.schema_name,
+                        objectType: "TABLE",
+                        objectName: table.table_name,
+                      })
+                    }
+                    disabled={!onOpenObject}
+                  >
+                    <span className="object-browse-name">{table.table_name}</span>
+                    <span className="object-browse-meta">{table.num_rows ?? "?"} rows</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : null}
     </div>

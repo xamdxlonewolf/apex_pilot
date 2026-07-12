@@ -566,6 +566,7 @@ describe("App", () => {
     fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
     expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
     fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
+    expect(within(explorer).getByLabelText("APEX browser")).toBeInTheDocument();
     const stubSurface = within(explorer).getByTestId("stub-surface");
     expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
     expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
@@ -1764,7 +1765,7 @@ describe("App", () => {
             host: null,
           },
           object_counts: [],
-          tables: [],
+          tables: [{ table_name: "EMPLOYEES", num_rows: 10, last_analyzed: null, partitioned: null, iot_type: null }],
           cache_age_seconds: 0.1,
           captured_at: "2026-07-09T18:00:00+00:00",
         }),
@@ -1777,5 +1778,11 @@ describe("App", () => {
     expect(await screen.findByText(/browsing login schema app/i)).toBeInTheDocument();
     expect(screen.getByText(/db connected: dev/i)).toBeInTheDocument();
     expect(screen.getByText(/browsing: app/i)).toBeInTheDocument();
+
+    fireEvent.click(within(explorer).getByRole("button", { name: /EMPLOYEES/i }));
+    const editors = screen.getByRole("region", { name: "Editors" });
+    expect(within(editors).getByRole("tab", { name: /EMPLOYEES/i })).toBeInTheDocument();
+    expect(within(editors).getByLabelText("object viewer")).toBeInTheDocument();
+    expect(within(editors).getByText(/TABLE APP\.EMPLOYEES/i)).toBeInTheDocument();
   });
 });
