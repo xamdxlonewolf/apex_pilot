@@ -13,4 +13,6 @@ Resolved by [Grilling: Project git vs DB file drift surface](https://github.com/
 
 ## On-map next
 
-[Task: Help Compare project to database Stub entry](https://github.com/xamdxlonewolf/apex_pilot/issues/88)
+Done: [Task: Help Compare project to database Stub entry](https://github.com/xamdxlonewolf/apex_pilot/issues/88) — Help/palette Stub entry.
+
+Later (off this Stub): live scan, Diff viewer wiring, AI Generate report.

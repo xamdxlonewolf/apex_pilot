@@ -20,6 +20,7 @@ const baseHandlers = (): AppMenuHandlers => ({
   onDocs: vi.fn(),
   onShortcuts: vi.fn(),
   onUpdates: vi.fn(),
+  onCompareProjectToDatabase: vi.fn(),
 });
 
 const baseState = (): AppMenuState => ({
@@ -28,6 +29,7 @@ const baseState = (): AppMenuState => ({
   canOpenMcp: true,
   canTogglePanels: true,
   canCloseProject: true,
+  canCompareProjectToDatabase: true,
   projectOpen: true,
   focusMode: "agent",
   layout: defaultProfileLayout(),
@@ -67,6 +69,26 @@ describe("BrowserAppMenu", () => {
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Check for updates/i }));
     expect(handlers.onUpdates).toHaveBeenCalled();
+  });
+
+  it("routes Compare project to database when enabled", () => {
+    const handlers = baseHandlers();
+    render(<BrowserAppMenu state={baseState()} handlers={handlers} />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: /Compare project to database/i }));
+    expect(handlers.onCompareProjectToDatabase).toHaveBeenCalled();
+  });
+
+  it("disables Compare project to database without project and connection", () => {
+    const handlers = baseHandlers();
+    render(
+      <BrowserAppMenu
+        state={{ ...baseState(), canCompareProjectToDatabase: false }}
+        handlers={handlers}
+      />,
+    );
+
+    expect(screen.getByRole("menuitem", { name: /Compare project to database/i })).toBeDisabled();
   });
 });
 

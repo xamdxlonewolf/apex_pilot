@@ -8,6 +8,7 @@ import {
 import { AboutDialog, UpdatesDialog } from "./UpdatesDialog";
 import { BrowserAppMenu } from "./BrowserAppMenu";
 import { CommandPalette } from "./CommandPalette";
+import { CompareProjectToDatabaseDialog } from "./CompareProjectToDatabaseDialog";
 import {
   matchCommandPaletteShortcut,
   type CommandPaletteAction,
@@ -111,6 +112,7 @@ export const App = () => {
   const [focusModeProjectId, setFocusModeProjectId] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [updatesOpen, setUpdatesOpen] = useState(false);
+  const [compareProjectDbOpen, setCompareProjectDbOpen] = useState(false);
 
   const openedProjectId = openedProject?.project.project_id ?? null;
   if (openedProjectId !== focusModeProjectId) {
@@ -139,6 +141,8 @@ export const App = () => {
   const canOpenMcp = isBackendOnline && !setupLocked;
   const canTogglePanels = projectOpen;
   const canCloseProject = Boolean(openedProject) && !setupLocked;
+  const canCompareProjectToDatabase =
+    projectOpen && Boolean(connectedConnection || selectedConnection.trim());
   const nativeAppMenu = isTauriRuntime();
 
   const refreshActivity = useCallback(async () => {
@@ -417,6 +421,12 @@ export const App = () => {
         run: () => setUpdatesOpen(true),
       },
       {
+        id: "help-compare-project-db",
+        label: "Help: Compare project to database…",
+        enabled: canCompareProjectToDatabase,
+        run: () => setCompareProjectDbOpen(true),
+      },
+      {
         id: "project-mappings",
         label: "Settings: Environment mappings",
         enabled: canOpenSettings && Boolean(openedProject),
@@ -441,6 +451,7 @@ export const App = () => {
     canUseProjectMenus,
     canOpenSettings,
     canCloseProject,
+    canCompareProjectToDatabase,
     openedProject,
     projectOpen,
     setupLocked,
@@ -480,6 +491,7 @@ export const App = () => {
     canOpenMcp,
     canTogglePanels,
     canCloseProject,
+    canCompareProjectToDatabase,
     projectOpen,
     focusMode,
     layout,
@@ -507,6 +519,7 @@ export const App = () => {
     onDocs: () => undefined,
     onShortcuts: () => setCommandPaletteOpen(true),
     onUpdates: () => setUpdatesOpen(true),
+    onCompareProjectToDatabase: () => setCompareProjectDbOpen(true),
   };
 
   useNativeAppMenu({
@@ -626,6 +639,10 @@ export const App = () => {
 
       <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <UpdatesDialog open={updatesOpen} onClose={() => setUpdatesOpen(false)} />
+      <CompareProjectToDatabaseDialog
+        open={compareProjectDbOpen}
+        onClose={() => setCompareProjectDbOpen(false)}
+      />
     </div>
   );
 };
