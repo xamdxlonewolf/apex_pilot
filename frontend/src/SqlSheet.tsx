@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 
+import { CodeEditor } from "./CodeEditor";
 import {
   type BackendConfig,
   type SqlClassification,
@@ -139,17 +140,18 @@ export const SqlSheet = ({
         <label className="sr-only" htmlFor="sql-sheet-editor">
           SQL
         </label>
-        <textarea
+        <CodeEditor
           id="sql-sheet-editor"
+          language="sql"
           value={sql}
-          onChange={(event) => {
-            setSql(event.target.value);
+          aria-label="SQL"
+          disabled={!isBackendOnline}
+          onChange={(next) => {
+            setSql(next);
             if (!dirty) {
               onDirtyChange(true);
             }
           }}
-          spellCheck={false}
-          disabled={!isBackendOnline}
         />
         <div className="tool-toolbar">
           <button type="submit" disabled={!canRun || !hasSql} aria-busy={busy}>

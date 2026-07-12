@@ -2,6 +2,7 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "rea
 
 import { ActivityRail } from "./ActivityRail";
 import { type ApexOpenTarget } from "./ApexBrowser";
+import { CodeEditor } from "./CodeEditor";
 import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
@@ -16,6 +17,7 @@ import {
   stubCenterEditorTab,
   type CenterEditorStubKind,
 } from "./centerEditors";
+import { languageFromPath } from "./editorLanguages";
 import {
   type ActivityEntry,
   type BackendConfig,
@@ -45,6 +47,7 @@ import {
   isRootApexExportSql,
   joinPath,
   readTextFile,
+  writeTextFile,
   type FileTreeNode,
 } from "./projectFs";
 import { schemaTablesToQuickOpenItems, type QuickOpenItem } from "./quickOpenModel";
@@ -61,6 +64,8 @@ type WorkspaceTab = Readonly<{
   title: string;
   path?: string;
   content?: string;
+  /** Protected APEX / root f*.sql opens stay read-only. */
+  readOnly?: boolean;
 }>;
 
 /** Editor peer tabs — Mission is a dual-primary peer, not a center tab. */
@@ -498,6 +503,26 @@ export const IdeWorkspace = ({
     activateEditorTab(tab.id, tab.kind);
   };
 
+  const updateFileTabContent = (tabId: string, content: string) => {
+    setTabs((current) =>
+      current.map((tab) => (tab.id === tabId ? { ...tab, content } : tab)),
+    );
+    onSqlDirtyChange(true);
+  };
+
+  const saveActiveFileTab = async () => {
+    const tab = tabs.find((item) => item.id === activeCenterTabId);
+    if (!tab || tab.kind !== "file" || !tab.path || tab.content === undefined || tab.readOnly) {
+      return;
+    }
+    try {
+      await writeTextFile(tab.path, tab.content);
+      setSaveMessage(`Saved ${tab.title}`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Could not save file.");
+    }
+  };
+
   const closeTab = (tabId: string) => {
     setTabs((current) => {
       const closing = current.find((tab) => tab.id === tabId);
@@ -537,6 +562,7 @@ export const IdeWorkspace = ({
         title: node.name,
         path: node.path,
         content,
+        readOnly: node.protected,
       });
     })();
   };
@@ -1004,9 +1030,43 @@ export const IdeWorkspace = ({
                     </div>
                   ) : null}
                   {activeCenterTab?.kind === "file" && activeCenterTab.content !== undefined ? (
-                    <div className="file-preview" aria-label="File preview">
-                      <p className="pane-muted">{activeCenterTab.path}</p>
-                      <pre>{activeCenterTab.content}</pre>
+                    <div
+                      className="file-editor"
+                      aria-label={activeCenterTab.readOnly ? "File preview" : "File editor"}
+                      onKeyDown={(event) => {
+                        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+                          event.preventDefault();
+                          void saveActiveFileTab();
+                        }
+                      }}
+                    >
+                      <div className="file-editor-meta">
+                        <p className="pane-muted">
+                          {activeCenterTab.path}
+                          {activeCenterTab.readOnly ? " · read-only" : ""}
+                        </p>
+                        {!activeCenterTab.readOnly ? (
+                          <button
+                            type="button"
+                            className="chrome-button"
+                            onClick={() => void saveActiveFileTab()}
+                          >
+                            Save
+                          </button>
+                        ) : null}
+                      </div>
+                      <CodeEditor
+                        id={`file-editor:${activeCenterTab.id}`}
+                        language={languageFromPath(activeCenterTab.path)}
+                        value={activeCenterTab.content}
+                        readOnly={Boolean(activeCenterTab.readOnly)}
+                        aria-label={
+                          activeCenterTab.readOnly
+                            ? `Read-only ${activeCenterTab.title}`
+                            : `Edit ${activeCenterTab.title}`
+                        }
+                        onChange={(next) => updateFileTabContent(activeCenterTab.id, next)}
+                      />
                     </div>
                   ) : null}
                   {!activeCenterTab ? (

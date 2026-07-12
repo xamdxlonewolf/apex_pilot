@@ -17,6 +17,7 @@ export type BrowserFsEntry = Readonly<{
 export type BrowserProjectFs = Readonly<{
   list: (dirPath: string) => Promise<ReadonlyArray<BrowserFsEntry>> | ReadonlyArray<BrowserFsEntry>;
   readText?: (filePath: string) => Promise<string> | string;
+  writeText?: (filePath: string, contents: string) => Promise<void> | void;
 }>;
 
 const JUNK_DIR_NAMES = new Set([
@@ -147,6 +148,25 @@ export const readTextFile = async (filePath: string): Promise<string> => {
   }
 };
 
+export const writeTextFile = async (filePath: string, contents: string): Promise<void> => {
+  if (!isTauri()) {
+    if (browserProjectFs?.writeText) {
+      await browserProjectFs.writeText(filePath, contents);
+      return;
+    }
+    throw new Error("Writing project files requires the Tauri desktop shell.");
+  }
+  try {
+    const { writeTextFile: write } = await import("@tauri-apps/plugin-fs");
+    await write(filePath, contents);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not write file (${filePath}): ${detail}`, {
+      cause: error,
+    });
+  }
+};
+
 type DirEntry = Readonly<{ name: string; isDirectory: boolean }>;
 
 const readDirEntries = async (dirPath: string): Promise<DirEntry[]> => {
@@ -172,12 +192,18 @@ const readDirEntries = async (dirPath: string): Promise<DirEntry[]> => {
 export const browserFsFromTree = (
   tree: Readonly<Record<string, ReadonlyArray<BrowserFsEntry>>>,
   files: Readonly<Record<string, string>> = {},
-): BrowserProjectFs => ({
-  list: (dirPath) => tree[dirPath] ?? [],
-  readText: (filePath) => {
-    if (filePath in files) {
-      return files[filePath];
-    }
-    throw new Error(`Missing browser fixture file: ${filePath}`);
-  },
-});
+): BrowserProjectFs => {
+  const writable = { ...files };
+  return {
+    list: (dirPath) => tree[dirPath] ?? [],
+    readText: (filePath) => {
+      if (filePath in writable) {
+        return writable[filePath];
+      }
+      throw new Error(`Missing browser fixture file: ${filePath}`);
+    },
+    writeText: (filePath, contents) => {
+      writable[filePath] = contents;
+    },
+  };
+};

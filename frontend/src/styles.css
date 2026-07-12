@@ -1404,14 +1404,54 @@ button:disabled {
 }
 
 .chat-composer textarea,
-.mission-composer textarea,
-.sql-editor textarea {
+.mission-composer textarea {
   width: 100%;
   min-height: 72px;
   resize: vertical;
   padding: 8px;
   font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
   font-size: 0.85rem;
+}
+
+.sql-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 1;
+}
+
+.sql-editor .code-editor,
+.file-editor .code-editor {
+  flex: 1;
+  min-height: 180px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.code-editor .monaco-editor {
+  outline: none;
+}
+
+.file-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+
+.file-editor-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.file-editor-meta .pane-muted {
+  margin: 0;
 }
 
 .tab-strip {
@@ -1496,9 +1536,10 @@ button:disabled {
 .tool-panel,
 .sql-sheet,
 .schema-view,
-.file-preview {
+.file-editor {
   display: grid;
   gap: 10px;
+  min-height: 0;
 }
 
 .tool-toolbar,
@@ -1776,7 +1817,6 @@ td {
 }
 
 .sql-raw,
-.file-preview pre,
 .activity-tree-details pre {
   margin: 0;
   padding: 8px;
