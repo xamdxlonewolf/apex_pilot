@@ -161,7 +161,7 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
           }),
           await MenuItem.new({
             id: "help-shortcuts",
-            text: "Keyboard Shortcuts",
+            text: "Command Palette…",
             action: () => h().onShortcuts(),
           }),
           await PredefinedMenuItem.new({ item: "Separator" }),
