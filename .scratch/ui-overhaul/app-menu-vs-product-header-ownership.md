@@ -23,7 +23,7 @@ Command Palette, Layout Chrome, Focus Mode).
 | **App Menu → File** | New / Open / Recent / Close Project; Settings |
 | **App Menu → Edit** | Undo / Redo / Cut / Copy / Paste / Select All (focused Workspace editor) |
 | **App Menu → View** | Focus Modes (Agent / SQL / Files / Review); Layout Chrome toggles (Explorer, Inspector, Developer Console; Mission as power-user layout only); Focus MCP Activity in Developer Console |
-| **App Menu → Help** | About; docs / repo link; Keyboard Shortcuts (or Show Command Palette); **Check for updates…** |
+| **App Menu → Help** | About; docs / repo link; Keyboard Shortcuts (or Show Command Palette); **Check for updates…**; **Compare project to database…** (Stub entry on-map; live compare later) |
 | **Product Header** | Single top band: brand, project, Environment, health, Context Bar pickers + Connect/reconnect, Settings gear |
 | **Toolbar** | New SQL, Run (progressive enablement); optional MCP console-focus shortcut |
 | **Command Palette** | Lists all shell actions that already have a chrome or App Menu home |
