@@ -17,6 +17,12 @@ import {
   type CenterEditorStubKind,
 } from "./centerEditors";
 import { McpActivityWindow, openMcpActivityWindow } from "./McpActivityWindow";
+import {
+  DEFAULT_FOCUS_MODE,
+  FOCUS_MODES,
+  focusModeLabel,
+  type FocusMode,
+} from "./focusMode";
 import { IdeWorkspace } from "./IdeWorkspace";
 import { matchPanelToggleShortcut } from "./panelLayout";
 import {
@@ -78,7 +84,7 @@ const focusAdjacentMenuitem = (
 ): void => {
   const items = Array.from(
     menubar.querySelectorAll<HTMLElement>(
-      '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)',
+      '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled), [role="menuitemradio"]:not(:disabled)',
     ),
   );
   if (items.length === 0) {
@@ -121,6 +127,14 @@ export const App = () => {
     null,
   );
   const [openCenterEditorRequest, setOpenCenterEditorRequest] = useState(0);
+  const [focusMode, setFocusMode] = useState<FocusMode>(DEFAULT_FOCUS_MODE);
+  const [focusModeProjectId, setFocusModeProjectId] = useState<string | null>(null);
+
+  const openedProjectId = openedProject?.project.project_id ?? null;
+  if (openedProjectId !== focusModeProjectId) {
+    setFocusModeProjectId(openedProjectId);
+    setFocusMode(DEFAULT_FOCUS_MODE);
+  }
 
   if (profileId !== layoutProfileId) {
     setLayoutProfileId(profileId);
@@ -328,31 +342,38 @@ export const App = () => {
   );
 
   const commandActions = useMemo((): CommandPaletteAction[] => {
+    const focusActions: CommandPaletteAction[] = FOCUS_MODES.map((mode) => ({
+      id: `focus-mode-${mode}`,
+      label: `Focus Mode: ${focusModeLabel(mode)}`,
+      enabled: projectOpen,
+      run: () => setFocusMode(mode),
+    }));
     const actions: CommandPaletteAction[] = [
+      ...focusActions,
       {
         id: "toggle-explorer",
-        label: "View: Toggle Explorer",
+        label: "Layout: Toggle Explorer",
         shortcut: "Ctrl+B",
         enabled: canTogglePanels,
         run: () => togglePanel("explorer"),
       },
       {
         id: "toggle-mission",
-        label: "View: Toggle Mission",
+        label: "Layout: Toggle Mission",
         shortcut: "Ctrl+Shift+M",
         enabled: canTogglePanels,
         run: () => togglePanel("mission"),
       },
       {
         id: "toggle-inspector",
-        label: "View: Toggle Inspector",
+        label: "Layout: Toggle Inspector",
         shortcut: "Ctrl+Shift+I",
         enabled: canTogglePanels,
         run: () => togglePanel("inspector"),
       },
       {
         id: "toggle-console",
-        label: "View: Toggle Developer Console",
+        label: "Layout: Toggle Developer Console",
         shortcut: "Ctrl+`",
         enabled: canTogglePanels,
         run: () => togglePanel("console"),
@@ -564,6 +585,25 @@ export const App = () => {
         </div>
         <div className="menu-group" role="group" aria-label="View">
           <span className="menu-title">View</span>
+          <span className="menu-subtitle" aria-hidden="true">
+            Focus Modes
+          </span>
+          {FOCUS_MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="menuitemradio"
+              aria-checked={focusMode === mode}
+              disabled={!projectOpen}
+              title={`Focus Mode: ${focusModeLabel(mode)}`}
+              onClick={() => setFocusMode(mode)}
+            >
+              {focusModeLabel(mode)}
+            </button>
+          ))}
+          <span className="menu-subtitle" aria-hidden="true">
+            Layout Chrome
+          </span>
           <button
             type="button"
             role="menuitemcheckbox"
@@ -655,6 +695,8 @@ export const App = () => {
             onSqlDirtyChange={setSqlDirty}
             openCenterEditorKind={openCenterEditorKind}
             openCenterEditorRequest={openCenterEditorRequest}
+            focusMode={focusMode}
+            onFocusModeChange={setFocusMode}
           />
         ) : (
           <StartupFunnel
