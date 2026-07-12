@@ -6,7 +6,7 @@ import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
 import { MissionComposer } from "./MissionComposer";
 import { QuickOpenHost } from "./QuickOpenHost";
-import { SqlSheet } from "./SqlSheet";
+import { SqlSheet, WORKSPACE_SQL_FORM_ID, type SqlRunState } from "./SqlSheet";
 import { StubSurface } from "./StubSurface";
 import {
   CENTER_EDITOR_STUB_META,
@@ -52,7 +52,6 @@ import {
   environmentIdentity,
   mcpHealthLabel,
 } from "./shellHealth";
-import { stubActionProps } from "./stubConvention";
 
 type WorkspaceTab = Readonly<{
   id: string;
@@ -308,6 +307,11 @@ export const IdeWorkspace = ({
   );
   const [focusedObjectName, setFocusedObjectName] = useState<string | null>(null);
   const [activityRail, setActivityRail] = useState<ActivityRailId>(DEFAULT_ACTIVITY_RAIL);
+  const [sqlRunState, setSqlRunState] = useState<SqlRunState>({
+    busy: false,
+    hasSql: false,
+    canRun: false,
+  });
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -604,12 +608,40 @@ export const IdeWorkspace = ({
 
   const editorTabs = tabs.filter(isEditorTab);
   const activeCenterTab = editorTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
+  const sqlEditorActive = activeCenterTab?.kind === "sql";
   const backendHealth = backendHealthLabel(backendStatus);
   const mcpHealth = mcpHealthLabel(activityCount, Boolean(activeActivitySessionId));
   const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
   const environment = environmentIdentity(openedProject.manifest);
   const missionPrimacy = focusMode === "agent" || focusMode === "review" ? "primary" : "secondary";
   const editorsPrimacy = focusMode === "sql" || focusMode === "files" ? "primary" : "secondary";
+
+  const handleNewSql = () => {
+    const existing = tabs.find((tab) => tab.kind === "sql");
+    const tab = existing ?? { id: "sql", kind: "sql" as const, title: "SQL Editor" };
+    setTabs((current) =>
+      current.some((item) => item.id === tab.id) ? current : [...current, tab],
+    );
+    setActiveCenterTabId(tab.id);
+    // Explicit SQL Focus Mode overrides sticky Agent (ADR-0007 / Focus Mode grilling).
+    const next = applyFocusModeSelection("sql", activityRail);
+    onFocusModeChange(next.focusMode);
+    setActivityRail(next.rail);
+  };
+
+  const toolbarRunEnabled =
+    sqlEditorActive && sqlRunState.canRun && sqlRunState.hasSql && !sqlRunState.busy;
+  const toolbarRunTitle = !sqlEditorActive
+    ? "Focus the SQL Editor to run."
+    : !isBackendOnline
+      ? "Backend is offline."
+      : !connectedConnection
+        ? "Connect a SQLcl saved connection to run SQL."
+        : sqlRunState.busy
+          ? "Running…"
+          : !sqlRunState.hasSql
+            ? "Enter SQL to run."
+            : "Run the SQL Editor buffer.";
 
   const bodyColumns = [
     layout.showExplorer ? `${layout.leftWidth}px` : null,
@@ -658,11 +690,24 @@ export const IdeWorkspace = ({
           next?.focus();
         }}
       >
-        <button type="button" className="chrome-button" {...stubActionProps()}>
+        <button
+          type="button"
+          className="chrome-button"
+          onClick={handleNewSql}
+          title="Open the SQL Editor"
+        >
           New SQL
         </button>
-        <button type="button" className="chrome-button" {...stubActionProps()}>
-          Run
+        <button
+          type="submit"
+          form={WORKSPACE_SQL_FORM_ID}
+          className="chrome-button"
+          disabled={!toolbarRunEnabled}
+          aria-disabled={!toolbarRunEnabled}
+          aria-busy={sqlEditorActive && sqlRunState.busy}
+          title={toolbarRunTitle}
+        >
+          {sqlEditorActive && sqlRunState.busy ? "Running…" : "Run"}
         </button>
         <button
           type="button"
@@ -908,6 +953,7 @@ export const IdeWorkspace = ({
                       dirty={sqlDirty}
                       onDirtyChange={onSqlDirtyChange}
                       onActivityRefresh={onActivityRefresh}
+                      onRunStateChange={setSqlRunState}
                     />
                   ) : null}
                   {activeCenterTab &&

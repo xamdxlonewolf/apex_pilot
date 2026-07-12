@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import {
   type BackendConfig,
@@ -7,6 +7,15 @@ import {
   BackendApiError,
   runSql,
 } from "./backend";
+
+/** Form id shared with the Mission Control Toolbar Run control. */
+export const WORKSPACE_SQL_FORM_ID = "workspace-sql-editor";
+
+export type SqlRunState = Readonly<{
+  busy: boolean;
+  hasSql: boolean;
+  canRun: boolean;
+}>;
 
 type SqlLogEntry = Readonly<{
   id: string;
@@ -25,6 +34,8 @@ type SqlSheetProps = Readonly<{
   dirty: boolean;
   onDirtyChange: (dirty: boolean) => void;
   onActivityRefresh: () => Promise<void>;
+  /** Reports live Run preconditions for progressive Toolbar enablement. */
+  onRunStateChange?: (state: SqlRunState) => void;
 }>;
 
 export const SqlSheet = ({
@@ -36,6 +47,7 @@ export const SqlSheet = ({
   dirty,
   onDirtyChange,
   onActivityRefresh,
+  onRunStateChange,
 }: SqlSheetProps) => {
   const [sql, setSql] = useState("select * from dual");
   const [busy, setBusy] = useState(false);
@@ -47,6 +59,17 @@ export const SqlSheet = ({
   } | null>(null);
 
   const canRun = isBackendOnline && Boolean(connectedConnection) && !busy;
+  const hasSql = Boolean(sql.trim());
+
+  useEffect(() => {
+    onRunStateChange?.({ busy, hasSql, canRun });
+  }, [busy, canRun, hasSql, onRunStateChange]);
+
+  useEffect(() => {
+    return () => {
+      onRunStateChange?.({ busy: false, hasSql: false, canRun: false });
+    };
+  }, [onRunStateChange]);
 
   const appendLog = (entry: Omit<SqlLogEntry, "id">) => {
     setLog((current) => [{ ...entry, id: `${Date.now()}-${current.length}` }, ...current].slice(0, 100));
@@ -112,7 +135,7 @@ export const SqlSheet = ({
 
   return (
     <div className="tool-panel sql-sheet" aria-label="SQL sheet">
-      <form className="sql-editor" onSubmit={onSubmit}>
+      <form id={WORKSPACE_SQL_FORM_ID} className="sql-editor" onSubmit={onSubmit}>
         <label className="sr-only" htmlFor="sql-sheet-editor">
           SQL
         </label>
@@ -129,7 +152,7 @@ export const SqlSheet = ({
           disabled={!isBackendOnline}
         />
         <div className="tool-toolbar">
-          <button type="submit" disabled={!canRun || !sql.trim()} aria-busy={busy}>
+          <button type="submit" disabled={!canRun || !hasSql} aria-busy={busy}>
             {busy ? "Running…" : "Run"}
           </button>
           <span className="pane-muted">
