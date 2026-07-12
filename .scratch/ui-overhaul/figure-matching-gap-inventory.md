@@ -28,7 +28,7 @@ map fog / sibling tickets.
 | Context Bar | Project, Connection, Mappings, Working Schema, Environment, health pills | Partial — closest analogue to figure header identity strip |
 | Left | Multi-section `Explorer` via in-panel section buttons | Partial — hybrid intent present; **no Activity Rail** |
 | Center | Tab strip: Mission (`MissionComposer` stub), SQL (`SqlSheet` textarea), file preview / editor stubs | Partial — dual surfaces exist as tabs, not Focus Modes |
-| Right | Pure `InspectorPanel` (four static Stub sections) | Partial — role correct; **not stage-driven** |
+| Right | Stage-driven `InspectorPanel` (Plan → … → Complete; honest Stub evidence) | Match (chrome); evidence still Stub until Agent Core |
 | Bottom | Docked `DeveloperConsole` (MCP Activity live; other tabs Stub) | Partial — IA correct; craft/tab depth vs figure TBD |
 | Floating MCP | Still available when no project / migration path | Migration — not product target when project open |
 
@@ -88,13 +88,13 @@ Layout Chrome (panel toggles) stays secondary. Do not fake Mission success data.
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Stages: Plan → SQL Generated → Review → Execute → Complete | Four always-visible Stub sections: Progress, Classification, Object summaries, Checklist | **Partial** / wrong model |
-| Stage-specific evidence (plan summary, SQL preview, classification/PROMPT, execute progress, completion stats) | Stub copy only; no stage machine | **Missing** (stage chrome) |
-| Inspector explains; does not own SQL edit/run | SQL lives in center `SqlSheet`; Inspector has no tool tabs | **Match** |
+| Stages: Plan → SQL Generated → Review → Execute → Complete | Stage nav + per-stage evidence region | **Match** (chrome) |
+| Stage-specific evidence (plan summary, SQL preview, classification/PROMPT, execute progress, completion stats) | Honest empty/Stub evidence per stage; no fake SQL or success | **Match** (honesty); real evidence waits on Agent Core |
+| Inspector explains; does not own SQL edit/run | SQL lives in center `SqlSheet`; Inspector has no tool tabs; stage actions Stub-disabled | **Match** |
 | Honest empty/stub evidence before Agent Core | Stub surfaces present | **Match** (honesty) |
 
-**Gap:** Replace static accordion with stage-driven chrome. Empty/stub evidence
-OK until Agent Core; never demo Approve & Execute success.
+**Gap:** Closed for chrome. Real plan/SQL/review/execute/complete evidence
+still waits on Agent Core — keep Stub actions disabled; never demo success.
 
 ### 5. Progressive enablement (Toolbar / actions)
 

@@ -1163,12 +1163,80 @@ button:disabled {
 }
 
 .inspector-body {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 9.5rem) minmax(0, 1fr);
   gap: 0;
   min-height: 0;
   flex: 1;
+  overflow: hidden;
+}
+
+.inspector-stages {
+  border-right: 1px solid var(--chrome-border);
   overflow: auto;
+  min-height: 0;
+}
+
+.inspector-stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inspector-stage-item {
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.inspector-stage-item:last-child {
+  border-bottom: 0;
+}
+
+.inspector-stage-button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inspector-stage-button:hover {
+  background: color-mix(in srgb, var(--chrome-border) 35%, transparent);
+}
+
+.inspector-stage-button--active {
+  background: color-mix(in srgb, var(--chrome-border) 55%, transparent);
+}
+
+.inspector-stage-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.inspector-stage-state {
+  font-size: 0.75rem;
+}
+
+.inspector-stage-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+.inspector-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .inspector-section {

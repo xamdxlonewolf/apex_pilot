@@ -1,9 +1,10 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { InspectorPanel } from "./InspectorPanel";
+import { STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
 
 describe("InspectorPanel", () => {
-  it("renders progress, classification, summaries, and checklist chrome with Stub unfinished sections", () => {
+  it("renders figure stage chrome Plan → SQL Generated → Review → Execute → Complete", () => {
     render(
       <InspectorPanel
         projectName="Demo"
@@ -15,26 +16,59 @@ describe("InspectorPanel", () => {
     const panel = screen.getByLabelText("Inspector panel");
     expect(panel).toBeInTheDocument();
 
-    const progress = within(panel).getByRole("region", { name: "Workflow progress" });
-    expect(within(progress).getByText("Progress")).toBeInTheDocument();
-    expect(within(progress).getByText("Stub")).toBeInTheDocument();
-    expect(within(progress).getByText("Not implemented yet")).toBeInTheDocument();
+    const stages = within(panel).getByLabelText("Inspector stages");
+    for (const name of ["Plan", "SQL Generated", "Review", "Execute", "Complete"]) {
+      expect(within(stages).getByRole("button", { name })).toBeInTheDocument();
+    }
 
-    const classification = within(panel).getByRole("region", { name: "Classification" });
-    expect(within(classification).getByText("Classification")).toBeInTheDocument();
-    expect(within(classification).getByText("Stub")).toBeInTheDocument();
-
-    const summaries = within(panel).getByRole("region", { name: "Object summaries" });
-    expect(within(summaries).getByText("Object summaries")).toBeInTheDocument();
-    expect(within(summaries).getByText("Stub")).toBeInTheDocument();
-
-    const checklist = within(panel).getByRole("region", { name: "Checklist" });
-    expect(within(checklist).getByText("Checklist")).toBeInTheDocument();
-    expect(within(checklist).getByText("Stub")).toBeInTheDocument();
+    expect(within(panel).getByRole("region", { name: "Plan stage" })).toBeInTheDocument();
+    expect(within(panel).queryByRole("region", { name: "Workflow progress" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("region", { name: "Classification" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("region", { name: "Object summaries" })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("region", { name: "Checklist" })).not.toBeInTheDocument();
 
     expect(within(panel).queryByRole("region", { name: "Mappings preferences" })).not.toBeInTheDocument();
     expect(within(panel).queryByText("Mappings")).not.toBeInTheDocument();
     expect(within(panel).queryByLabelText("Project mappings")).not.toBeInTheDocument();
+  });
+
+  it("shows honest empty stub evidence per stage and never fake plans, SQL, or success", () => {
+    render(
+      <InspectorPanel
+        projectName="Demo"
+        connectionName="dev"
+        workingSchema="HR"
+      />,
+    );
+
+    const panel = screen.getByLabelText("Inspector panel");
+    const stages = within(panel).getByLabelText("Inspector stages");
+
+    expect(within(panel).getAllByText(STUB_BADGE).length).toBeGreaterThan(0);
+    expect(within(panel).getByText(STUB_PRIMARY_COPY)).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Generate SQL" })).toBeDisabled();
+
+    fireEvent.click(within(stages).getByRole("button", { name: "SQL Generated" }));
+    expect(within(panel).getByRole("region", { name: "SQL Generated stage" })).toBeInTheDocument();
+    expect(within(panel).queryByText(/CREATE TABLE|EMP_APPROVAL|SELECT \*/i)).not.toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Review & Approve" })).toBeDisabled();
+
+    fireEvent.click(within(stages).getByRole("button", { name: "Review" }));
+    const review = within(panel).getByRole("region", { name: "Review stage" });
+    expect(review).toBeInTheDocument();
+    const execute = within(review).getByRole("button", { name: "Execute" });
+    expect(execute).toBeDisabled();
+    expect(execute).toHaveAttribute("title", STUB_PRIMARY_COPY);
+
+    fireEvent.click(within(stages).getByRole("button", { name: "Execute" }));
+    expect(within(panel).getByRole("region", { name: "Execute stage" })).toBeInTheDocument();
+    expect(within(panel).queryByText(/56%|Statement \d+ of \d+|Executing\.\.\./i)).not.toBeInTheDocument();
+
+    fireEvent.click(within(stages).getByRole("button", { name: "Complete" }));
+    const complete = within(panel).getByRole("region", { name: "Complete stage" });
+    expect(complete).toBeInTheDocument();
+    expect(within(complete).queryByText(/Execution Successful|1\.24s|12\/12/i)).not.toBeInTheDocument();
+    expect(within(complete).getByRole("button", { name: "View Changes" })).toBeDisabled();
 
     expect(panel).not.toHaveTextContent(/\bGap\b/);
     expect(panel).not.toHaveTextContent(/\bDS-/);
@@ -42,7 +76,7 @@ describe("InspectorPanel", () => {
     expect(panel).not.toHaveTextContent(/sample row|execution succeeded|mock timeline/i);
   });
 
-  it("explains context without SQL edit ownership or Run/Execute controls", () => {
+  it("explains context without SQL edit ownership or Run controls", () => {
     render(
       <InspectorPanel
         projectName="Demo"
@@ -55,7 +89,6 @@ describe("InspectorPanel", () => {
     expect(within(panel).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
     expect(within(panel).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
     expect(within(panel).queryByRole("button", { name: /^Run$/i })).not.toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: /^Execute$/i })).not.toBeInTheDocument();
     expect(within(panel).queryByRole("button", { name: /^Send$/i })).not.toBeInTheDocument();
   });
 });

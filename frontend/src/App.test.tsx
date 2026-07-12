@@ -759,7 +759,7 @@ describe("App", () => {
     expect(within(inspector).queryByRole("tab", { name: /Object Editor|Package Editor/i })).not.toBeInTheDocument();
   });
 
-  it("makes the right pane a pure Inspector with progress/classification/summaries/checklist and no tool tabs", async () => {
+  it("makes the right pane a pure stage-driven Inspector with honest stage chrome and no tool tabs", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",
       bearerToken: "test-token",
@@ -770,10 +770,11 @@ describe("App", () => {
 
     const inspector = await screen.findByRole("region", { name: "Inspector" });
     expect(within(inspector).getByLabelText("Inspector panel")).toBeInTheDocument();
-    expect(within(inspector).getByRole("region", { name: "Workflow progress" })).toBeInTheDocument();
-    expect(within(inspector).getByRole("region", { name: "Classification" })).toBeInTheDocument();
-    expect(within(inspector).getByRole("region", { name: "Object summaries" })).toBeInTheDocument();
-    expect(within(inspector).getByRole("region", { name: "Checklist" })).toBeInTheDocument();
+    const stages = within(inspector).getByLabelText("Inspector stages");
+    for (const name of ["Plan", "SQL Generated", "Review", "Execute", "Complete"]) {
+      expect(within(stages).getByRole("button", { name })).toBeInTheDocument();
+    }
+    expect(within(inspector).getByRole("region", { name: "Plan stage" })).toBeInTheDocument();
 
     expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
@@ -785,7 +786,12 @@ describe("App", () => {
     expect(within(inspector).queryByLabelText("SQL sheet")).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("button", { name: /^Run$/i })).not.toBeInTheDocument();
-    expect(within(inspector).queryByRole("button", { name: /^Execute$/i })).not.toBeInTheDocument();
+    // Stage nav includes Execute; Plan evidence has no live Execute action.
+    expect(
+      within(within(inspector).getByRole("region", { name: "Plan stage" })).queryByRole("button", {
+        name: /^Execute$/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("hosts Environment mappings in Settings preferences UX, not the Inspector", async () => {
