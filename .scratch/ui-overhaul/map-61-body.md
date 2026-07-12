@@ -26,6 +26,7 @@ Ship a Mission Control shell that matches figure_1 / figure_2 as north star: Act
 - [Task: Shell IA — Activity Rail, Focus Modes, Workspace](https://github.com/xamdxlonewolf/apex_pilot/issues/66) — Activity Rail + Focus Modes + dual-primary Workspace shipped; View panel toggles demoted to Layout Chrome. PR: https://github.com/xamdxlonewolf/apex_pilot/pull/75
 - [Task: Progressive enablement for New SQL and Run](https://github.com/xamdxlonewolf/apex_pilot/issues/67) — New SQL focuses SQL Editor + explicit SQL Focus Mode; Run enables on real preconditions and submits live SqlSheet (no Stub/fake success). PR: https://github.com/xamdxlonewolf/apex_pilot/pull/76
 - [Task: Stage-driven Inspector honest chrome](https://github.com/xamdxlonewolf/apex_pilot/issues/68) — Inspector stage nav Plan → SQL Generated → Review → Execute → Complete with honest Stub evidence; no fake plans/SQL/success. PR: https://github.com/xamdxlonewolf/apex_pilot/pull/77. Asset: `.scratch/ui-overhaul/figure-matching-gap-inventory.md` §4
+- [Task: Hybrid Explorer FS and database object browse](https://github.com/xamdxlonewolf/apex_pilot/issues/69) — Files density craft + Database tables / mapped APEX workspaces open Workspace viewers (honest Stub metadata); APEX/`f*.sql` protection kept. PR: https://github.com/xamdxlonewolf/apex_pilot/pull/78. Asset: `.scratch/ui-overhaul/figure-matching-gap-inventory.md` §2
 
 ## Not yet specified
 
