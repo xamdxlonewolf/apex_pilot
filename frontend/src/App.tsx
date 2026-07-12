@@ -7,7 +7,10 @@ import {
 } from "react";
 
 import { CommandPalette } from "./CommandPalette";
-import { matchCommandPaletteShortcut, type CommandPaletteAction } from "./commandPalette";
+import {
+  matchCommandPaletteShortcut,
+  type CommandPaletteAction,
+} from "./commandPaletteModel";
 import {
   CENTER_EDITOR_STUB_KINDS,
   CENTER_EDITOR_STUB_META,

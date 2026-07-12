@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { filterQuickOpenItems, type QuickOpenItem } from "./quickOpen";
+import { filterQuickOpenItems, type QuickOpenItem } from "./quickOpenModel";
 
 type QuickOpenProps = Readonly<{
   open: boolean;

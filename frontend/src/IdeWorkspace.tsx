@@ -34,7 +34,7 @@ import {
   readTextFile,
   type FileTreeNode,
 } from "./projectFs";
-import { schemaTablesToQuickOpenItems, type QuickOpenItem } from "./quickOpen";
+import { schemaTablesToQuickOpenItems, type QuickOpenItem } from "./quickOpenModel";
 import {
   backendHealthLabel,
   connectionHealthLabel,

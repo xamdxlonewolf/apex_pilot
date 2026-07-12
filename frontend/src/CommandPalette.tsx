@@ -3,7 +3,7 @@ import { useId, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } fr
 import {
   filterCommandActions,
   type CommandPaletteAction,
-} from "./commandPalette";
+} from "./commandPaletteModel";
 
 type CommandPaletteProps = {
   open: boolean;

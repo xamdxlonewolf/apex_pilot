@@ -4,7 +4,7 @@ import {
   filterCommandActions,
   matchCommandPaletteShortcut,
   type CommandPaletteAction,
-} from "./commandPalette";
+} from "./commandPaletteModel";
 
 describe("commandPalette", () => {
   it("matches Ctrl/Cmd+Shift+P for the command palette", () => {

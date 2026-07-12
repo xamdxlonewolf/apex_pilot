@@ -14,7 +14,7 @@ import {
   mergeQuickOpenItems,
   schemaTablesToQuickOpenItems,
   type QuickOpenItem,
-} from "./quickOpen";
+} from "./quickOpenModel";
 
 describe("quickOpen helpers", () => {
   it("matches Ctrl/Cmd+P without Shift for Quick Open", () => {

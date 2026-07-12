@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { matchCommandPaletteShortcut } from "./commandPalette";
+import { matchCommandPaletteShortcut } from "./commandPaletteModel";
 import { QuickOpen } from "./QuickOpen";
 import {
   collectProjectFileItems,
   matchQuickOpenShortcut,
   mergeQuickOpenItems,
   type QuickOpenItem,
-} from "./quickOpen";
+} from "./quickOpenModel";
 
 type QuickOpenHostProps = Readonly<{
   rootPath: string;
