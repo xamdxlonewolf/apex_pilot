@@ -54,11 +54,11 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - Next UX work after the merged PR 9B.1 interim shell is the Design Spec overhaul. Authoritative UI/UX: [[Apex Pilot Desktop Design Spec]] (+ figures). Design Spec wins over conflicting interim shell / ADR language.
 - Sequence: PR 9B → PR 9B.1 (interim) → UI overhaul (UI-0…UI-9) interleaved with Agent Core / PR 9D as needed; land Spec shell stubs before heavy Agent Core UI reliance.
 - Startup funnel: silent health check → full preflight if first-time or unhealthy → profile if needed → recent-projects picker → workspace.
-- Shell target (ADR-0007): dense Mission Control chrome — menu, toolbar, context bar, status bar; Explorer | Mission / workspace editors | Inspector | bottom Developer Console when a project is open.
-- Left — Explorer: multi-section (project / DB / APEX / REST / favorites / pinned / recent); junk hidden by default; respect APEX export folders and root `f*.sql` invariants.
-- Center — Mission workspace (timeline, stages, composer, history); also hosts SQL Editor and other workspace editor tabs. Composer may ship with send disabled until Agent Core; stubs must be honest.
-- Right — Inspector only (progress, classification, object summary, checklists). Not a general tool-tab host.
-- SQL Editor lives in center workspace tabs (relocated from interim right-pane SQL Sheet). Schema browsing under Explorer / object viewers. Env→SQLcl / APEX mappings in connection / profile / preferences UX.
+- Shell target (ADR-0007): figure_1 / figure_2 Mission Control — native App Menu, Product Header (hosts Context Bar role), Toolbar, status bar; Activity Rail + hybrid Explorer | dual-primary Workspace (Mission + editors) with Focus Modes | stage-driven Inspector | bottom Developer Console when a project is open.
+- Left — Activity Rail switches Explorer posture (Files / Agent / Code / Database / APEX / Review); Files is real FS source of truth; Database and APEX are separate object-browse bodies; junk hidden by default; respect APEX export folders and root `f*.sql` invariants.
+- Center — dual-primary Workspace: Mission peer with real code editors (SQL and other languages). Focus Modes Agent / SQL / Files / Review (default Agent; sticky Agent; Review explicit-entry). Layout Chrome is secondary. Composer may ship with send disabled until Agent Core; stubs must be honest.
+- Right — stage-driven Inspector only (Plan → SQL Generated → Review → Execute → Complete). Honest empty/stub evidence before Agent Core. Not a general tool-tab host.
+- SQL Editor lives in Workspace (relocated from interim right-pane SQL Sheet). Schema / APEX browsing under rail-selected Explorer bodies. Env→SQLcl / APEX mappings in Product Header Context Bar role and connection / profile / preferences UX.
 - Developer Console is in-shell; MCP Activity is a Console tab. Floating MCP window is migration-only, not the target.
 - Close project returns to picker with unsaved prompt; one project per window (prefer new window for another project).
 - Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop Design Spec]] / ADR-0007.

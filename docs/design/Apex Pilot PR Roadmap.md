@@ -130,7 +130,7 @@ Scope (as shipped — interim vs Design Spec):
 - Native folder pickers primary; Tauri FS for files; backend for MCP/metadata.
 - Visual direction: IDE chrome, not stacked cards.
 
-Authoritative UI/UX for the overhaul: [[Apex Pilot Desktop Design Spec]] (+ figures). Where 9B.1 interim scope conflicted with the Design Spec, ADR-0007 now locks the Spec shell (Mission, Inspector, Explorer, Developer Console).
+Authoritative UI/UX for the overhaul: figure_1 / figure_2 north star; [[Apex Pilot Desktop Design Spec]] supports. ADR-0007 locks the revised Mission Control shell (Activity Rail, hybrid Explorer, dual-primary Workspace + Focus Modes, stage-driven Inspector, Product Header + App Menu, Developer Console).
 
 ### UI overhaul epic (post-9B.1)
 
@@ -144,11 +144,11 @@ durations/choreography + focus token polish).
 | ID | Scope | Design Spec |
 | --- | --- | --- |
 | **UI-0** | Epic / composition: Mission Control shell; ADR-0007 already rewritten | DS-SHELL-* |
-| **UI-1** | Shell chrome: menu completeness, toolbar, context bar, health indicators; core panel-toggle shortcuts + focus (ADR-0007 §12); minimal command palette soon after shell IA (not blocking first IA PR) | DS-SHELL-*, DS-PLATFORM-shortcuts, DS-INTERACT-kbd |
-| **UI-2** | Explorer multi-section (project/DB/APEX/REST/favorites/pinned/recent) | DS-EXPLORER-* |
-| **UI-3** | Mission workspace (replace Chat): timeline, stages, composer, history | DS-MISSION-*, DS-WORKFLOW-* |
-| **UI-4** | Inspector panel (progress, classification, objects, actions) | DS-INSPECTOR-* |
-| **UI-5** | Workspace editors in center; relocate SQL Editor; object/package/APEX/REST/diff | DS-WORKSPACE-* |
+| **UI-1** | Shell chrome: App Menu + Product Header (Context Bar role) + Toolbar; Activity Rail; Focus Modes / Layout Chrome; core panel-toggle shortcuts + focus (ADR-0007 §12); minimal command palette soon after shell IA (not blocking first IA PR) | DS-SHELL-*, DS-PLATFORM-shortcuts, DS-INTERACT-kbd |
+| **UI-2** | Hybrid Explorer via Activity Rail (Files FS + Database/APEX object browse; REST/favorites/pinned/recent as Spec matures) | DS-EXPLORER-* |
+| **UI-3** | Mission in dual-primary Workspace: timeline, stages, composer, history | DS-MISSION-*, DS-WORKFLOW-* |
+| **UI-4** | Stage-driven Inspector (Plan → … → Complete); honest stub evidence pre–Agent Core | DS-INSPECTOR-* |
+| **UI-5** | Real code editors in Workspace; SQL Editor + File Editor; object/package/APEX/REST/diff viewers | DS-WORKSPACE-* |
 | **UI-6** | Developer Console in-shell; migrate MCP Activity from floating window | DS-CONSOLE-* |
 | **UI-7** | Design system tokens + component library in parallel. Checklist: Compact/Comfortable density modes + switcher (Default already used in shell); Spec motion duration table + panel/timeline choreography; focus token polish (2px accent). Shell still gates: no decorative motion, immediate resize, skeletons preferred, `prefers-reduced-motion`. Quick Open (`Ctrl+P`) when file/object search exists. | DS-DESIGN-*, DS-COMPONENTS-*, DS-DESIGN-density, DS-DESIGN-motion, DS-PLATFORM-motion |
 | **UI-8** | Dialog/wizard chrome + connection wizard + preferences | DS-DIALOGS-*, DS-CONN-* |

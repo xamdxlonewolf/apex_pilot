@@ -22,6 +22,7 @@ Ship a Mission Control shell that matches figure_1 / figure_2 as north star: Act
 - [Grilling: Focus Mode auto-switch on open work](https://github.com/xamdxlonewolf/apex_pilot/issues/73) — Sticky Agent on editor open/focus; SQL↔Files and Mission→Agent follow the work; Review exits the same way but is explicit-entry only (no auto-enter from Mission stage); triggers are open + tab focus.
 - [Grilling: App Menu vs Product Header ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/64) — Native App Menu replaces in-app Project/View menubar; Product Header is one band (hosts Context Bar role); Toolbar = New SQL/Run; palette never exclusive home; Help Check for updates… → multi-item Updates dialog. Asset: `.scratch/ui-overhaul/app-menu-vs-product-header-ownership.md`
 - [Grilling: Activity Rail ↔ Focus Mode pairing](https://github.com/xamdxlonewolf/apex_pilot/issues/74) — Selective sync: rail Files/Agent/Code/Database/APEX/Review; Agent/Files/Review set+reflect Focus Mode; Code/Database/APEX Explorer-only (from Review → Agent); SQL leaves rail; open lands Agent+Agent rail.
+- [Task: Amend ADR-0007 for revised Mission Control IA](https://github.com/xamdxlonewolf/apex_pilot/issues/65) — ADR-0007 (+ light design cross-links) records figure north star, dual-primary Workspace, Focus Modes, Activity Rail, hybrid Explorer, progressive enablement, stage-driven Inspector, Product Header + App Menu, real code editors.
 
 ## Not yet specified
 

@@ -6,7 +6,7 @@ Accepted
 
 ## Date
 
-2026-07-09
+2026-07-11
 
 ## Context
 
@@ -15,37 +15,47 @@ UI. PR 9B.1 then shipped an interim dense IDE shell (Files | Chat | Tools, plus
 a floating MCP Activity window) so Agent Core would not lean on throwaway
 layout.
 
-Authoritative UI/UX direction is the Obsidian / repo note
+Authoritative UI/UX direction is figure_1 / figure_2 as north star, with the
+Obsidian / repo note
 [Apex Pilot Desktop Design Spec](../design/Apex%20Pilot%20Desktop%20Design%20Spec.txt)
-(plus figure_1 / figure_2). Where this ADR previously conflicted with the Design
-Spec, the Design Spec wins. Wayfinder grilling
-[Grilling: Resolve Design Spec vs ADR conflicts](https://github.com/xamdxlonewolf/apex_pilot/issues/18)
-locked the target shell below; the interim 9B.1 composition is historical
-context only, not the accepted product shape.
+supporting. Product language is Mission (not Conversation). Glossary authority
+is root `CONTEXT.md`.
+
+Wayfinder map
+[Wayfinder: Ship figure-matching Mission Control UX](https://github.com/xamdxlonewolf/apex_pilot/issues/61)
+and its closed grilling tickets revise the accepted shell beyond the first
+Design Spec vs ADR lock
+([Grilling: Resolve Design Spec vs ADR conflicts](https://github.com/xamdxlonewolf/apex_pilot/issues/18)).
+The interim 9B.1 composition remains historical context only, not the accepted
+product shape.
 
 ## Decision Drivers
 
-- Align the accepted shell with the Design Spec Mission Control layout.
+- Match figure_1 / figure_2 Mission Control IA (Activity Rail, dual-primary
+  Workspace, Focus Modes, stage-driven Inspector, Product Header + App Menu).
 - Keep native folder pickers and Tauri FS for local files; backend owns MCP and
   metadata.
 - Preserve APEX export folder and root `f*.sql` invariants in Explorer.
 - Make SQL execution explainable through classification, Inspector evidence, and
   Developer Console / MCP activity.
-- Allow visible stubs for unfinished backend without inventing fake success.
+- Allow visible stubs and progressive enablement without inventing fake success.
 - Avoid inventing Agent Core Mission send behavior early; stubs are honest.
 
 ## Considered Options
 
-### Option 1: Design Spec Mission Control Shell (chosen)
+### Option 1: Figure-matching Mission Control Shell (chosen)
 
-- Pros: Matches locked UX authority; clear homes for Mission, Inspector,
-  Explorer, workspace editors, and in-shell Developer Console.
-- Cons: Larger frontend migration from the interim 9B.1 shell.
+- Pros: Matches locked UX north star and glossary; clear homes for Activity
+  Rail, hybrid Explorer, dual-primary Workspace, Inspector, and in-shell
+  Developer Console; Cursor-informed FS density without multi-project switching.
+- Cons: Larger frontend migration from the interim 9B.1 shell and from the
+  earlier Spec-shell ADR text that lacked Focus Modes / Product Header / App
+  Menu detail.
 
 ### Option 2: Keep Interim Files | Chat | Tools Forever
 
 - Pros: Smaller near-term diff.
-- Cons: Contradicts Design Spec and figures; Agent Core would harden against the
+- Cons: Contradicts figures and Design Spec; Agent Core would harden against the
   wrong IA.
 
 ### Option 3: Frontend-Only SQL Execution Via Raw MCP
@@ -55,46 +65,96 @@ context only, not the accepted product shape.
 
 ## Decision
 
-Apex Pilot’s accepted desktop shell is the Design Spec Mission Control layout:
+Apex Pilot’s accepted desktop shell is the figure-matching Mission Control
+layout:
 
 1. **Startup funnel** (unchanged in spirit from 9B.1 / ADR-0006): silent health →
    full preflight when first-time or unhealthy → profile setup when needed →
    recent-projects picker → project workspace.
-2. **Always-on chrome:** menu bar, **toolbar**, **context bar** (connection /
-   working schema / environment), and bottom status bar. Left / center / right /
-   bottom regions appear when a project is open.
-3. **Left — Explorer:** multi-section navigation (project files, database, APEX,
-   REST, favorites, pinned, recent). Project files via Tauri FS (browser fallback
-   for Vite-only tests); junk hidden by default; APEX export folders and root
-   `f*.sql` shown as protected. Schema browsing lives under Explorer / object
-   viewers — not as a permanent right-pane tool tab.
-4. **Center — Mission and workspace editors:** the primary surface is the
-   **Mission** workspace (timeline, mission card, plan/SQL/review/exec stages,
-   composer, history). Center also hosts workspace editor tabs such as the
-   **SQL Editor** (relocated from the interim right-pane SQL Sheet), object /
-   package / APEX / REST / diff viewers, and file editors. Mission composer may
-   ship with send disabled until Agent Core; stubs must be honest.
-5. **Right — Inspector only:** workflow progress, classification, object /
-   dependency summary, checklists, and related evidence. The Inspector explains;
-   it does not own execution or replace the SQL Editor / Schema Browser.
+2. **Always-on chrome when a project is open:**
+   - **Native App Menu** (File / Edit / View / Help) owns OS-standard and
+     project-lifecycle discoverability; replaces the interim in-app Project /
+     View menubar
+     ([Grilling: App Menu vs Product Header ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/64)).
+   - **Product Header** — one dense top identity/status band (brand, project,
+     Environment, health, Context Bar pickers + Connect, Settings gear). Context
+     Bar is a *role* hosted inside the Product Header, not a second stacked
+     strip.
+   - **Toolbar** — frequent workflow verbs only (New SQL, Run), with progressive
+     enablement. Optional MCP console-focus shortcut may live here.
+   - Bottom status bar. Left / center / right / bottom regions appear when a
+     project is open.
+   - **Command Palette** discovers actions that already have an App Menu,
+     Product Header, Toolbar, or Layout Chrome home — never the exclusive home
+     for a product affordance. Help → Check for updates… opens one Updates
+     dialog with per-component rows (exact inventory remains a later decision).
+3. **Left — Activity Rail + hybrid Explorer:**
+   - **Activity Rail** is required chrome: Files, Agent, Code, Database, APEX,
+     Review (Bookmarks / History deferred). Selective sync with Focus Mode:
+     Agent / Files / Review set and reflect matching modes; Code / Database /
+     APEX change Explorer posture only (from Review they exit Review → Agent);
+     SQL has no rail icon and leaves the current rail posture; project open
+     lands Agent Focus Mode + Agent rail
+     ([Grilling: Activity Rail ↔ Focus Mode pairing](https://github.com/xamdxlonewolf/apex_pilot/issues/74)).
+   - **Explorer** bodies are hybrid: Files posture is the real filesystem tree
+     (local/git source of truth) via Tauri FS (browser fallback for Vite-only
+     tests); junk hidden by default; APEX export folders and root `f*.sql` shown
+     as protected. Database and APEX are separate rail-selected bodies for live
+     (or summarized) objects that can be opened to view — not one tree
+     pretending to be both. REST / favorites / pinned / recent may remain
+     Explorer sections as Spec surfaces mature.
+4. **Center — dual-primary Workspace:** Mission and editors (SQL Editor, File
+   Editor, and related viewers) share primacy as peers. Neither is demoted to
+   secondary chrome.
+   - **Focus Modes** — Agent, SQL, Files, Review. Default on project open:
+     Agent. Agent is Mission-forward with editors remaining dual-primary peers
+     (not minimized away). SQL and Files are editor-forward; Review is
+     AI-generated SQL review posture
+     ([Grilling: Focus Mode set and default landing](https://github.com/xamdxlonewolf/apex_pilot/issues/63)).
+   - **Auto-switch:** Agent is sticky on editor open/focus; SQL ↔ Files follow
+     the active editor peer; focusing Mission restores Agent; Review is
+     explicit-entry only (no auto-enter from Mission stage). Triggers are open
+     and tab focus. Explicit Focus Mode or paired rail selection overrides
+     sticky Agent
+     ([Grilling: Focus Mode auto-switch on open work](https://github.com/xamdxlonewolf/apex_pilot/issues/73)).
+   - **Layout Chrome** (App Menu View / shortcuts) shows, hides, and resizes
+     Explorer, Inspector, and Developer Console — secondary to Focus Mode; panel
+     toggles are never primary IA.
+   - **Mission** hosts timeline, mission card, plan/SQL/review/exec stages,
+     composer, and history. Composer may ship with send disabled until Agent
+     Core; stubs must be honest.
+   - **Editors** use real code-editor surfaces (not plain textareas) for SQL and
+     common project languages (JS/TS, Python, CSS, etc.). Exact library choice
+     is a later decision. Object / package / APEX / REST / diff viewers live in
+     the Workspace as Spec surfaces mature.
+5. **Right — stage-driven Inspector only:** workflow progress, classification,
+   object / dependency summary, checklists, and related evidence driven by the
+   active Mission stage (Plan → SQL Generated → Review → Execute → Complete).
+   Before Agent Core, stages may ship as honest chrome with empty or stub
+   evidence — never fake plans, SQL, or successful execution. The Inspector
+   explains; it does not own execution or replace the SQL Editor / Explorer
+   object browse.
 6. **Bottom — Developer Console:** in-shell console region with tabs such as
    Problems, Output, MCP Activity, SQL History, Oracle Messages, Tasks. **MCP
    Activity is a Console tab**, not a floating-window product target. A temporary
    floating/overlay path may exist only as a migration stub until the console
    region ships.
-7. **Connection / mappings:** connection switcher, working schema, and
-   environment identity belong in the context bar and connection/profile UX
-   (`DS-CONN`, connection wizard / preferences). Env → SQLcl / APEX workspace
-   mappings remain a product capability hosted there — not as a forever right
-   tab.
+7. **Connection / mappings:** connection switcher, Working Schema, and
+   Environment identity belong in the Product Header Context Bar role and
+   connection/profile UX (`DS-CONN`, connection wizard / preferences). Env →
+   SQLcl / APEX workspace mappings remain a product capability hosted there —
+   not as a forever right tab.
 8. **Persistence:** profile-scoped layout prefs and project-scoped open tabs may
    start in local desktop storage and later move into SQLite without changing the
    UX contract.
 9. **Close project** returns to the picker with an unsaved-work prompt when the
-   SQL Editor or other editors have dirty state. One project per window.
-10. **Implementation strategy:** screen/shell-first Spec layout, with design
+   SQL Editor or other editors have dirty state. One project per window (no
+   multi-project concurrent open; Cursor agent project list is inspiration for
+   Explorer FS craft only).
+10. **Implementation strategy:** IA first toward figure_1 / figure_2, then visual
+    polish gated by design skills. Screen/shell-first Spec layout, with design
     tokens and shared components growing as screens need them. Exact pixel-match
-    to figure_1 / figure_2 is not a gate for first Spec-shell PRs; visual intent
+    to figure_1 / figure_2 is not a gate for first shell IA PRs; visual intent
     and IA are.
 11. **Stub and gap-marking conventions** (locked by
     [Grilling: Lock stub copy and gap-marking conventions](https://github.com/xamdxlonewolf/apex_pilot/issues/19);
@@ -104,8 +164,9 @@ Apex Pilot’s accepted desktop shell is the Design Spec Mission Control layout:
       capability when it reduces confusion. No ship dates, no fake progress.
     - **Chrome badge:** exactly `Stub` on the hosting chrome (section title,
       tab, dialog title, etc.) when a Spec surface is present but unfinished.
-    - **Interactive controls:** keep Spec layout; disable actions that cannot
-      work yet; hint with the stub language. Never fake a successful run.
+    - **Interactive controls:** keep Spec layout; **progressive enablement** —
+      enable actions when real preconditions exist; stub/disable only when the
+      capability itself is missing. Never fake a successful run.
     - **No fake data:** no sample rows, fake SQL results, or mock success
       timelines. Real in-flight loading (spinners/skeletons) is not a stub.
     - **Planning IDs:** `DS-*` / `UI-*` stay in docs, tickets, and code comments
@@ -135,7 +196,8 @@ Apex Pilot’s accepted desktop shell is the Design Spec Mission Control layout:
       search exists.
     - **Density:** shell/layout PRs use Spec **Default** spacing only.
       Compact / Comfortable modes and the preference switcher are **UI-7**
-      scope (typography unchanged per Spec).
+      scope (typography unchanged per Spec). Figure craft density pass may
+      follow once IA is in place.
     - **Motion (shell gates):** no decorative animation; panel resize immediate;
       prefer skeletons over spinners; respect `prefers-reduced-motion`.
     - **Motion (UI-7 / polish):** Spec duration table (hover/expand/collapse/
@@ -148,20 +210,26 @@ Apex Pilot’s accepted desktop shell is the Design Spec Mission Control layout:
 Shipped for sequencing, no longer the accepted Decision:
 
 - Center chat composer; right shared tool tabs (Schema / SQL Sheet / Mappings /
-  files); MCP Activity as a floating Tauri window (overlay in browser).
+  files); MCP Activity as a floating Tauri window (overlay in browser); in-app
+  Project / View menubar without Product Header / App Menu / Activity Rail /
+  Focus Modes.
 
 ## Consequences
 
 ### Positive
 
-- Paper trail matches Design Spec authority before Agent Core hardens UI
-  assumptions.
-- Clear relocation homes for SQL Editor, schema browsing, and mappings.
+- Paper trail matches figure_1 / figure_2 and glossary before Agent Core hardens
+  UI assumptions.
+- Clear homes for dual-primary Workspace, Focus Modes, Activity Rail, hybrid
+  Explorer, Product Header, App Menu, and real code editors.
 - Observability stays in-shell and explainable beside Mission / Inspector.
+- Progressive enablement and stage-driven Inspector keep unfinished Agent Core
+  honest.
 
 ### Negative
 
-- Frontend must migrate off the interim 9B.1 composition.
+- Frontend must migrate off the interim 9B.1 composition and earlier Spec-shell
+  chrome that lacked rail / Focus Mode / Product Header detail.
 - Many Spec surfaces will land as stubs before backend/Agent Core catch up.
 
 ### Risks
@@ -170,6 +238,8 @@ Shipped for sequencing, no longer the accepted Decision:
 - SQL Editor must never bypass `PROMPT`/`BLOCK` decisions from the classifier.
 - Migration stubs (e.g. temporary floating MCP) must not be mistaken for the
   target UX in docs or Roadmap language.
+- Editor library and DB/APEX open-to-view detail remain later decisions — do not
+  invent them in shell IA PRs without a ticket.
 
 ## Implementation Notes
 
@@ -185,6 +255,10 @@ Shipped for sequencing, no longer the accepted Decision:
   motion hard rules.
 - Wizard chrome may grow richer per Design Spec without changing ADR-0006’s
   backend ownership of create/open/clone/preflight/mappings.
+- Ownership matrix asset:
+  `.scratch/ui-overhaul/app-menu-vs-product-header-ownership.md`.
+- Gap inventory (live shell vs figures):
+  `.scratch/ui-overhaul/figure-matching-gap-inventory.md`.
 
 ## Related Decisions
 
@@ -192,3 +266,4 @@ Shipped for sequencing, no longer the accepted Decision:
 - [ADR-0002](0002-sql-execution-through-sqlcl-mcp.md)
 - [ADR-0005](0005-local-project-manifest-and-sqlite-storage.md)
 - [ADR-0006](0006-project-initialization-wizard-and-preflight.md)
+- Wayfinder map: [Wayfinder: Ship figure-matching Mission Control UX](https://github.com/xamdxlonewolf/apex_pilot/issues/61)
