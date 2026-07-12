@@ -186,7 +186,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByLabelText("Status bar")).toHaveTextContent(/backend online/i);
+    expect(await screen.findByLabelText("Status bar")).toHaveTextContent(/backend:\s*healthy/i);
     expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: /settings/i })).toBeEnabled();
@@ -456,15 +456,21 @@ describe("App", () => {
     // Spec startup layout: bottom Developer Console starts collapsed/hidden.
     expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
     expect(screen.getByRole("toolbar", { name: "Toolbar" })).toBeInTheDocument();
+    expect(screen.getByRole("banner", { name: "Product Header" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Context Bar" })).toBeInTheDocument();
     expect(screen.getByLabelText("Connection")).toBeInTheDocument();
     expect(screen.getByLabelText("Working Schema")).toBeInTheDocument();
     expect(screen.getByLabelText("Environment")).toHaveTextContent(/dev/i);
-    expect(screen.getByLabelText("Backend health")).toHaveTextContent(/online/i);
+    expect(screen.getByLabelText("Backend health")).toHaveTextContent(/healthy/i);
     expect(screen.getByLabelText("MCP health")).toBeInTheDocument();
     expect(screen.getByLabelText("Connection health")).toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "File" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "View" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Help" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Project" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
     const consoleRegion = screen.getByRole("region", { name: "Developer Console" });
@@ -811,14 +817,17 @@ describe("App", () => {
 
     render(<App />);
 
-    const contextBar = await screen.findByRole("region", { name: "Context Bar" });
-    expect(within(contextBar).getByRole("button", { name: /^Mappings$/i })).toBeInTheDocument();
+    const productHeader = await screen.findByRole("banner", { name: "Product Header" });
+    expect(productHeader).toBeInTheDocument();
+    const contextBar = within(productHeader).getByRole("region", { name: "Context Bar" });
+    expect(within(productHeader).getByRole("button", { name: "Open Settings" })).toBeInTheDocument();
+    expect(within(contextBar).queryByRole("button", { name: /^Mappings$/i })).not.toBeInTheDocument();
 
     const inspector = screen.getByRole("region", { name: "Inspector" });
     expect(within(inspector).queryByLabelText("Project mappings")).not.toBeInTheDocument();
     expect(within(inspector).queryByRole("region", { name: "Mappings preferences" })).not.toBeInTheDocument();
 
-    fireEvent.click(within(contextBar).getByRole("button", { name: /^Mappings$/i }));
+    fireEvent.click(within(productHeader).getByRole("button", { name: "Open Settings" }));
 
     const settings = await screen.findByLabelText("Settings");
     expect(within(settings).getByRole("heading", { name: /Environment mappings/i })).toBeInTheDocument();
@@ -827,7 +836,8 @@ describe("App", () => {
     expect(within(mappingList).getByText("dev")).toBeInTheDocument();
     expect(within(mappingList).getByRole("button", { name: /Save mapping/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
+    fireEvent.click(within(settings).getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Settings$/i }));
     const settingsFromMenu = await screen.findByLabelText("Settings");
     expect(within(settingsFromMenu).getByLabelText("Project mappings")).toBeInTheDocument();
   });
@@ -921,7 +931,7 @@ describe("App", () => {
       target: { value: "select 1 from dual" },
     });
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /^Close$/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Close Project$/i }));
 
     await waitFor(() => {
       expect(confirm).toHaveBeenCalledWith(
@@ -952,7 +962,7 @@ describe("App", () => {
       target: { value: "select * from emp" },
     });
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /^Close$/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Close Project$/i }));
 
     await waitFor(() => {
       expect(window.confirm).toHaveBeenCalled();
@@ -973,7 +983,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByRole("region", { name: "Mission" });
-    fireEvent.click(screen.getByRole("menuitem", { name: /^Close$/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Close Project$/i }));
 
     expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
     expect(confirm).not.toHaveBeenCalled();
@@ -1268,7 +1278,7 @@ describe("App", () => {
     expect(palette).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /toggle explorer/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /toggle developer console/i })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /project: settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /file: settings/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("option", { name: /toggle explorer/i }));
     await waitFor(() => {

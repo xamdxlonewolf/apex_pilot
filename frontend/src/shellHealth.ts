@@ -10,13 +10,13 @@ export type ShellHealthItem = Readonly<{
 export const backendHealthLabel = (status: BackendStatus): ShellHealthItem => {
   switch (status.kind) {
     case "online":
-      return { label: "Backend online", tone: "ok" };
+      return { label: "Backend: Healthy", tone: "ok" };
     case "offline":
-      return { label: "Backend offline", tone: "bad" };
+      return { label: "Backend: Offline", tone: "bad" };
     case "checking":
-      return { label: "Backend checking", tone: "warn" };
+      return { label: "Backend: Checking…", tone: "warn" };
     case "missing-config":
-      return { label: "Backend not configured", tone: "bad" };
+      return { label: "Backend: Not configured", tone: "bad" };
   }
 };
 
@@ -29,15 +29,15 @@ export const mcpHealthLabel = (
     return {
       label:
         activityCount > 0
-          ? `MCP session open · ${activityCount} events logged`
-          : "MCP session open · no events logged",
-      tone: "idle",
+          ? `SQLcl MCP: Connected · ${activityCount}`
+          : "SQLcl MCP: Connected",
+      tone: "ok",
     };
   }
   if (activityCount > 0) {
-    return { label: `MCP idle · ${activityCount} events logged`, tone: "idle" };
+    return { label: `SQLcl MCP: Idle · ${activityCount}`, tone: "idle" };
   }
-  return { label: "MCP idle", tone: "idle" };
+  return { label: "SQLcl MCP: Idle", tone: "idle" };
 };
 
 export const connectionHealthLabel = (
@@ -45,12 +45,12 @@ export const connectionHealthLabel = (
   isConnecting: boolean,
 ): ShellHealthItem => {
   if (isConnecting) {
-    return { label: "Connection connecting", tone: "warn" };
+    return { label: "Connection: Connecting…", tone: "warn" };
   }
   if (connectedConnection) {
-    return { label: `Connection ${connectedConnection}`, tone: "ok" };
+    return { label: `Connected: ${connectedConnection}`, tone: "ok" };
   }
-  return { label: "Connection offline", tone: "idle" };
+  return { label: "Connection: Offline", tone: "idle" };
 };
 
 export const environmentIdentity = (manifest: unknown): string => {

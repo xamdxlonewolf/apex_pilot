@@ -23,11 +23,11 @@ map fog / sibling tickets.
 
 | Region | Current implementation | Fidelity |
 | --- | --- | --- |
-| Always-on menubar | In-app `Project` / `View` button groups + trailing “Apex Pilot” brand (`App.tsx`) | Partial — not native App Menu; not figure Product Header |
-| Toolbar | New SQL (stub), Run (stub), Connect, MCP Activity (`IdeWorkspace`) | Partial — actions present; progressive enablement incomplete |
-| Context Bar | Project, Connection, Mappings, Working Schema, Environment, health pills | Partial — closest analogue to figure header identity strip |
-| Left | Multi-section `Explorer` via in-panel section buttons | Partial — hybrid intent present; **no Activity Rail** |
-| Center | Tab strip: Mission (`MissionComposer` stub), SQL (`SqlSheet` textarea), file preview / editor stubs | Partial — dual surfaces exist as tabs, not Focus Modes |
+| App Menu | Native Tauri File/Edit/View/Help (`useNativeAppMenu`); browser fallback File/Edit/View/Help for Vite/tests; interim Project/View menubar removed | Match (IA) |
+| Product Header | Brand + Context Bar role (project/connection/Connect/schema/env badge/health dots) + Settings gear | Match (IA + craft) |
+| Toolbar | New SQL, Run (progressive), optional MCP Activity shortcut | Match (verbs); Connect lives in Product Header |
+| Left | Activity Rail + hybrid Explorer | Match (IA); DB/APEX open-to-view detail still fog |
+| Center | Dual-primary Mission + Editors with Focus Modes; Monaco for SQL/files | Match (IA); Mission Agent Core still Stub |
 | Right | Stage-driven `InspectorPanel` (Plan → … → Complete; honest Stub evidence) | Match (chrome); evidence still Stub until Agent Core |
 | Bottom | Docked `DeveloperConsole` (MCP Activity live; other tabs Stub) | Partial — IA correct; craft/tab depth vs figure TBD |
 | Floating MCP | Still available when no project / migration path | Migration — not product target when project open |
@@ -51,13 +51,11 @@ Legend:
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Split across menubar brand text + Toolbar + Context Bar health pills | **Partial** |
-| Native App Menu owns OS-standard File/Edit/View/Help discoverability | In-app Project/View menubar only | **Missing** |
+| Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Product Header hosts brand + Context Bar role (connection/schema/env badge/health dots + Connect) + Settings; Toolbar keeps New SQL / Run / MCP | **Match** (IA + craft) |
+| Native App Menu owns OS-standard File/Edit/View/Help discoverability | Native Tauri App Menu via `useNativeAppMenu` (+ browser File/Edit/View/Help fallback for Vite/tests); interim Project/View menubar removed | **Match** |
 | “Conversation” label in figures | Product language is **Mission** (`CONTEXT.md`) | **Match** (naming policy) — implement Mission, do not revive Conversation |
 
-**Gap:** Consolidate toward figure-dense Product Header without VS Code
-menu-as-IA; move OS-standard actions to native Tauri App Menu. Ownership split
-is a sibling grilling ticket, not resolved here.
+**Gap:** Closed for IA + Spec token craft. Updates dialog entry point ships with Stub inventory rows (exact updatable list still fog).
 
 ### 2. Activity Rail + Explorer hybrid
 
@@ -135,12 +133,11 @@ remains map fog; tab inventory already largely placed.
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Dense Mission Control craft (figure dark IDE) | Working dark shell; density prefs (default/compact/comfortable) already in settings | **Partial** |
-| ADR-0007 §12 density/motion gates | Keyboard toggles, reduced-motion attribute, density modes shipped ahead of earlier “Default-only” shell note | **Partial** — prefs exist; figure craft pass still owed |
-| Visual polish gated by design skills | Not figure-matched | **Missing** (end-of-map polish ticket) |
+| Dense Mission Control craft (figure dark IDE) | Spec §161 palette + Inter / JetBrains Mono; Activity Rail accent bar; Inspector stage markers; env badge + health dots | **Match** (craft) |
+| ADR-0007 §12 density/motion gates | Density prefs + Spec motion durations + reduced-motion + focus outline tokens | **Match** |
+| Visual polish gated by design skills | Gate checklist: `.scratch/ui-overhaul/visual-polish-design-skills-gate.md` | **Match** |
 
-**Gap:** Final craft pass after IA; reconcile density/motion carryover with
-figure intent without inventing new product scope.
+**Gap:** Closed for figure-intent craft on existing IA. Remaining fog (Console depth, Updates inventory, DB/APEX open-to-view detail) is product scope, not token polish.
 
 ---
 

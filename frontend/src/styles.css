@@ -1,26 +1,46 @@
 :root {
-  color: #d7dde8;
-  background: #1e1f22;
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--window);
   font-family:
-    "IBM Plex Sans",
+    Inter,
     "Segoe UI",
     ui-sans-serif,
+    system-ui,
     sans-serif;
+  font-size: 13px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --chrome: #2b2d30;
-  --chrome-border: #3c3f41;
-  --panel: #1e1f22;
-  --panel-2: #252629;
-  --text: #d7dde8;
-  --muted: #8b93a7;
+  /* Spec §161 Color Palette — semantic surface tokens */
+  --window: #111315;
+  --panel: #181b20;
+  --panel-2: #20242a;
+  --elevated: #272c34;
+  --chrome: #20242a;
+  --chrome-border: #313844;
+  --input: #14171c;
+  --text: #f3f4f6;
+  --muted: #b7bdc8;
+  --text-disabled: #6e7684;
   --accent: #4f8cff;
   --accent-text: #071018;
-  --ok: #3dd68c;
-  --warn: #e6b84d;
-  --bad: #f07178;
+  --info: #58a6ff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --bad: #f85149;
+  --radius-sm: 4px;
+  --radius-control: 6px;
+  --radius-dialog: 8px;
+  --font-mono:
+    "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  --type-title: 1.375rem;
+  --type-panel: 1rem;
+  --type-section: 0.875rem;
+  --type-body: 0.8125rem;
+  --type-meta: 0.75rem;
+  --type-status: 0.6875rem;
   --left-width: 260px;
   --right-width: 360px;
   --motion-hover: 100ms;
@@ -64,9 +84,11 @@ input,
 select,
 textarea {
   border: 1px solid var(--chrome-border);
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   color: var(--text);
-  background: #141518;
+  background: var(--input);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     color var(--motion-hover) linear,
     background-color var(--motion-hover) linear,
@@ -104,12 +126,18 @@ button:disabled {
 .chrome-button,
 .button-secondary {
   color: var(--text);
-  background: #32353a;
+  background: var(--elevated);
+}
+
+.chrome-button:hover:not(:disabled),
+.button-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--elevated) 80%, var(--accent) 20%);
+  border-color: color-mix(in srgb, var(--chrome-border) 70%, var(--accent) 30%);
 }
 
 .ide-shell {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   background: var(--panel);
@@ -193,7 +221,104 @@ button:disabled {
   font-size: 0.7rem;
 }
 
+.product-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--context-gap, 12px);
+  align-items: center;
+  min-height: var(--context-min-height, 36px);
+  padding: var(--context-padding, 4px 10px);
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--chrome);
+}
+
+.product-brand {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: var(--type-panel);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.product-header-context {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--context-gap, 12px);
+  align-items: center;
+  min-width: 0;
+}
+
+.product-header-settings {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.env-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--health-pill-height, 22px);
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--chrome-border));
+  border-radius: var(--radius-sm);
+  color: var(--ok);
+  font-size: var(--type-status);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--ok) 12%, var(--input));
+}
+
+.shell-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 24px;
+  background: rgb(0 0 0 / 45%);
+  overscroll-behavior: contain;
+}
+
+.shell-dialog-backdrop .dialog-chrome {
+  width: min(520px, 100%);
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  border-radius: var(--radius-dialog);
+  overscroll-behavior: contain;
+}
+
+.shell-dialog-banner {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 16px;
+}
+
+.updates-inventory {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.updates-inventory li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.updates-inventory li:last-child {
+  border-bottom: 0;
+}
+
 .ide-main {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -208,7 +333,8 @@ button:disabled {
   border-top: 1px solid var(--chrome-border);
   background: var(--chrome);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--type-status);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -438,28 +564,42 @@ button:disabled {
 .health-pill {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: var(--health-pill-height, 22px);
+  max-width: 16rem;
   padding: 0 8px;
   border: 1px solid var(--chrome-border);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--type-status);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  background: #141518;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--input);
+}
+
+.health-pill-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
 }
 
 .health-pill--ok {
-  border-color: rgb(61 214 140 / 40%);
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--chrome-border));
   color: var(--ok);
 }
 
 .health-pill--warn {
-  border-color: rgb(230 184 77 / 40%);
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--chrome-border));
   color: var(--warn);
 }
 
 .health-pill--bad {
-  border-color: rgb(240 113 120 / 40%);
+  border-color: color-mix(in srgb, var(--bad) 40%, var(--chrome-border));
   color: var(--bad);
 }
 
@@ -508,7 +648,7 @@ button:disabled {
   align-items: stretch;
   padding: 6px 4px;
   border-right: 1px solid var(--chrome-border);
-  background: var(--panel-2);
+  background: var(--window);
   overflow: auto;
 }
 
@@ -521,7 +661,7 @@ button:disabled {
   margin: 0;
   padding: 4px 0;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -530,13 +670,14 @@ button:disabled {
 
 .activity-rail-button:hover {
   background: rgb(255 255 255 / 6%);
-  color: var(--fg);
+  color: var(--text);
 }
 
 .activity-rail-button--active {
-  border-color: var(--chrome-border);
-  background: rgb(255 255 255 / 10%);
-  color: var(--fg);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--text);
 }
 
 .activity-rail-glyph {
@@ -544,6 +685,7 @@ button:disabled {
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .workspace-peers {
@@ -735,7 +877,7 @@ button:disabled {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: #141518;
+  background: var(--input);
 }
 
 .stub-chrome-trailing {
@@ -785,6 +927,7 @@ button:disabled {
   justify-content: center;
   padding: 12vh 16px 16px;
   background: rgb(8 10 14 / 55%);
+  overscroll-behavior: contain;
 }
 
 .command-palette {
@@ -795,9 +938,10 @@ button:disabled {
   max-height: min(420px, 70vh);
   padding: 12px;
   border: 1px solid var(--chrome-border);
-  border-radius: 8px;
-  background: var(--panel-2);
+  border-radius: var(--radius-dialog);
+  background: var(--elevated);
   box-shadow: 0 16px 40px rgb(0 0 0 / 45%);
+  overscroll-behavior: contain;
 }
 
 .command-palette-title {
@@ -813,7 +957,7 @@ button:disabled {
   width: 100%;
   padding: 10px 12px;
   border-radius: 6px;
-  background: #141518;
+  background: var(--input);
 }
 
 .command-palette-list {
@@ -836,7 +980,7 @@ button:disabled {
 }
 
 .command-palette-option.is-active {
-  background: #32353a;
+  background: var(--elevated);
 }
 
 .command-palette-option[aria-disabled="true"] {
@@ -898,6 +1042,13 @@ button:disabled {
   padding: var(--pane-header-padding, 4px 8px);
   border-bottom: 1px solid var(--chrome-border);
   background: var(--panel-2);
+}
+
+.pane-header strong {
+  font-size: var(--type-section);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
 }
 
 .pane-header--tabs {
@@ -1090,23 +1241,24 @@ button:disabled {
   margin: 0;
   padding: 4px 8px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--type-meta);
   cursor: pointer;
 }
 
 .explorer-section-button:hover {
   background: rgb(255 255 255 / 6%);
-  color: var(--fg);
+  color: var(--text);
 }
 
 .explorer-section-button--active {
-  border-color: var(--chrome-border);
-  background: rgb(255 255 255 / 8%);
-  color: var(--fg);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  color: var(--text);
 }
 
 .explorer-section-body {
@@ -1261,12 +1413,13 @@ button:disabled {
 
 .inspector-stage-button {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
   padding: 10px 8px;
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -1274,20 +1427,44 @@ button:disabled {
 }
 
 .inspector-stage-button:hover {
-  background: color-mix(in srgb, var(--chrome-border) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .inspector-stage-button--active {
-  background: color-mix(in srgb, var(--chrome-border) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.inspector-stage-marker {
+  margin-top: 3px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.inspector-stage-button--active .inspector-stage-marker {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.inspector-stage-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .inspector-stage-label {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--type-section);
+  text-wrap: pretty;
 }
 
 .inspector-stage-state {
-  font-size: 0.75rem;
+  font-size: var(--type-meta);
 }
 
 .inspector-stage-evidence {
@@ -1409,8 +1586,8 @@ button:disabled {
   min-height: 72px;
   resize: vertical;
   padding: 8px;
-  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-body);
 }
 
 .sql-editor {
@@ -1426,9 +1603,9 @@ button:disabled {
   flex: 1;
   min-height: 180px;
   border: 1px solid var(--chrome-border);
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   overflow: hidden;
-  background: #1e1e1e;
+  background: var(--window);
 }
 
 .code-editor .monaco-editor {
@@ -1463,15 +1640,18 @@ button:disabled {
 .tab {
   padding: var(--tab-padding, 4px 8px);
   border: 0;
-  border-radius: 3px 3px 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   color: var(--muted);
   font-weight: 500;
+  font-size: var(--type-body);
   background: transparent;
+  min-width: 0;
 }
 
 .tab--active {
   color: var(--text);
   background: var(--panel);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .tab-close {
@@ -1485,7 +1665,7 @@ button:disabled {
   align-items: end;
   padding: 8px;
   border-bottom: 1px solid var(--chrome-border);
-  background: #1a1b1e;
+  background: var(--panel-2);
 }
 
 .connection-strip-message {
@@ -1525,7 +1705,7 @@ button:disabled {
   border-radius: 999px;
   color: var(--muted);
   font-size: 0.75rem;
-  background: #141518;
+  background: var(--input);
 }
 
 .status-pill--ok {
@@ -1733,7 +1913,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: #141518;
+  background: var(--input);
   font-weight: 700;
 }
 
@@ -1823,7 +2003,7 @@ td {
   overflow: auto;
   border: 1px solid var(--chrome-border);
   border-radius: 4px;
-  background: #141518;
+  background: var(--input);
   white-space: pre-wrap;
   word-break: break-word;
 }

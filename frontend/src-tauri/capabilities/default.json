@@ -5,6 +5,7 @@
   "windows": ["main", "mcp-activity"],
   "permissions": [
     "core:default",
+    "core:menu:default",
     "dialog:default",
     "fs:default",
     "core:webview:allow-create-webview-window",
