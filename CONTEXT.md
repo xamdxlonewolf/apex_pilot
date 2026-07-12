@@ -90,12 +90,15 @@ One of four named Workspace arrangements — Agent, SQL, Files, or Review —
 that switches which peer has primacy without removing the other from the
 product. Agent is Mission-forward (default when a project opens) with SQL and
 File editors still present as peers; SQL and Files are editor-forward; Review
-is for AI-generated SQL review posture. Primary way to change working posture;
-not the same as permanently hiding regions as navigation.
+is for AI-generated SQL review posture. Agent is sticky when editors receive
+focus; SQL and Files follow the active editor peer; focusing Mission restores
+Agent; Review is entered only explicitly. Primary way to change working
+posture; not the same as permanently hiding regions as navigation.
 _Avoid_: View menu as show/hide-only navigation; VS Code Views as the product
 model; a single forever-fixed center layout; Mission Mode / Build Mode /
 Investigation Mode / Presentation Mode (as Focus Mode names); minimizing
-editors away in Agent mode
+editors away in Agent mode; auto-leaving Agent on editor focus; auto-entering
+Review from Mission stage
 
 **Layout Chrome**:
 Power-user controls for showing, hiding, and resizing Explorer, Inspector, and
