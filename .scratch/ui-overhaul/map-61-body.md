@@ -21,6 +21,7 @@ Ship a Mission Control shell that matches figure_1 / figure_2 as north star: Act
 - [Grilling: Focus Mode set and default landing](https://github.com/xamdxlonewolf/apex_pilot/issues/63) — Modes are Agent / SQL / Files / Review; default Agent on project open; Agent = Mission primacy with editors remaining dual-primary peers (not minimized away).
 - [Grilling: Focus Mode auto-switch on open work](https://github.com/xamdxlonewolf/apex_pilot/issues/73) — Sticky Agent on editor open/focus; SQL↔Files and Mission→Agent follow the work; Review exits the same way but is explicit-entry only (no auto-enter from Mission stage); triggers are open + tab focus.
 - [Grilling: App Menu vs Product Header ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/64) — Native App Menu replaces in-app Project/View menubar; Product Header is one band (hosts Context Bar role); Toolbar = New SQL/Run; palette never exclusive home; Help Check for updates… → multi-item Updates dialog. Asset: `.scratch/ui-overhaul/app-menu-vs-product-header-ownership.md`
+- [Grilling: Activity Rail ↔ Focus Mode pairing](https://github.com/xamdxlonewolf/apex_pilot/issues/74) — Selective sync: rail Files/Agent/Code/Database/APEX/Review; Agent/Files/Review set+reflect Focus Mode; Code/Database/APEX Explorer-only (from Review → Agent); SQL leaves rail; open lands Agent+Agent rail.
 
 ## Not yet specified
 

@@ -34,17 +34,24 @@ run
 **Explorer**:
 The left multi-section navigator switched by the Activity Rail. Files posture
 shows the real filesystem tree — local/git source of truth before objects are
-pushed and compiled to the database. Database and APEX postures show live (or
-summarized) objects that can be opened to view. Not a single tree pretending to
-be both.
+pushed and compiled to the database. Database and APEX postures are separate
+rail-selected bodies showing live (or summarized) objects that can be opened to
+view. Not a single tree pretending to be both.
 _Avoid_: Files pane (as the whole left surface); file tree only; logical-only
-tree that hides the repo; FS-only Explorer with no database object browsing
+tree that hides the repo; FS-only Explorer with no database object browsing;
+folding APEX into Database as one rail icon
 
 **Activity Rail**:
-The narrow left icon strip that switches Explorer posture (for example Files,
-Agent, Code, Database) and pairs with Focus Mode. Required chrome in the
+The narrow left icon strip that switches Explorer posture — Files, Agent, Code,
+Database, APEX, Review — and selectively pairs with Focus Mode. Agent, Files,
+and Review set and reflect their matching Focus Modes; Code, Database, and APEX
+change Explorer only (except that choosing them while in Review exits Review to
+Agent). SQL has no rail icon; entering SQL leaves the current rail posture.
+Project open lands on Agent rail with Agent Focus Mode. Required chrome in the
 finished shell — not optional decoration.
-_Avoid_: Relying only on in-panel section tab buttons as the long-term nav model
+_Avoid_: Relying only on in-panel section tab buttons as the long-term nav model;
+tight 1:1 rail≡Focus Mode; rail icons that never sync with Focus Mode; Bookmarks
+or History as v1 rail icons
 
 **Developer Console**:
 The bottom in-shell observability region (Problems, Output, MCP Activity, SQL
@@ -107,13 +114,16 @@ product. Agent is Mission-forward (default when a project opens) with SQL and
 File editors still present as peers; SQL and Files are editor-forward; Review
 is for AI-generated SQL review posture. Agent is sticky when editors receive
 focus; SQL and Files follow the active editor peer; focusing Mission restores
-Agent; Review is entered only explicitly. Primary way to change working
-posture; not the same as permanently hiding regions as navigation.
+Agent; Review is entered only explicitly (App Menu, Focus Mode control, or
+Review rail). Explicit Focus Mode or paired rail selection overrides sticky
+Agent. Agent / Files / Review update the matching Activity Rail icon; SQL does
+not. Primary way to change working posture; not the same as permanently hiding
+regions as navigation.
 _Avoid_: View menu as show/hide-only navigation; VS Code Views as the product
 model; a single forever-fixed center layout; Mission Mode / Build Mode /
 Investigation Mode / Presentation Mode (as Focus Mode names); minimizing
 editors away in Agent mode; auto-leaving Agent on editor focus; auto-entering
-Review from Mission stage
+Review from Mission stage; treating Code / Database / APEX rail as Focus Modes
 
 **Layout Chrome**:
 Power-user controls for showing, hiding, and resizing Explorer, Inspector, and
