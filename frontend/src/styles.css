@@ -278,15 +278,24 @@ button:disabled {
   align-items: flex-start;
   justify-content: center;
   padding: 12vh 16px 24px;
-  background: rgb(0 0 0 / 45%);
+  /* Match command-palette-backdrop so Help dialogs sit on the same scrim. */
+  background: rgb(8 10 14 / 55%);
   overscroll-behavior: contain;
 }
 
 .shell-dialog-backdrop .dialog-chrome {
+  /* Match .command-palette: opaque elevated panel (DialogChrome alone has no fill). */
   width: min(520px, 100%);
   max-height: min(70vh, 640px);
+  height: auto;
+  margin: 0;
+  padding: 16px;
   overflow: auto;
+  border: 1px solid var(--chrome-border);
   border-radius: var(--radius-dialog);
+  background: var(--elevated);
+  color: var(--text);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 45%);
   overscroll-behavior: contain;
 }
 
