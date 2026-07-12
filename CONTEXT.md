@@ -66,24 +66,39 @@ _Avoid_: Treating only SQL as editable; forcing non-SQL work outside Apex Pilot;
 second-class editors for non-SQL files
 
 **Context Bar**:
-The chrome strip for current connection, working schema, and environment
-identity.
-_Avoid_: Burying connection/schema only inside a right tools strip
+The connection, Working Schema, and Environment picker *role* hosted inside the
+Product Header — not a second stacked chrome strip under it.
+_Avoid_: Burying connection/schema only inside a right tools strip; a permanent
+second top strip that duplicates Product Header density
 
 **Product Header**:
-The dense top identity/status chrome toward the figure_1 north star — project,
-environment, health, and related actions — not a classic Project/View menu strip
-as the primary way to navigate the shell.
-_Avoid_: VIEW menu as show/hide-only navigation; VS Code–style menu-as-IA
+The single dense top identity/status band toward the figure_1 north star —
+brand, project, Environment, health, Context Bar pickers, and a small set of
+utilities (for example Settings) — not a classic Project/View menu strip as the
+primary way to navigate the shell. Replaces the interim in-app menubar once the
+native App Menu ships.
+_Avoid_: VIEW menu as show/hide-only navigation; VS Code–style menu-as-IA;
+permanent in-app Project/View menu button groups beside the header
 
 **App Menu**:
 The native desktop application menu (File, Edit, View, Help, and related) hosted
-by the Tauri shell. Owns discoverable OS-standard actions so in-app chrome can
-stay closer to the Product Header.
-_Avoid_: Duplicating every App Menu action as permanent in-app menu buttons
+by the Tauri shell. Owns discoverable OS-standard and project-lifecycle actions
+so in-app chrome can stay a Product Header + Toolbar. View holds Focus Mode
+entries and Layout Chrome (panel show/hide); panel toggles are never primary IA.
+_Avoid_: Duplicating every App Menu action as permanent in-app menu buttons;
+treating View show/hide as the main navigation model
 
 **Toolbar**:
-The always-on action chrome above the workspace regions (Spec shell).
+The always-on action chrome for frequent workflow verbs (New SQL, Run), with
+progressive enablement. Not for project lifecycle, Settings, or identity pickers.
+_Avoid_: Parked Connect / Settings / project Open as permanent Toolbar buttons
+when those belong in Product Header, Context Bar role, or App Menu
+
+**Command Palette**:
+The power-user index (Ctrl+Shift+P) that discovers and runs shell actions which
+already have an App Menu, Product Header, Toolbar, or Layout Chrome home.
+Universal discoverability — never the exclusive home for a product affordance.
+_Avoid_: Hiding missing chrome by shipping actions only in the palette
 
 **Focus Mode**:
 One of four named Workspace arrangements — Agent, SQL, Files, or Review —

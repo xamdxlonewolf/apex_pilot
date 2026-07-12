@@ -6,23 +6,25 @@ Ship a Mission Control shell that matches figure_1 / figure_2 as north star: Act
 
 - Domain: Apex Pilot desktop Mission Control UX; Tauri + React; Oracle DB / APEX first; multi-language editing (SQL, JS/TS, Python, CSS, etc.).
 - North star: figure_1 + figure_2 (Conversation maps to Mission in product language). Design Spec supports. Cursor informs Explorer FS density/craft only — not multi-project switching (one project open at a time).
-- Glossary: root CONTEXT.md (Workspace, Focus Mode, Activity Rail, Layout Chrome, Product Header, App Menu, progressive Stub enablement, hybrid Explorer).
+- Glossary: root CONTEXT.md (Workspace, Focus Mode, Activity Rail, Layout Chrome, Product Header, App Menu, Context Bar role, Command Palette, progressive Stub enablement, hybrid Explorer).
 - Skills every session: grilling, domain-modeling, design-system-patterns, tailwind-design-system, frontend-design, web-design-guidelines, redesign-existing-projects. Visual/polish tickets must be checked against those design skills.
 - Plan then build on this map: decision tickets first where needed; implementation/task tickets carry execution until the destination ships. Never more than one ticket resolved per session.
 - Hard boundaries unchanged: no APEX export folders / root f*.sql; SQL via SQLcl MCP only; guarded facades; no Oracle password / SQL result row persistence by default; Stub honesty (no fake success).
 - Supersedes Wayfinder: Apex Pilot desktop UI overhaul (#14) and Spec: Apex Pilot desktop UI overhaul (Mission Control) (#25) — closed to avoid confusion; reuse research assets under .scratch/ui-overhaul/ and docs/design/ where still valid.
 - Refer to tickets by **name** (title), not bare issue numbers.
 - Current-shell gap inventory: `.scratch/ui-overhaul/figure-matching-gap-inventory.md` (supersedes 9B.1 panel matrix in `current-ui-adr-vs-design-spec.md` for live truth).
+- Chrome ownership matrix: `.scratch/ui-overhaul/app-menu-vs-product-header-ownership.md`
 
 ## Decisions so far
 
 - [Research: Gap inventory current shell vs figure_1/2](https://github.com/xamdxlonewolf/apex_pilot/issues/62) — Regions exist (Explorer/Mission/Inspector/Console/Toolbar/Context Bar); largest gaps are Activity Rail, Focus Modes, stage-driven Inspector, progressive New SQL/Run, real code editors, Product Header + native App Menu. Asset: `.scratch/ui-overhaul/figure-matching-gap-inventory.md`
 - [Grilling: Focus Mode set and default landing](https://github.com/xamdxlonewolf/apex_pilot/issues/63) — Modes are Agent / SQL / Files / Review; default Agent on project open; Agent = Mission primacy with editors remaining dual-primary peers (not minimized away).
 - [Grilling: Focus Mode auto-switch on open work](https://github.com/xamdxlonewolf/apex_pilot/issues/73) — Sticky Agent on editor open/focus; SQL↔Files and Mission→Agent follow the work; Review exits the same way but is explicit-entry only (no auto-enter from Mission stage); triggers are open + tab focus.
+- [Grilling: App Menu vs Product Header ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/64) — Native App Menu replaces in-app Project/View menubar; Product Header is one band (hosts Context Bar role); Toolbar = New SQL/Run; palette never exclusive home; Help Check for updates… → multi-item Updates dialog. Asset: `.scratch/ui-overhaul/app-menu-vs-product-header-ownership.md`
 
 ## Not yet specified
 
-- Full App Menu inventory vs Product Header / Toolbar ownership
+- Updates dialog updatable inventory (Application, Oracle system skills, …) beyond the Help entry-point pattern
 - Code-editor library choice (Monaco vs alternatives) and language pack set
 - Database/APEX object open-to-view detail (read-only viewer vs editable buffer; refresh vs FS sync)
 - Developer Console craft depth vs figure_1 (tab inventory largely placed; MCP live, other tabs Stub — how much visual match in first IA slices?)
