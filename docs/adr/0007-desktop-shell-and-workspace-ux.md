@@ -123,10 +123,12 @@ layout:
    - **Mission** hosts timeline, mission card, plan/SQL/review/exec stages,
      composer, and history. Composer may ship with send disabled until Agent
      Core; stubs must be honest.
-   - **Editors** use real code-editor surfaces (not plain textareas) for SQL and
-     common project languages (JS/TS, Python, CSS, etc.). Exact library choice
-     is a later decision. Object / package / APEX / REST / diff viewers live in
-     the Workspace as Spec surfaces mature.
+   - **Editors** use real Monaco code-editor surfaces (via `@monaco-editor/react`,
+     not plain textareas) for SQL and common project languages (JS/TS, Python,
+     CSS, etc.). Language ids are mapped in `frontend/src/editorLanguages.ts`
+     (Oracle PL/SQL-ish extensions use Monaco `sql` until a dedicated grammar
+     exists). Object / package / APEX / REST / diff viewers live in the Workspace
+     as Spec surfaces mature.
 5. **Right — stage-driven Inspector only:** workflow progress, classification,
    object / dependency summary, checklists, and related evidence driven by the
    active Mission stage (Plan → SQL Generated → Review → Execute → Complete).
@@ -238,8 +240,8 @@ Shipped for sequencing, no longer the accepted Decision:
 - SQL Editor must never bypass `PROMPT`/`BLOCK` decisions from the classifier.
 - Migration stubs (e.g. temporary floating MCP) must not be mistaken for the
   target UX in docs or Roadmap language.
-- Editor library and DB/APEX open-to-view detail remain later decisions — do not
-  invent them in shell IA PRs without a ticket.
+- Editor library is Monaco (`@monaco-editor/react`); DB/APEX open-to-view detail
+  remains a later decision — do not invent it in shell IA PRs without a ticket.
 
 ## Implementation Notes
 

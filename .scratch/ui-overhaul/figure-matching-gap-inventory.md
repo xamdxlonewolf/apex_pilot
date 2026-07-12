@@ -111,13 +111,13 @@ Inspector execute actions honest about missing Agent Core.
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Real code-editor surface for SQL | `SqlSheet` uses `<textarea>` | **Missing** |
-| Real editors for common languages (JS/TS/Python/CSS, …) | File open → read-only `<pre>` preview; File Editor Stub for full edit | **Missing** / Stub |
+| Real code-editor surface for SQL | `SqlSheet` hosts shared Monaco `CodeEditor` (`language=sql`) | **Match** |
+| Real editors for common languages (JS/TS/Python/CSS, …) | File tabs use same Monaco surface + `editorLanguages` map; protected APEX/`f*.sql` read-only | **Match** |
 | SQL is the only place SQL may be edited | Center SQL tab only | **Match** |
 | Object / package / APEX / REST / diff viewers | Center stub tabs | **Deferred** / Stub (open-to-view detail still fog) |
 
-**Gap:** Replace textarea/preview with a real shared code-editor stack; language
-pack / library choice remains fog for the editor ticket.
+**Gap:** Closed for SQL + common FS languages (Monaco). Object/APEX buffer detail
+and deeper PL/SQL grammar remain later fog.
 
 ### 7. Developer Console (bottom chrome)
 
@@ -154,7 +154,7 @@ figures:
 2. **Stage-driven Inspector chrome** — right pane role is correct; model is wrong.
 3. **Progressive enablement for New SQL / Run** — small, high-signal honesty fix.
 4. **Hybrid Explorer deepen + FS craft** — Database/APEX browse and Files density.
-5. **Real code editor** — SQL + common languages.
+5. **Real code editor** — done (Monaco shared surface).
 6. **Product Header + native App Menu** — after ownership grilling.
 7. **Visual polish / density-motion craft** — last, design-skills gated.
 
