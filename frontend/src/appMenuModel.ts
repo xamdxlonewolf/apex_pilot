@@ -16,7 +16,8 @@ export type AppMenuActionId =
   | "help-about"
   | "help-docs"
   | "help-shortcuts"
-  | "help-updates";
+  | "help-updates"
+  | "help-compare-project-db";
 
 export type AppMenuHandlers = Readonly<{
   onNewProject: () => void;
@@ -31,6 +32,7 @@ export type AppMenuHandlers = Readonly<{
   onDocs: () => void;
   onShortcuts: () => void;
   onUpdates: () => void;
+  onCompareProjectToDatabase: () => void;
 }>;
 
 export type AppMenuState = Readonly<{
@@ -39,6 +41,7 @@ export type AppMenuState = Readonly<{
   canOpenMcp: boolean;
   canTogglePanels: boolean;
   canCloseProject: boolean;
+  canCompareProjectToDatabase: boolean;
   projectOpen: boolean;
   focusMode: FocusMode;
   layout: ProfileLayoutPrefs;

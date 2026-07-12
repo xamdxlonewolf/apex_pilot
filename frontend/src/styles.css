@@ -296,7 +296,8 @@ button:disabled {
   padding: 0 16px;
 }
 
-.updates-inventory {
+.updates-inventory,
+.compare-results-stub {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -305,7 +306,8 @@ button:disabled {
   list-style: none;
 }
 
-.updates-inventory li {
+.updates-inventory li,
+.compare-results-stub li {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -313,7 +315,8 @@ button:disabled {
   border-bottom: 1px solid var(--chrome-border);
 }
 
-.updates-inventory li:last-child {
+.updates-inventory li:last-child,
+.compare-results-stub li:last-child {
   border-bottom: 0;
 }
 

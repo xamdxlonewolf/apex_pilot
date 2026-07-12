@@ -230,6 +230,19 @@ export const BrowserAppMenu = ({ state, handlers }: BrowserAppMenuProps) => {
         <button type="button" role="menuitem" onClick={handlers.onUpdates}>
           Check for updates…
         </button>
+        <button
+          type="button"
+          role="menuitem"
+          disabled={!state.canCompareProjectToDatabase}
+          title={
+            state.canCompareProjectToDatabase
+              ? "Compare project files to the database"
+              : "Open a project and connect to a database first."
+          }
+          onClick={handlers.onCompareProjectToDatabase}
+        >
+          Compare project to database…
+        </button>
       </div>
     </header>
   );

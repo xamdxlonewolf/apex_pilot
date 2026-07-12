@@ -170,6 +170,12 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
             text: "Check for updates…",
             action: () => h().onUpdates(),
           }),
+          await MenuItem.new({
+            id: "help-compare-project-db",
+            text: "Compare project to database…",
+            enabled: state.canCompareProjectToDatabase,
+            action: () => h().onCompareProjectToDatabase(),
+          }),
         ],
       });
 
@@ -194,6 +200,7 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
     state.canOpenMcp,
     state.canTogglePanels,
     state.canCloseProject,
+    state.canCompareProjectToDatabase,
     state.projectOpen,
     state.focusMode,
     state.layout.showExplorer,
