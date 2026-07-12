@@ -130,22 +130,27 @@ export const ProductHeader = ({
         </label>
         <span className="context-field" aria-label="Environment">
           <span className="context-label">Environment</span>
-          <strong>{environment}</strong>
+          <span className="env-badge" translate="no">
+            {environment}
+          </span>
         </span>
         <div className="context-health" role="group" aria-label="Health indicators">
           <span
             className={`health-pill health-pill--${backendHealth.tone}`}
             aria-label="Backend health"
           >
+            <span className="health-pill-dot" aria-hidden="true" />
             {backendHealth.label}
           </span>
           <span className={`health-pill health-pill--${mcpHealth.tone}`} aria-label="MCP health">
+            <span className="health-pill-dot" aria-hidden="true" />
             {mcpHealth.label}
           </span>
           <span
             className={`health-pill health-pill--${connectionHealth.tone}`}
             aria-label="Connection health"
           >
+            <span className="health-pill-dot" aria-hidden="true" />
             {connectionHealth.label}
           </span>
         </div>

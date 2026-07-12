@@ -67,18 +67,17 @@ export const InspectorPanel = ({
                     aria-current={isActive ? "step" : undefined}
                     onClick={() => setActiveStageId(stage.id)}
                   >
-                    <span className="inspector-stage-label" aria-hidden="true">
-                      {stage.label}
+                    <span className="inspector-stage-marker" aria-hidden="true" />
+                    <span className="inspector-stage-copy">
+                      <span className="inspector-stage-label">{stage.label}</span>
+                      {!isActive ? (
+                        <span className="pane-muted inspector-stage-state">Waiting</span>
+                      ) : (
+                        <span className="inspector-stage-state">
+                          <StubBadge />
+                        </span>
+                      )}
                     </span>
-                    {!isActive ? (
-                      <span className="pane-muted inspector-stage-state" aria-hidden="true">
-                        Waiting
-                      </span>
-                    ) : (
-                      <span aria-hidden="true">
-                        <StubBadge />
-                      </span>
-                    )}
                   </button>
                 </li>
               );

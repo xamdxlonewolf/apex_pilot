@@ -21,7 +21,10 @@ type UseNativeAppMenuArgs = Readonly<{
  */
 export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuArgs): void => {
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
 
   useEffect(() => {
     if (!enabled || !isTauriRuntime()) {

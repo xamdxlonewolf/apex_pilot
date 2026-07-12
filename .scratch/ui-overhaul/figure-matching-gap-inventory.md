@@ -24,7 +24,7 @@ map fog / sibling tickets.
 | Region | Current implementation | Fidelity |
 | --- | --- | --- |
 | App Menu | Native Tauri File/Edit/View/Help (`useNativeAppMenu`); browser fallback File/Edit/View/Help for Vite/tests; interim Project/View menubar removed | Match (IA) |
-| Product Header | Brand + Context Bar role (project/connection/Connect/schema/env/health) + Settings gear | Match (IA); craft polish later |
+| Product Header | Brand + Context Bar role (project/connection/Connect/schema/env badge/health dots) + Settings gear | Match (IA + craft) |
 | Toolbar | New SQL, Run (progressive), optional MCP Activity shortcut | Match (verbs); Connect lives in Product Header |
 | Left | Activity Rail + hybrid Explorer | Match (IA); DB/APEX open-to-view detail still fog |
 | Center | Dual-primary Mission + Editors with Focus Modes; Monaco for SQL/files | Match (IA); Mission Agent Core still Stub |
@@ -51,11 +51,11 @@ Legend:
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Product Header hosts brand + Context Bar role (connection/schema/env/health + Connect) + Settings gear; Toolbar keeps New SQL / Run / MCP | **Match** (IA) |
+| Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Product Header hosts brand + Context Bar role (connection/schema/env badge/health dots + Connect) + Settings; Toolbar keeps New SQL / Run / MCP | **Match** (IA + craft) |
 | Native App Menu owns OS-standard File/Edit/View/Help discoverability | Native Tauri App Menu via `useNativeAppMenu` (+ browser File/Edit/View/Help fallback for Vite/tests); interim Project/View menubar removed | **Match** |
 | “Conversation” label in figures | Product language is **Mission** (`CONTEXT.md`) | **Match** (naming policy) — implement Mission, do not revive Conversation |
 
-**Gap:** Visual density / craft toward figure_1 remains for the polish ticket; IA ownership and chrome homes are in place. Updates dialog entry point ships with Stub inventory rows (exact updatable list still fog).
+**Gap:** Closed for IA + Spec token craft. Updates dialog entry point ships with Stub inventory rows (exact updatable list still fog).
 
 ### 2. Activity Rail + Explorer hybrid
 
@@ -133,12 +133,11 @@ remains map fog; tab inventory already largely placed.
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Dense Mission Control craft (figure dark IDE) | Working dark shell; density prefs (default/compact/comfortable) already in settings | **Partial** |
-| ADR-0007 §12 density/motion gates | Keyboard toggles, reduced-motion attribute, density modes shipped ahead of earlier “Default-only” shell note | **Partial** — prefs exist; figure craft pass still owed |
-| Visual polish gated by design skills | Not figure-matched | **Missing** (end-of-map polish ticket) |
+| Dense Mission Control craft (figure dark IDE) | Spec §161 palette + Inter / JetBrains Mono; Activity Rail accent bar; Inspector stage markers; env badge + health dots | **Match** (craft) |
+| ADR-0007 §12 density/motion gates | Density prefs + Spec motion durations + reduced-motion + focus outline tokens | **Match** |
+| Visual polish gated by design skills | Gate checklist: `.scratch/ui-overhaul/visual-polish-design-skills-gate.md` | **Match** |
 
-**Gap:** Final craft pass after IA; reconcile density/motion carryover with
-figure intent without inventing new product scope.
+**Gap:** Closed for figure-intent craft on existing IA. Remaining fog (Console depth, Updates inventory, DB/APEX open-to-view detail) is product scope, not token polish.
 
 ---
 

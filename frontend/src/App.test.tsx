@@ -186,7 +186,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByLabelText("Status bar")).toHaveTextContent(/backend online/i);
+    expect(await screen.findByLabelText("Status bar")).toHaveTextContent(/backend:\s*healthy/i);
     expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeEnabled();
     expect(screen.getByRole("menuitem", { name: /settings/i })).toBeEnabled();
@@ -461,7 +461,7 @@ describe("App", () => {
     expect(screen.getByLabelText("Connection")).toBeInTheDocument();
     expect(screen.getByLabelText("Working Schema")).toBeInTheDocument();
     expect(screen.getByLabelText("Environment")).toHaveTextContent(/dev/i);
-    expect(screen.getByLabelText("Backend health")).toHaveTextContent(/online/i);
+    expect(screen.getByLabelText("Backend health")).toHaveTextContent(/healthy/i);
     expect(screen.getByLabelText("MCP health")).toBeInTheDocument();
     expect(screen.getByLabelText("Connection health")).toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toBeInTheDocument();

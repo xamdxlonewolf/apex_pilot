@@ -46,7 +46,7 @@ export const CodeEditor = ({
           readOnly: locked,
           domReadOnly: locked,
           ariaLabel,
-          fontFamily: '"IBM Plex Mono", Consolas, ui-monospace, monospace',
+          fontFamily: '"JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace',
           fontSize: 13,
           lineHeight: 20,
           minimap: { enabled: false },

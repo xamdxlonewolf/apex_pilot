@@ -65,9 +65,9 @@ const statusLabel = (status: BackendStatus): string => {
     case "checking":
       return "Checking backend";
     case "online":
-      return "Backend online";
+      return "Backend: Healthy";
     case "offline":
-      return "Backend offline";
+      return "Backend: Offline";
   }
 };
 
