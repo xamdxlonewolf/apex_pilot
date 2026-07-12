@@ -3,9 +3,10 @@ import {
   useEffect,
   useMemo,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
+import { AboutDialog, UpdatesDialog } from "./UpdatesDialog";
+import { BrowserAppMenu } from "./BrowserAppMenu";
 import { CommandPalette } from "./CommandPalette";
 import {
   matchCommandPaletteShortcut,
@@ -32,6 +33,8 @@ import {
   togglePanelVisibility,
 } from "./prefs";
 import { StartupFunnel, type WizardMode } from "./StartupFunnel";
+import { isTauriRuntime, type AppMenuHandlers, type AppMenuState } from "./appMenuModel";
+import { useNativeAppMenu } from "./useNativeAppMenu";
 import {
   type ActivityEntry,
   type BackendConfig,
@@ -77,29 +80,6 @@ export const resetConnectGuardsForTests = (): void => {
   connectInFlight = false;
 };
 
-const focusAdjacentMenuitem = (
-  menubar: HTMLElement,
-  current: Element | null,
-  direction: 1 | -1,
-): void => {
-  const items = Array.from(
-    menubar.querySelectorAll<HTMLElement>(
-      '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled), [role="menuitemradio"]:not(:disabled)',
-    ),
-  );
-  if (items.length === 0) {
-    return;
-  }
-  const index = current ? items.indexOf(current as HTMLElement) : -1;
-  const nextIndex =
-    index < 0
-      ? direction === 1
-        ? 0
-        : items.length - 1
-      : (index + direction + items.length) % items.length;
-  items[nextIndex]?.focus();
-};
-
 export const App = () => {
   const [backendConfig, setBackendConfig] = useState<BackendConfig>(() => getBackendConfig());
   const [backendStatus, setBackendStatus] = useState<BackendStatus>(() =>
@@ -129,6 +109,8 @@ export const App = () => {
   const [openCenterEditorRequest, setOpenCenterEditorRequest] = useState(0);
   const [focusMode, setFocusMode] = useState<FocusMode>(DEFAULT_FOCUS_MODE);
   const [focusModeProjectId, setFocusModeProjectId] = useState<string | null>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [updatesOpen, setUpdatesOpen] = useState(false);
 
   const openedProjectId = openedProject?.project.project_id ?? null;
   if (openedProjectId !== focusModeProjectId) {
@@ -156,6 +138,8 @@ export const App = () => {
     shellPhase !== "profile";
   const canOpenMcp = isBackendOnline && !setupLocked;
   const canTogglePanels = projectOpen;
+  const canCloseProject = Boolean(openedProject) && !setupLocked;
+  const nativeAppMenu = isTauriRuntime();
 
   const refreshActivity = useCallback(async () => {
     if (!isBackendOnline) {
@@ -387,20 +371,20 @@ export const App = () => {
         },
       },
       {
-        id: "project-new",
-        label: "Project: New…",
+        id: "file-new",
+        label: "File: New…",
         enabled: canUseProjectMenus,
         run: () => setWizardMode("new"),
       },
       {
-        id: "project-open",
-        label: "Project: Open…",
+        id: "file-open",
+        label: "File: Open…",
         enabled: canUseProjectMenus,
         run: () => setWizardMode("open"),
       },
       {
-        id: "project-recent",
-        label: "Project: Recent",
+        id: "file-recent",
+        label: "File: Recent",
         enabled: canUseProjectMenus,
         run: () => {
           if (openedProject) {
@@ -411,20 +395,30 @@ export const App = () => {
         },
       },
       {
-        id: "project-close",
-        label: "Project: Close",
-        enabled: Boolean(openedProject) && !setupLocked,
+        id: "file-close",
+        label: "File: Close Project",
+        enabled: canCloseProject,
         run: () => setRequestClose(true),
       },
       {
-        id: "project-settings",
-        label: "Project: Settings",
+        id: "file-settings",
+        label: "File: Settings",
         enabled: canOpenSettings,
         run: () => setWizardMode("settings"),
       },
       {
+        id: "help-about",
+        label: "Help: About Apex Pilot",
+        run: () => setAboutOpen(true),
+      },
+      {
+        id: "help-updates",
+        label: "Help: Check for updates…",
+        run: () => setUpdatesOpen(true),
+      },
+      {
         id: "project-mappings",
-        label: "Project: Environment mappings",
+        label: "Settings: Environment mappings",
         enabled: canOpenSettings && Boolean(openedProject),
         run: () => setWizardMode("settings"),
       },
@@ -446,6 +440,7 @@ export const App = () => {
     canOpenMcp,
     canUseProjectMenus,
     canOpenSettings,
+    canCloseProject,
     openedProject,
     projectOpen,
     setupLocked,
@@ -479,17 +474,46 @@ export const App = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [canTogglePanels, togglePanel, commandPaletteOpen]);
 
-  const onMenubarKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      focusAdjacentMenuitem(event.currentTarget, event.target as Element, 1);
-      return;
-    }
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      focusAdjacentMenuitem(event.currentTarget, event.target as Element, -1);
-    }
+  const appMenuState: AppMenuState = {
+    canUseProjectMenus,
+    canOpenSettings,
+    canOpenMcp,
+    canTogglePanels,
+    canCloseProject,
+    projectOpen,
+    focusMode,
+    layout,
+    mcpActivityCount: connectedConnection ? activityEntries.length : 0,
   };
+
+  const appMenuHandlers: AppMenuHandlers = {
+    onNewProject: () => setWizardMode("new"),
+    onOpenProject: () => setWizardMode("open"),
+    onRecentProjects: () => {
+      if (openedProject) {
+        setRequestClose(true);
+        return;
+      }
+      setWizardMode(null);
+    },
+    onCloseProject: () => setRequestClose(true),
+    onSettings: () => setWizardMode("settings"),
+    onOpenMcp: () => {
+      void openMcp();
+    },
+    onTogglePanel: togglePanel,
+    onFocusMode: setFocusMode,
+    onAbout: () => setAboutOpen(true),
+    onDocs: () => undefined,
+    onShortcuts: () => setCommandPaletteOpen(true),
+    onUpdates: () => setUpdatesOpen(true),
+  };
+
+  useNativeAppMenu({
+    enabled: nativeAppMenu,
+    state: appMenuState,
+    handlers: appMenuHandlers,
+  });
 
   const view = new URLSearchParams(window.location.search).get("view");
   if (view === "mcp-activity") {
@@ -518,154 +542,7 @@ export const App = () => {
 
   return (
     <div className="ide-shell">
-      <header
-        className="ide-menubar"
-        role="menubar"
-        aria-label="Application menu"
-        onKeyDown={onMenubarKeyDown}
-      >
-        <div className="menu-group" role="group" aria-label="Project">
-          <span className="menu-title">Project</span>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={!canUseProjectMenus}
-            title={
-              setupLocked ? "Finish setup before creating a project." : "Create a new project"
-            }
-            onClick={() => setWizardMode("new")}
-          >
-            New…
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={!canUseProjectMenus}
-            title={setupLocked ? "Finish setup before opening a project." : "Open a project folder"}
-            onClick={() => setWizardMode("open")}
-          >
-            Open…
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={!canUseProjectMenus}
-            title={setupLocked ? "Finish setup before browsing recent projects." : "Recent projects"}
-            onClick={() => {
-              if (openedProject) {
-                setRequestClose(true);
-                return;
-              }
-              setWizardMode(null);
-            }}
-          >
-            Recent
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={!openedProject || setupLocked}
-            onClick={() => setRequestClose(true)}
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={!canOpenSettings}
-            title={
-              shellPhase === "preflight" || shellPhase === "booting"
-                ? "Complete the prerequisite check first."
-                : "Profile and app settings"
-            }
-            onClick={() => setWizardMode("settings")}
-          >
-            Settings
-          </button>
-        </div>
-        <div className="menu-group" role="group" aria-label="View">
-          <span className="menu-title">View</span>
-          <span className="menu-subtitle" aria-hidden="true">
-            Focus Modes
-          </span>
-          {FOCUS_MODES.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              role="menuitemradio"
-              aria-checked={focusMode === mode}
-              disabled={!projectOpen}
-              title={`Focus Mode: ${focusModeLabel(mode)}`}
-              onClick={() => setFocusMode(mode)}
-            >
-              {focusModeLabel(mode)}
-            </button>
-          ))}
-          <span className="menu-subtitle" aria-hidden="true">
-            Layout Chrome
-          </span>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={layout.showExplorer}
-            disabled={!canTogglePanels}
-            title="Toggle Explorer (Ctrl+B)"
-            onClick={() => togglePanel("explorer")}
-          >
-            Explorer
-          </button>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={layout.showMission}
-            disabled={!canTogglePanels}
-            title="Toggle Mission (Ctrl+Shift+M)"
-            onClick={() => togglePanel("mission")}
-          >
-            Mission
-          </button>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={layout.showInspector}
-            disabled={!canTogglePanels}
-            title="Toggle Inspector (Ctrl+Shift+I)"
-            onClick={() => togglePanel("inspector")}
-          >
-            Inspector
-          </button>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={layout.showConsole}
-            disabled={!canTogglePanels}
-            title="Toggle Developer Console (Ctrl+`)"
-            onClick={() => togglePanel("console")}
-          >
-            Developer Console
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={!canOpenMcp}
-            title={
-              setupLocked
-                ? "Finish setup before opening MCP Activity."
-                : projectOpen
-                  ? "Open MCP Activity in Developer Console"
-                  : "MCP Activity (interim until a project is open)"
-            }
-            onClick={() => void openMcp()}
-          >
-            MCP Activity
-            {connectedConnection && activityEntries.length > 0 ? (
-              <span className="menu-count">{activityEntries.length}</span>
-            ) : null}
-          </button>
-        </div>
-        <div className="menu-spacer" />
-        <span className="menu-brand">Apex Pilot</span>
-      </header>
+      {nativeAppMenu ? null : <BrowserAppMenu state={appMenuState} handlers={appMenuHandlers} />}
 
       <main className="ide-main">
         {projectOpen && openedProject ? (
@@ -690,7 +567,7 @@ export const App = () => {
             onMcpFocusHandled={handleMcpFocusHandled}
             onActivityRefresh={refreshActivity}
             onOpenMcp={() => void openMcp()}
-            onOpenMappings={() => setWizardMode("settings")}
+            onOpenSettings={() => setWizardMode("settings")}
             sqlDirty={sqlDirty}
             onSqlDirtyChange={setSqlDirty}
             openCenterEditorKind={openCenterEditorKind}
@@ -746,6 +623,9 @@ export const App = () => {
         actions={commandActions}
         onClose={() => setCommandPaletteOpen(false)}
       />
+
+      <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <UpdatesDialog open={updatesOpen} onClose={() => setUpdatesOpen(false)} />
     </div>
   );
 };

@@ -23,11 +23,11 @@ map fog / sibling tickets.
 
 | Region | Current implementation | Fidelity |
 | --- | --- | --- |
-| Always-on menubar | In-app `Project` / `View` button groups + trailing “Apex Pilot” brand (`App.tsx`) | Partial — not native App Menu; not figure Product Header |
-| Toolbar | New SQL (stub), Run (stub), Connect, MCP Activity (`IdeWorkspace`) | Partial — actions present; progressive enablement incomplete |
-| Context Bar | Project, Connection, Mappings, Working Schema, Environment, health pills | Partial — closest analogue to figure header identity strip |
-| Left | Multi-section `Explorer` via in-panel section buttons | Partial — hybrid intent present; **no Activity Rail** |
-| Center | Tab strip: Mission (`MissionComposer` stub), SQL (`SqlSheet` textarea), file preview / editor stubs | Partial — dual surfaces exist as tabs, not Focus Modes |
+| App Menu | Native Tauri File/Edit/View/Help (`useNativeAppMenu`); browser fallback File/Edit/View/Help for Vite/tests; interim Project/View menubar removed | Match (IA) |
+| Product Header | Brand + Context Bar role (project/connection/Connect/schema/env/health) + Settings gear | Match (IA); craft polish later |
+| Toolbar | New SQL, Run (progressive), optional MCP Activity shortcut | Match (verbs); Connect lives in Product Header |
+| Left | Activity Rail + hybrid Explorer | Match (IA); DB/APEX open-to-view detail still fog |
+| Center | Dual-primary Mission + Editors with Focus Modes; Monaco for SQL/files | Match (IA); Mission Agent Core still Stub |
 | Right | Stage-driven `InspectorPanel` (Plan → … → Complete; honest Stub evidence) | Match (chrome); evidence still Stub until Agent Core |
 | Bottom | Docked `DeveloperConsole` (MCP Activity live; other tabs Stub) | Partial — IA correct; craft/tab depth vs figure TBD |
 | Floating MCP | Still available when no project / migration path | Migration — not product target when project open |
@@ -51,13 +51,11 @@ Legend:
 
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
-| Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Split across menubar brand text + Toolbar + Context Bar health pills | **Partial** |
-| Native App Menu owns OS-standard File/Edit/View/Help discoverability | In-app Project/View menubar only | **Missing** |
+| Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Product Header hosts brand + Context Bar role (connection/schema/env/health + Connect) + Settings gear; Toolbar keeps New SQL / Run / MCP | **Match** (IA) |
+| Native App Menu owns OS-standard File/Edit/View/Help discoverability | Native Tauri App Menu via `useNativeAppMenu` (+ browser File/Edit/View/Help fallback for Vite/tests); interim Project/View menubar removed | **Match** |
 | “Conversation” label in figures | Product language is **Mission** (`CONTEXT.md`) | **Match** (naming policy) — implement Mission, do not revive Conversation |
 
-**Gap:** Consolidate toward figure-dense Product Header without VS Code
-menu-as-IA; move OS-standard actions to native Tauri App Menu. Ownership split
-is a sibling grilling ticket, not resolved here.
+**Gap:** Visual density / craft toward figure_1 remains for the polish ticket; IA ownership and chrome homes are in place. Updates dialog entry point ships with Stub inventory rows (exact updatable list still fog).
 
 ### 2. Activity Rail + Explorer hybrid
 

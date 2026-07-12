@@ -108,8 +108,8 @@ button:disabled {
 }
 
 .ide-shell {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   background: var(--panel);
@@ -193,7 +193,85 @@ button:disabled {
   font-size: 0.7rem;
 }
 
+.product-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--context-gap, 12px);
+  align-items: center;
+  min-height: var(--context-min-height, 36px);
+  padding: var(--context-padding, 4px 10px);
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--chrome);
+}
+
+.product-brand {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.product-header-context {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--context-gap, 12px);
+  align-items: center;
+  min-width: 0;
+}
+
+.product-header-settings {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.shell-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 24px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.shell-dialog-backdrop .dialog-chrome {
+  width: min(520px, 100%);
+  max-height: min(70vh, 640px);
+  overflow: auto;
+}
+
+.shell-dialog-banner {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 16px;
+}
+
+.updates-inventory {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.updates-inventory li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--chrome-border);
+}
+
+.updates-inventory li:last-child {
+  border-bottom: 0;
+}
+
 .ide-main {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
