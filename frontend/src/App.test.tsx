@@ -502,10 +502,12 @@ describe("App", () => {
     const toolbar = screen.getByRole("toolbar", { name: "Toolbar" });
     const newSql = within(toolbar).getByRole("button", { name: "New SQL" });
     const run = within(toolbar).getByRole("button", { name: "Run" });
-    expect(newSql).toBeDisabled();
+    // Progressive enablement: New SQL is live; Run waits on real preconditions (not Stub).
+    expect(newSql).toBeEnabled();
+    expect(newSql).toHaveAttribute("title", "Open the SQL Editor");
     expect(run).toBeDisabled();
-    expect(newSql).toHaveAttribute("title", "Not implemented yet");
-    expect(run).toHaveAttribute("title", "Not implemented yet");
+    expect(run).toHaveAttribute("title", "Connect a SQLcl saved connection to run SQL.");
+    expect(run).not.toHaveAttribute("title", "Not implemented yet");
 
     // Product path: toolbar MCP Activity opens the Console tab, not the floating overlay.
     fireEvent.click(within(consoleTabs).getByRole("tab", { name: "Problems" }));
@@ -602,6 +604,97 @@ describe("App", () => {
     expect(within(inspector).queryByRole("textbox", { name: /^SQL$/ })).not.toBeInTheDocument();
     // Sticky Agent: Mission peer remains present while editing SQL.
     expect(within(mission).getByLabelText("Mission composer")).toBeInTheDocument();
+  });
+
+  it("progressively enables New SQL and Run without Stub or fake success", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.project-tabs.proj-1",
+      JSON.stringify({
+        openTabs: [
+          { id: "sql", kind: "sql", title: "SQL Editor" },
+          { id: "stub:file", kind: "file", title: "File Editor" },
+        ],
+        activeTabId: "stub:file",
+        activeCenterTabId: "stub:file",
+        activeInspectorTabId: null,
+      }),
+    );
+    const baseFetch = workspaceFetch();
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith("/connections/dev/connect") && init?.method === "POST") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ connected: true, connection_name: "dev" })),
+        );
+      }
+      if (url.endsWith("/sql/run") && init?.method === "POST") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              classification: {
+                decision: "allow",
+                access: "read_only",
+                category: "query",
+                operation: "select",
+                reasons: ["read-only select"],
+              },
+              connection_name: "dev",
+              schema_name: "HR",
+              rows: [{ DUMMY: "X" }],
+              raw_text: null,
+              executed: true,
+            }),
+          ),
+        );
+      }
+      return baseFetch(url, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    const toolbar = await screen.findByRole("toolbar", { name: "Toolbar" });
+    const newSql = within(toolbar).getByRole("button", { name: "New SQL" });
+    const run = within(toolbar).getByRole("button", { name: "Run" });
+
+    expect(newSql).toBeEnabled();
+    expect(run).toBeDisabled();
+    expect(run).toHaveAttribute("title", "Focus the SQL Editor to run.");
+    expect(run).not.toHaveAttribute("title", "Not implemented yet");
+
+    fireEvent.click(newSql);
+    expect(screen.getByRole("menuitemradio", { name: "SQL" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    const editors = screen.getByRole("region", { name: "Editors" });
+    expect(within(editors).getByLabelText("SQL sheet")).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Run" })).toBeDisabled();
+    expect(within(toolbar).getByRole("button", { name: "Run" })).toHaveAttribute(
+      "title",
+      "Connect a SQLcl saved connection to run SQL.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
+    });
+
+    const toolbarRun = within(toolbar).getByRole("button", { name: "Run" });
+    await waitFor(() => {
+      expect(toolbarRun).toBeEnabled();
+    });
+    expect(toolbarRun).toHaveAttribute("title", "Run the SQL Editor buffer.");
+
+    fireEvent.click(toolbarRun);
+    expect(await screen.findByText(/allow · select · 1 rows/i)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/sql\/run$/),
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("hosts stubbed object / package / APEX / REST / diff / file editors in center workspace tabs", async () => {
