@@ -3,9 +3,8 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   type BackendConfig,
   type SchemaSummary,
-  type SessionContext,
   getSchemaSummary,
-  getSessionContext,
+  getSessionContextOnce,
 } from "./backend";
 import { schemaFromSessionUser } from "./prefs";
 
@@ -51,18 +50,6 @@ const withTimeout = <T,>(
   });
 };
 
-/** Deduplicate concurrent session-context calls (React Strict Mode remounts). */
-let sessionContextInflight: Promise<SessionContext> | null = null;
-
-const fetchSessionContextOnce = (config: BackendConfig): Promise<SessionContext> => {
-  if (!sessionContextInflight) {
-    sessionContextInflight = getSessionContext(config).finally(() => {
-      sessionContextInflight = null;
-    });
-  }
-  return sessionContextInflight;
-};
-
 export const SchemaBrowser = ({
   backendConfig,
   connectedConnection,
@@ -77,7 +64,11 @@ export const SchemaBrowser = ({
 }: SchemaBrowserProps) => {
   const [summary, setSummary] = useState<SchemaSummary | null>(null);
   const [draftSchema, setDraftSchema] = useState(workingSchema);
-  const [message, setMessage] = useState("Connect, then load a schema.");
+  const [message, setMessage] = useState(() =>
+    connectedConnection
+      ? `Connected to ${connectedConnection}. Load a schema to browse objects.`
+      : "Connect, then load a schema.",
+  );
   const [busy, setBusy] = useState(false);
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
   const autoLoadKey = useRef<string | null>(null);
@@ -97,7 +88,7 @@ export const SchemaBrowser = ({
       publishSummary(null);
       setActiveSchema(null);
       setBusy(false);
-      setMessage("Not connected. Use Connect in the strip above.");
+      setMessage("Not connected. Use Connect in the Product Header.");
     }
   }, [connectedConnection]);
 
@@ -150,7 +141,7 @@ export const SchemaBrowser = ({
       return;
     }
     if (!connectedConnection) {
-      setMessage("Connect to a database first.");
+      setMessage("Not connected. Use Connect in the Product Header.");
       return;
     }
     // Mark complete before parent override updates, so the auto-load effect
@@ -220,7 +211,7 @@ export const SchemaBrowser = ({
           let suggested: string | null = null;
           try {
             const context = await withTimeout(
-              fetchSessionContextOnce(backendConfig),
+              getSessionContextOnce(backendConfig),
               15_000,
               "Session context",
             );

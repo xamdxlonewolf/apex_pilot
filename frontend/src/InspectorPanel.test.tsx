@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { InspectorPanel } from "./InspectorPanel";
-import { STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
+import { STUB_ACTION_CLASS, STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
 
 describe("InspectorPanel", () => {
   it("renders figure stage chrome Plan → SQL Generated → Review → Execute → Complete", () => {
@@ -46,7 +46,9 @@ describe("InspectorPanel", () => {
 
     expect(within(panel).getAllByText(STUB_BADGE).length).toBeGreaterThan(0);
     expect(within(panel).getByText(STUB_PRIMARY_COPY)).toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: "Generate SQL" })).toBeDisabled();
+    const generateSql = within(panel).getByRole("button", { name: "Generate SQL" });
+    expect(generateSql).toBeDisabled();
+    expect(generateSql).toHaveClass(STUB_ACTION_CLASS);
 
     fireEvent.click(within(stages).getByRole("button", { name: "SQL Generated" }));
     expect(within(panel).getByRole("region", { name: "SQL Generated stage" })).toBeInTheDocument();

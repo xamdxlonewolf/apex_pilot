@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { stubActionProps } from "./stubConvention";
+
 type ChatPaneProps = Readonly<{
   projectName: string | null;
 }>;
@@ -35,7 +37,7 @@ export const ChatPane = ({ projectName }: ChatPaneProps) => {
           placeholder="Ask Apex Pilot… (Agent Core coming next)"
           rows={3}
         />
-        <button type="submit" disabled title="Send is disabled until Agent Core">
+        <button type="submit" {...stubActionProps("Send is disabled until Agent Core")}>
           Send
         </button>
       </form>

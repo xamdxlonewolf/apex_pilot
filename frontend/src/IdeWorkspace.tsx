@@ -1,4 +1,4 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ActivityRail } from "./ActivityRail";
 import { type ApexOpenTarget } from "./ApexBrowser";
@@ -27,6 +27,7 @@ import {
   type OpenedProject,
   type SavedConnection,
   type SchemaSummary,
+  getSessionContextOnce,
 } from "./backend";
 import {
   DEFAULT_ACTIVITY_RAIL,
@@ -44,7 +45,15 @@ import {
   clampExplorerWidth,
   clampInspectorWidth,
 } from "./panelLayout";
-import { type ProfileLayoutPrefs, loadProjectDefaults, loadProjectTabs, saveProjectDefaults, saveProjectTabs, type WorkspaceTabKind } from "./prefs";
+import {
+  type ProfileLayoutPrefs,
+  loadProjectDefaults,
+  loadProjectTabs,
+  saveProjectDefaults,
+  saveProjectTabs,
+  schemaFromSessionUser,
+  type WorkspaceTabKind,
+} from "./prefs";
 import {
   isApexExportFolderName,
   isRootApexExportSql,
@@ -316,6 +325,7 @@ export const IdeWorkspace = ({
     hasSql: false,
     canRun: false,
   });
+  const schemaAutofillKey = useRef<string | null>(null);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -333,6 +343,7 @@ export const IdeWorkspace = ({
     setFocusedObjectName(null);
     setExplorerFocusSection(null);
     setActivityRail(DEFAULT_ACTIVITY_RAIL);
+    schemaAutofillKey.current = null;
   }
 
   const onActivityRailSelect = (rail: ActivityRailId) => {
@@ -493,6 +504,61 @@ export const IdeWorkspace = ({
     setProjectSchemaOverride(next || null);
     persistWorkspaceDefaults((connectedConnection ?? selectedConnection) || null, next || null);
   };
+
+  // M3: autofill Working Schema on connect without requiring Database Explorer posture.
+  useEffect(() => {
+    if (!connectedConnection || !isBackendOnline) {
+      schemaAutofillKey.current = null;
+      return;
+    }
+    const override = projectSchemaOverride?.trim().toUpperCase() || null;
+    const key = `${connectedConnection}:${override ?? "login"}`;
+    if (schemaAutofillKey.current === key) {
+      return;
+    }
+
+    if (override) {
+      setWorkingSchema(override);
+      schemaAutofillKey.current = key;
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+      void (async () => {
+        try {
+          const context = await getSessionContextOnce(backendConfig);
+          if (cancelled) {
+            return;
+          }
+          const suggested =
+            context.suggested_schema ||
+            schemaFromSessionUser(
+              context.database_context.current_user,
+              context.database_context.current_schema,
+            );
+          if (suggested) {
+            handleWorkingSchemaChange(suggested, { persist: false });
+          }
+        } catch {
+          // Leave empty; user can type a schema manually.
+        } finally {
+          if (!cancelled) {
+            schemaAutofillKey.current = key;
+          }
+        }
+      })();
+    }, 75);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per connection+override
+  }, [backendConfig, connectedConnection, isBackendOnline, projectSchemaOverride]);
 
   const openOrFocus = (tab: WorkspaceTab) => {
     setTabs((current) => (current.some((item) => item.id === tab.id) ? current : [...current, tab]));
