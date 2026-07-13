@@ -532,19 +532,24 @@ describe("App", () => {
     expect(run).toHaveAttribute("title", "Connect a SQLcl saved connection to run SQL.");
     expect(run).not.toHaveAttribute("title", "Not implemented yet");
 
-    // Product path: toolbar MCP Activity opens the Console tab, not the floating overlay.
-    fireEvent.click(within(consoleTabs).getByRole("tab", { name: "Problems" }));
-    expect(within(consoleTabs).getByRole("tab", { name: "Problems" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    // Product path: toolbar MCP Activity toggles the Console (open + MCP tab, or close).
+    fireEvent.click(screen.getByRole("button", { name: "Close Developer Console" }));
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
-    expect(within(consoleTabs).getByRole("tab", { name: "MCP Activity" })).toHaveAttribute(
+    const consoleAfterOpen = screen.getByRole("region", { name: "Developer Console" });
+    const consoleTabsAfterOpen = within(consoleAfterOpen).getByRole("tablist", {
+      name: "Developer Console tabs",
+    });
+    expect(within(consoleTabsAfterOpen).getByRole("tab", { name: "MCP Activity" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     expect(screen.queryByRole("dialog", { name: "MCP Activity" })).not.toBeInTheDocument();
-    expect(within(consoleRegion).getByRole("tabpanel")).not.toHaveTextContent("Stub");
+    expect(within(consoleAfterOpen).getByRole("tabpanel")).not.toHaveTextContent("Stub");
+    fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
 
     // Mission peer is present before Agent Core with explicit stub treatment.
     const mission = screen.getByRole("region", { name: "Mission" });
@@ -588,6 +593,9 @@ describe("App", () => {
     fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
     const database = screen.getByRole("region", { name: "Database" });
     expect(within(database).getByLabelText("Schema browser")).toBeInTheDocument();
+    // Docked push: Database is a body-grid sibling, not an overlay inside Workspace.
+    expect(database.closest(".ide-workspace-body")).toBeTruthy();
+    expect(database.closest('[aria-label="Workspace"]')).toBeNull();
     fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
     const explorerAfterApex = screen.getByRole("region", { name: "Explorer" });
     expect(within(explorerAfterApex).getByLabelText("APEX browser")).toBeInTheDocument();
@@ -596,6 +604,17 @@ describe("App", () => {
     expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
     expect(within(stubSurface).queryByText(/sample row|EMPLOYEE|mock timeline/i)).not.toBeInTheDocument();
     expect(explorer).toBeInTheDocument();
+
+    // Agent / Review switch Focus only — do not auto-open Explorer.
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Agent" }));
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Review" }));
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    // Code / APEX open the Explorer dock (same column UI as Files peer).
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Code" }));
+    const explorerDock = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerDock).getByRole("button", { name: "Close Explorer" })).toBeInTheDocument();
+    expect(explorerDock.closest('[aria-label="Workspace"]')).toBeNull();
   });
 
   it("hosts SQL Editor in dual-primary Workspace editors only and never in the Inspector", async () => {

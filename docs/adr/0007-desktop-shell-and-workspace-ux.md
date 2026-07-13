@@ -105,11 +105,15 @@ layout:
    - **Calm Focus drawers** ([Wayfinder: Ship calm Focus shell](https://github.com/xamdxlonewolf/apex_pilot/issues/113)):
      Activity Rail is always-on. Mission defaults visible in Agent/Review and
      hidden in SQL/Files (session per-Focus override). Explorer is a peer in
-     Files Focus and a slide-out Drawer elsewhere. Inspector and Database are
-     Drawers (closed by default; Database defaults right; same-side mutual
-     exclusion with Inspector). Side prefs are profile-persisted; open/closed is
-     session-only. Dismiss via close control, Escape, or toggle — not
-     click-outside.
+     Files Focus and a **docked push drawer** elsewhere (same column UI).
+     Inspector and Database are docked push drawers (closed by default; Database
+     defaults right; same-side mutual exclusion with Inspector). Drawers take
+     layout width and shrink the Workspace — they must not overlay it. Side prefs
+     are profile-persisted; open/closed is session-only. Dismiss via close
+     control, Escape, or toggle — not click-outside. MCP Activity / View MCP
+     toggles Developer Console (with an explicit console close control).
+     Activity Rail: Files opens Explorer peer; Agent/Review switch Focus only;
+     Code/APEX open Explorer dock; Database opens Database dock.
 4. **Center — dual-primary Workspace:** Mission and editors (SQL Editor, File
    Editor, and related viewers) share primacy as peers. Neither is demoted to
    secondary chrome.

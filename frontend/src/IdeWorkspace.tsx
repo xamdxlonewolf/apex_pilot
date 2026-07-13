@@ -372,8 +372,11 @@ export const IdeWorkspace = ({
       onShellSessionChange((current) => withDrawerOpen(current, layout, "database", true));
       return;
     }
-    // Explorer-using rails open Explorer (peer in Files, drawer elsewhere).
-    onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", true));
+    // Files → Focus + Explorer peer; Code / APEX → Explorer dock posture.
+    // Agent / Review → Focus only (applyFocusTransition owns Explorer closed).
+    if (rail === "files" || rail === "code" || rail === "apex") {
+      onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", true));
+    }
   };
 
   const activateEditorTab = (tabId: string, kindHint?: WorkspaceTabKind) => {
@@ -784,15 +787,48 @@ export const IdeWorkspace = ({
             ? "Enter SQL to run."
             : "Run the SQL Editor buffer.";
 
-  const bodyColumns = [
-    "44px",
-    explorerPeer ? `${layout.leftWidth}px` : null,
-    "minmax(600px, 1fr)",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const bodyColumnParts: string[] = ["44px"];
+  const explorerSide = explorerPeer ? "left" : layout.explorerDrawerSide;
+  const explorerDockOpen = explorerPeer || explorerDrawer;
+  if (explorerDockOpen && explorerSide === "left") {
+    bodyColumnParts.push(`${layout.leftWidth}px`);
+  }
+  if (shellSession.inspectorOpen && layout.inspectorDrawerSide === "left") {
+    bodyColumnParts.push(`${layout.rightWidth}px`);
+  }
+  if (shellSession.databaseOpen && layout.databaseDrawerSide === "left") {
+    bodyColumnParts.push(`${layout.databaseWidth}px`);
+  }
+  bodyColumnParts.push("minmax(600px, 1fr)");
+  if (explorerDockOpen && explorerSide === "right") {
+    bodyColumnParts.push(`${layout.leftWidth}px`);
+  }
+  if (shellSession.inspectorOpen && layout.inspectorDrawerSide === "right") {
+    bodyColumnParts.push(`${layout.rightWidth}px`);
+  }
+  if (shellSession.databaseOpen && layout.databaseDrawerSide === "right") {
+    bodyColumnParts.push(`${layout.databaseWidth}px`);
+  }
+  const bodyColumns = bodyColumnParts.join(" ");
 
   const consoleHeight = layout.showConsole ? layout.consoleHeight : 0;
+
+  const closeExplorer = () =>
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", false));
+  const closeInspector = () =>
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "inspector", false));
+  const closeDatabase = () =>
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "database", false));
+  const closeMission = () =>
+    onShellSessionChange((current) => ({
+      ...current,
+      missionOverrideByFocus: {
+        ...current.missionOverrideByFocus,
+        [focusMode]: false,
+      },
+    }));
+  const closeConsole = () =>
+    onLayoutChange((current) => ({ ...current, showConsole: false }));
 
   const explorerProps = {
     rootPath: openedProject.project.root_path,
@@ -808,6 +844,7 @@ export const IdeWorkspace = ({
     onFocusSectionHandled: () => setExplorerFocusSection(null),
     apexMappings: openedProject.apex_workspace_mappings,
     onOpenApex,
+    onClose: explorerDrawer ? closeExplorer : undefined,
   } as const;
 
   const databaseProps = {
@@ -824,20 +861,123 @@ export const IdeWorkspace = ({
     focusedObjectName,
   } as const;
 
-  const closeExplorer = () =>
-    onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", false));
-  const closeInspector = () =>
-    onShellSessionChange((current) => withDrawerOpen(current, layout, "inspector", false));
-  const closeDatabase = () =>
-    onShellSessionChange((current) => withDrawerOpen(current, layout, "database", false));
-  const closeMission = () =>
-    onShellSessionChange((current) => ({
-      ...current,
-      missionOverrideByFocus: {
-        ...current.missionOverrideByFocus,
-        [focusMode]: false,
-      },
-    }));
+  const renderExplorerDock = (side: "left" | "right") => {
+    if (!explorerDockOpen || explorerSide !== side) {
+      return null;
+    }
+    return (
+      <section
+        className={`ide-region ide-region--explorer ide-region--dock ide-region--dock-${side}${
+          explorerDrawer ? " ide-region--dock-slide" : ""
+        }`}
+        role="region"
+        aria-label="Explorer"
+        data-dock="explorer"
+        data-side={side}
+      >
+        {side === "right" ? (
+          <PanelSplitter
+            axis="explorer"
+            label="Resize Explorer"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                leftWidth: clampExplorerWidth(current.leftWidth - delta),
+              }))
+            }
+          />
+        ) : null}
+        <Explorer {...explorerProps} />
+        {side === "left" ? (
+          <PanelSplitter
+            axis="explorer"
+            label="Resize Explorer"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                leftWidth: clampExplorerWidth(current.leftWidth + delta),
+              }))
+            }
+          />
+        ) : null}
+      </section>
+    );
+  };
+
+  const renderInspectorDock = (side: "left" | "right") => {
+    if (!shellSession.inspectorOpen || layout.inspectorDrawerSide !== side) {
+      return null;
+    }
+    return (
+      <ShellDrawer
+        id="inspector"
+        side={side}
+        open
+        width={layout.rightWidth}
+        title="Inspector"
+        ariaLabel="Inspector"
+        onClose={closeInspector}
+        splitter={
+          <PanelSplitter
+            axis="inspector"
+            label="Resize Inspector"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                rightWidth: clampInspectorWidth(
+                  current.rightWidth + (side === "right" ? -delta : delta),
+                ),
+              }))
+            }
+          />
+        }
+      >
+        <div className="ide-pane ide-pane--right">
+          {saveMessage ? (
+            <p className="pane-muted connection-strip-message">{saveMessage}</p>
+          ) : null}
+          <InspectorPanel
+            projectName={openedProject.project.name}
+            connectionName={connectedConnection}
+            workingSchema={workingSchema}
+          />
+        </div>
+      </ShellDrawer>
+    );
+  };
+
+  const renderDatabaseDock = (side: "left" | "right") => {
+    if (!shellSession.databaseOpen || layout.databaseDrawerSide !== side) {
+      return null;
+    }
+    return (
+      <ShellDrawer
+        id="database"
+        side={side}
+        open
+        width={layout.databaseWidth}
+        title="Database"
+        ariaLabel="Database"
+        onClose={closeDatabase}
+        splitter={
+          <PanelSplitter
+            axis="inspector"
+            label="Resize Database"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                databaseWidth: clampDatabaseWidth(
+                  current.databaseWidth + (side === "right" ? -delta : delta),
+                ),
+              }))
+            }
+          />
+        }
+      >
+        <DatabaseDrawer {...databaseProps} />
+      </ShellDrawer>
+    );
+  };
 
   return (
     <div
@@ -955,25 +1095,9 @@ export const IdeWorkspace = ({
           <ActivityRail active={activityRail} onSelect={onActivityRailSelect} />
         </section>
 
-        {explorerPeer ? (
-          <section
-            className="ide-region ide-region--explorer"
-            role="region"
-            aria-label="Explorer"
-          >
-            <Explorer {...explorerProps} />
-            <PanelSplitter
-              axis="explorer"
-              label="Resize Explorer"
-              onDelta={(delta) =>
-                onLayoutChange((current) => ({
-                  ...current,
-                  leftWidth: clampExplorerWidth(current.leftWidth + delta),
-                }))
-              }
-            />
-          </section>
-        ) : null}
+        {renderExplorerDock("left")}
+        {renderInspectorDock("left")}
+        {renderDatabaseDock("left")}
 
         <section
           className="ide-region ide-region--workspace"
@@ -1126,103 +1250,11 @@ export const IdeWorkspace = ({
               </div>
             </section>
           </div>
-
-          {explorerDrawer ? (
-            <ShellDrawer
-              id="explorer"
-              side={layout.explorerDrawerSide}
-              open
-              width={layout.leftWidth}
-              title="Explorer"
-              ariaLabel="Explorer"
-              onClose={closeExplorer}
-              splitter={
-                <PanelSplitter
-                  axis="explorer"
-                  label="Resize Explorer"
-                  onDelta={(delta) =>
-                    onLayoutChange((current) => ({
-                      ...current,
-                      leftWidth: clampExplorerWidth(
-                        current.leftWidth +
-                          (layout.explorerDrawerSide === "left" ? delta : -delta),
-                      ),
-                    }))
-                  }
-                />
-              }
-            >
-              <Explorer {...explorerProps} />
-            </ShellDrawer>
-          ) : null}
-
-          {shellSession.inspectorOpen ? (
-            <ShellDrawer
-              id="inspector"
-              side={layout.inspectorDrawerSide}
-              open
-              width={layout.rightWidth}
-              title="Inspector"
-              ariaLabel="Inspector"
-              onClose={closeInspector}
-              splitter={
-                <PanelSplitter
-                  axis="inspector"
-                  label="Resize Inspector"
-                  onDelta={(delta) =>
-                    onLayoutChange((current) => ({
-                      ...current,
-                      rightWidth: clampInspectorWidth(
-                        current.rightWidth +
-                          (layout.inspectorDrawerSide === "right" ? -delta : delta),
-                      ),
-                    }))
-                  }
-                />
-              }
-            >
-              <div className="ide-pane ide-pane--right">
-                {saveMessage ? (
-                  <p className="pane-muted connection-strip-message">{saveMessage}</p>
-                ) : null}
-                <InspectorPanel
-                  projectName={openedProject.project.name}
-                  connectionName={connectedConnection}
-                  workingSchema={workingSchema}
-                />
-              </div>
-            </ShellDrawer>
-          ) : null}
-
-          {shellSession.databaseOpen ? (
-            <ShellDrawer
-              id="database"
-              side={layout.databaseDrawerSide}
-              open
-              width={layout.databaseWidth}
-              title="Database"
-              ariaLabel="Database"
-              onClose={closeDatabase}
-              splitter={
-                <PanelSplitter
-                  axis="inspector"
-                  label="Resize Database"
-                  onDelta={(delta) =>
-                    onLayoutChange((current) => ({
-                      ...current,
-                      databaseWidth: clampDatabaseWidth(
-                        current.databaseWidth +
-                          (layout.databaseDrawerSide === "right" ? -delta : delta),
-                      ),
-                    }))
-                  }
-                />
-              }
-            >
-              <DatabaseDrawer {...databaseProps} />
-            </ShellDrawer>
-          ) : null}
         </section>
+
+        {renderExplorerDock("right")}
+        {renderInspectorDock("right")}
+        {renderDatabaseDock("right")}
       </div>
 
       {layout.showConsole ? (
@@ -1248,6 +1280,7 @@ export const IdeWorkspace = ({
               activeSessionId={activeActivitySessionId}
               mcpFocusRequest={mcpFocusRequest}
               onMcpFocusHandled={onMcpFocusHandled}
+              onClose={closeConsole}
             />
           </section>
         </div>

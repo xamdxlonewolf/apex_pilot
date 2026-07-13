@@ -17,7 +17,8 @@ type ShellDrawerProps = Readonly<{
 }>;
 
 /**
- * Slide-out secondary tool. Dismiss via close control / parent Escape / toggle —
+ * Docked push panel for secondary tools. Takes layout width (parent grid column);
+ * short slide on open. Dismiss via close control / parent Escape / toggle —
  * no click-outside backdrop.
  */
 export const ShellDrawer = ({
@@ -37,11 +38,12 @@ export const ShellDrawer = ({
 
   return (
     <section
-      className={`shell-drawer shell-drawer--${side} shell-drawer--open`}
+      className={`shell-drawer shell-drawer--dock shell-drawer--${side} shell-drawer--open`}
       role="region"
       aria-label={ariaLabel}
       data-drawer-id={id}
       data-side={side}
+      data-dock={id}
       style={{ ["--drawer-width" as string]: `${width}px` }}
     >
       {side === "right" ? splitter : null}

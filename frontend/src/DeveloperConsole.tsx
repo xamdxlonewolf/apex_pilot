@@ -57,6 +57,7 @@ type DeveloperConsoleProps = Readonly<{
   activeSessionId: string | null;
   mcpFocusRequest?: number;
   onMcpFocusHandled?: () => void;
+  onClose?: () => void;
 }>;
 
 export const DeveloperConsole = ({
@@ -65,6 +66,7 @@ export const DeveloperConsole = ({
   activeSessionId,
   mcpFocusRequest = 0,
   onMcpFocusHandled,
+  onClose,
 }: DeveloperConsoleProps) => {
   const [activeTabId, setActiveTabId] = useState<ConsoleTabId>(CONSOLE_TABS[0].id);
   const activeTab = CONSOLE_TABS.find((tab) => tab.id === activeTabId) ?? CONSOLE_TABS[0];
@@ -102,6 +104,16 @@ export const DeveloperConsole = ({
             );
           })}
         </div>
+        {onClose ? (
+          <button
+            type="button"
+            className="chrome-button shell-drawer-close"
+            aria-label="Close Developer Console"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        ) : null}
       </div>
       <div
         id={activePanelId}

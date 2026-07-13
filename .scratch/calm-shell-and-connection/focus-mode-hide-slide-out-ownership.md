@@ -5,7 +5,9 @@ Resolution asset for
 (map: [Wayfinder: Ship calm Focus shell](https://github.com/xamdxlonewolf/apex_pilot/issues/113)).
 
 Implements via
-[Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120).
+[Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120)
+and follow-up
+[Task: Dock drawers + console dismiss + rail open semantics](https://github.com/xamdxlonewolf/apex_pilot/issues/129).
 
 ## Mission visibility by Focus Mode
 
@@ -27,11 +29,13 @@ Implements via
 | Activity Rail | Always present chrome |
 | Editors (Workspace) | Always peers when a project is open |
 | Mission | Peer when visible; not a drawer |
-| Explorer | **Peer in Files Focus**; **drawer in Agent / SQL / Review** |
-| Inspector | Drawer — starts **closed** in all four Focus Modes |
-| Database | **Dedicated drawer** (not an Explorer posture, not Files\|Database tabs) |
+| Explorer | **Peer in Files Focus**; **docked drawer elsewhere** (same column UI — open/closed by Focus, not two looks) |
+| Inspector | Docked drawer — starts **closed** in all four Focus Modes |
+| Database | **Dedicated docked drawer** (not an Explorer posture, not Files\|Database tabs) |
 | APEX | Remains **Explorer posture** for this map (dedicated drawer deferred) |
-| Developer Console | **Layout Chrome only** — docked bottom show/hide/resize, not a slide-out |
+| Developer Console | **Layout Chrome only** — docked bottom show/hide/resize, not a side drawer |
+
+**Dock, don't overlay:** Explorer (outside Files), Inspector, and Database are **push docks** in the shell body grid — they take layout width and shrink Mission/Editors. Short slide on open is fine; honor `prefers-reduced-motion`. They must not cover the primary workspace.
 
 ## Database drawer
 
@@ -60,12 +64,23 @@ Implements via
 
 | Surface | Primary open | Also |
 | --- | --- | --- |
-| Explorer drawer (Agent/SQL/Review) | Activity Rail postures that use Explorer (Files / Agent / Code / APEX / Review) | Layout Chrome → Explorer |
+| Explorer peer (Files) | Activity Rail → Files | Layout Chrome → Explorer |
+| Explorer dock (Agent/SQL/Review) | Activity Rail → Code / APEX | Layout Chrome → Explorer |
 | Database drawer | Activity Rail → Database | Layout Chrome → Database |
 | Inspector | Layout Chrome → Inspector | Optional compact header/toolbar control only if it already fits — do not invent a second rail |
 | Mission (when hidden) | Layout Chrome / Focus controls (“Show Mission”) | |
+| Developer Console | Layout Chrome / `Ctrl+\`` / Console close control | MCP Activity / View MCP **toggles** open↔closed (opens to MCP tab) |
 
-**Focus transition:** Leaving Files (Explorer peer) for Agent / SQL / Review turns Explorer into a **closed** drawer. User re-opens via rail / Layout Chrome.
+**Rail open semantics:**
+
+| Rail | Effect |
+| --- | --- |
+| Files | Files Focus + Explorer open (peer) |
+| Agent / Review | Switch Focus only — do **not** auto-open Explorer |
+| Code / APEX | Open Explorer dock to that posture (Explorer-only; no Focus change unless leaving Review) |
+| Database | Open Database dock |
+
+**Focus transition:** Leaving Files (Explorer peer) for Agent / SQL / Review turns Explorer into a **closed** dock. User re-opens via Code/APEX rail / Layout Chrome.
 
 ## Dismiss affordances
 

@@ -315,6 +315,11 @@ export const App = () => {
   const openMcp = useCallback(async () => {
     if (projectOpen) {
       setMcpOpen(false);
+      // Toggle: open if closed (and focus MCP tab), close if open.
+      if (layout.showConsole) {
+        setLayout((current) => ({ ...current, showConsole: false }));
+        return;
+      }
       setLayout((current) => ({ ...current, showConsole: true }));
       setMcpFocusRequest((token) => token + 1);
       return;
@@ -324,7 +329,7 @@ export const App = () => {
     if (!openedNative) {
       setMcpOpen(true);
     }
-  }, [projectOpen]);
+  }, [layout.showConsole, projectOpen]);
 
   const handleMcpFocusHandled = useCallback(() => {
     setMcpFocusRequest(0);

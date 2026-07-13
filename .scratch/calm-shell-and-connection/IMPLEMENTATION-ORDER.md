@@ -38,6 +38,7 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 | A4 | 5 | [Task: File tree explorer + type icons](https://github.com/xamdxlonewolf/apex_pilot/issues/118) | task | A0 | ☐ |
 | A5 | 6 | [Task: Uniform splitters for visible peers](https://github.com/xamdxlonewolf/apex_pilot/issues/119) | task | A0 | ☐ |
 | A6 | 7 | [Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120) | task | A0 + A1 | ☑ |
+| A6b | 7b | [Task: Dock drawers + console dismiss + rail open semantics](https://github.com/xamdxlonewolf/apex_pilot/issues/129) | task | A6 | ☑ |
 
 ### Suggested `/wayfinder` invocations (Map A)
 
@@ -50,6 +51,7 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 /wayfinder on Task: File tree explorer + type icons
 /wayfinder on Task: Uniform splitters for visible peers
 /wayfinder on Task: Wire Focus hide + slide-out drawers
+/wayfinder on Task: Dock drawers + console dismiss + rail open semantics
 ```
 
 ### Map A acceptance (when “done enough”)
@@ -115,6 +117,7 @@ Make the project’s chosen Oracle connection durable for the app session: app-o
 
 - [x] A0 visual direction
 - [x] A1 focus/drawers
+- [x] A6b dock/console/rail fix
 - [ ] A2 rail preference
 - [ ] A3 rail task
 - [ ] A4 file tree
