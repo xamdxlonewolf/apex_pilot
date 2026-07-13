@@ -5,11 +5,15 @@ export type PanelId = "explorer" | "mission" | "inspector" | "console" | "databa
 export const EXPLORER_MIN_WIDTH = 240;
 export const INSPECTOR_MIN_WIDTH = 320;
 export const DATABASE_MIN_WIDTH = 280;
+export const MISSION_MIN_WIDTH = 280;
+export const EDITORS_MIN_WIDTH = 320;
 export const CONSOLE_MIN_HEIGHT = 120;
 export const CONSOLE_DEFAULT_HEIGHT = 220;
 export const EXPLORER_DEFAULT_WIDTH = 300;
 export const INSPECTOR_DEFAULT_WIDTH = 360;
 export const DATABASE_DEFAULT_WIDTH = 320;
+/** Agent/Review Mission-forward default (~1.35fr of a mid-size Workspace). */
+export const MISSION_DEFAULT_WIDTH = 480;
 
 export const clampExplorerWidth = (width: number): number =>
   Math.max(EXPLORER_MIN_WIDTH, Math.min(640, Math.round(width)));
@@ -19,6 +23,18 @@ export const clampInspectorWidth = (width: number): number =>
 
 export const clampDatabaseWidth = (width: number): number =>
   Math.max(DATABASE_MIN_WIDTH, Math.min(640, Math.round(width)));
+
+/**
+ * Clamp Mission peer width. When `peersWidth` is known, leave at least
+ * EDITORS_MIN_WIDTH for the SQL/file editor peer.
+ */
+export const clampMissionWidth = (
+  width: number,
+  peersWidth: number = typeof window === "undefined" ? 1200 : Math.max(1200, window.innerWidth),
+): number => {
+  const maxWidth = Math.max(MISSION_MIN_WIDTH, peersWidth - EDITORS_MIN_WIDTH);
+  return Math.max(MISSION_MIN_WIDTH, Math.min(maxWidth, Math.round(width)));
+};
 
 export const clampConsoleHeight = (
   height: number,

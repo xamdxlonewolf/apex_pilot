@@ -47,6 +47,7 @@ import {
   clampDatabaseWidth,
   clampExplorerWidth,
   clampInspectorWidth,
+  clampMissionWidth,
 } from "./panelLayout";
 import {
   activityRailAutoQuery,
@@ -229,7 +230,7 @@ const defaultConnectionFromMappings = (openedProject: OpenedProject): string | n
   return openedProject.environment_mappings[0]?.sqlcl_connection_name ?? null;
 };
 
-type SplitAxis = "explorer" | "inspector" | "console";
+type SplitAxis = "explorer" | "inspector" | "console" | "mission";
 
 const PanelSplitter = ({
   axis,
@@ -269,7 +270,9 @@ const PanelSplitter = ({
       type="button"
       className={
         vertical
-          ? "panel-splitter panel-splitter--vertical"
+          ? axis === "mission"
+            ? "panel-splitter panel-splitter--vertical panel-splitter--peer"
+            : "panel-splitter panel-splitter--vertical"
           : "panel-splitter panel-splitter--horizontal"
       }
       aria-label={label}
@@ -355,6 +358,7 @@ export const IdeWorkspace = ({
   const schemaAutofillKey = useRef<string | null>(null);
   /** When true, the next focusMode effect must not clobber rail (rail-driven select). */
   const skipFocusRailSync = useRef(false);
+  const workspacePeersRef = useRef<HTMLDivElement | null>(null);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -1166,9 +1170,17 @@ export const IdeWorkspace = ({
           data-focus-mode={focusMode}
         >
           <div
+            ref={workspacePeersRef}
             className="workspace-peers"
             data-mission-visible={showMission ? "true" : "false"}
             data-secondary-dim={visualPrimacy.secondaryDim}
+            style={
+              showMission
+                ? {
+                    gridTemplateColumns: `${layout.missionWidth}px var(--workspace-peer-splitter, 4px) minmax(0, 1fr)`,
+                  }
+                : undefined
+            }
           >
             {showMission ? (
               <section
@@ -1195,6 +1207,20 @@ export const IdeWorkspace = ({
                   </div>
                 </div>
               </section>
+            ) : null}
+
+            {showMission ? (
+              <PanelSplitter
+                axis="mission"
+                label="Resize Mission"
+                onDelta={(delta) => {
+                  const peersWidth = workspacePeersRef.current?.clientWidth ?? 1200;
+                  onLayoutChange((current) => ({
+                    ...current,
+                    missionWidth: clampMissionWidth(current.missionWidth + delta, peersWidth),
+                  }));
+                }}
+              />
             ) : null}
 
             <section

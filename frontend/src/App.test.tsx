@@ -594,11 +594,15 @@ describe("App", () => {
     );
 
     // Files Focus opens Explorer as a peer; Database opens the dedicated Database drawer.
+    // Agent starts with Mission visible — Mission↔Editors drag splitter is present.
+    expect(screen.getByRole("button", { name: "Resize Mission" })).toBeInTheDocument();
     fireEvent.click(within(activityRail).getByRole("button", { name: "Files" }));
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
     const explorer = screen.getByRole("region", { name: "Explorer" });
     expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Schema browser")).not.toBeInTheDocument();
+    // Files hides Mission by default — splitter goes with it.
+    expect(screen.queryByRole("button", { name: "Resize Mission" })).not.toBeInTheDocument();
     fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
     const database = screen.getByRole("region", { name: "Database" });
     expect(within(database).getByLabelText("Schema browser")).toBeInTheDocument();

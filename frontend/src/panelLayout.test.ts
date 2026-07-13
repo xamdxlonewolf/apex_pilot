@@ -5,6 +5,9 @@ import {
   clampDatabaseWidth,
   clampExplorerWidth,
   clampInspectorWidth,
+  clampMissionWidth,
+  MISSION_DEFAULT_WIDTH,
+  MISSION_MIN_WIDTH,
   matchPanelToggleShortcut,
 } from "./panelLayout";
 import { defaultProfileLayout } from "./prefs";
@@ -14,6 +17,8 @@ describe("panelLayout", () => {
     expect(clampExplorerWidth(100)).toBe(240);
     expect(clampInspectorWidth(100)).toBe(320);
     expect(clampDatabaseWidth(100)).toBe(280);
+    expect(clampMissionWidth(100, 1000)).toBe(MISSION_MIN_WIDTH);
+    expect(clampMissionWidth(900, 1000)).toBe(680);
     expect(clampConsoleHeight(50, 900)).toBe(120);
     expect(clampConsoleHeight(800, 900)).toBe(450);
   });
@@ -74,6 +79,7 @@ describe("panelLayout", () => {
   it("defaults console collapsed and drawer sides profile-ready", () => {
     const layout = defaultProfileLayout();
     expect(layout.showConsole).toBe(false);
+    expect(layout.missionWidth).toBe(MISSION_DEFAULT_WIDTH);
     expect(layout.explorerDrawerSide).toBe("left");
     expect(layout.inspectorDrawerSide).toBe("right");
     expect(layout.databaseDrawerSide).toBe("right");
