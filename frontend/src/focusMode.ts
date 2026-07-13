@@ -140,3 +140,26 @@ export const focusModeLabel = (mode: FocusMode): string => {
       return "Review";
   }
 };
+
+/** Visual primacy cues for Mission↔Editors peers (beyond grid ratio alone). */
+export type PeerPrimacy = "primary" | "secondary";
+export type SecondaryDimStrength = "light" | "strong";
+
+export type WorkspaceVisualPrimacy = Readonly<{
+  mission: PeerPrimacy;
+  editors: PeerPrimacy;
+  /** Dim strength on the secondary peer — Review is stronger so it ≠ Agent+SQL. */
+  secondaryDim: SecondaryDimStrength;
+  /** Quiet Review meta under Mission title; title stays "Mission". */
+  missionReviewMeta: boolean;
+}>;
+
+export const workspaceVisualPrimacy = (mode: FocusMode): WorkspaceVisualPrimacy => {
+  const missionPrimary = mode === "agent" || mode === "review";
+  return {
+    mission: missionPrimary ? "primary" : "secondary",
+    editors: missionPrimary ? "secondary" : "primary",
+    secondaryDim: mode === "review" ? "strong" : "light",
+    missionReviewMeta: mode === "review",
+  };
+};

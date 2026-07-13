@@ -7,6 +7,7 @@ import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
 import { MissionComposer } from "./MissionComposer";
+import { MissionPeerHeader } from "./MissionPeerHeader";
 import { ProductHeader } from "./ProductHeader";
 import { QuickOpenHost } from "./QuickOpenHost";
 import { type SchemaOpenTarget } from "./SchemaBrowser";
@@ -34,6 +35,7 @@ import {
   editorPeerKindFromTab,
   focusModeFromWork,
   railForFocusMode,
+  workspaceVisualPrimacy,
   type ActivityRailId,
   type FocusMode,
 } from "./focusMode";
@@ -660,8 +662,9 @@ export const IdeWorkspace = ({
   const editorTabs = tabs.filter(isEditorTab);
   const activeCenterTab = editorTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
   const sqlEditorActive = activeCenterTab?.kind === "sql";
-  const missionPrimacy = focusMode === "agent" || focusMode === "review" ? "primary" : "secondary";
-  const editorsPrimacy = focusMode === "sql" || focusMode === "files" ? "primary" : "secondary";
+  const visualPrimacy = workspaceVisualPrimacy(focusMode);
+  const missionPrimacy = visualPrimacy.mission;
+  const editorsPrimacy = visualPrimacy.editors;
 
   const handleNewSql = () => {
     const existing = tabs.find((tab) => tab.kind === "sql");
@@ -843,6 +846,7 @@ export const IdeWorkspace = ({
           <div
             className="workspace-peers"
             data-mission-visible={layout.showMission ? "true" : "false"}
+            data-secondary-dim={visualPrimacy.secondaryDim}
           >
             {layout.showMission ? (
               <section
@@ -858,9 +862,7 @@ export const IdeWorkspace = ({
                 onClick={focusMissionPeer}
               >
                 <div className="ide-pane ide-pane--mission">
-                  <div className="pane-header">
-                    <strong>Mission</strong>
-                  </div>
+                  <MissionPeerHeader showReviewMeta={visualPrimacy.missionReviewMeta} />
                   <div className="pane-body">
                     <MissionComposer projectName={openedProject.project.name} />
                   </div>
