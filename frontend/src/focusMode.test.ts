@@ -8,6 +8,7 @@ import {
   focusModeForRail,
   focusModeFromWork,
   railForFocusMode,
+  workspaceVisualPrimacy,
 } from "./focusMode";
 
 describe("focusMode pairing", () => {
@@ -73,5 +74,38 @@ describe("focusMode auto-switch", () => {
     expect(focusModeFromWork("review", { type: "editor-focus", peer: "sql" })).toBe("sql");
     expect(focusModeFromWork("review", { type: "editor-focus", peer: "file" })).toBe("files");
     expect(focusModeFromWork("review", { type: "editor-focus", peer: "other" })).toBe("agent");
+  });
+});
+
+describe("workspace visual primacy cues", () => {
+  it("gives Mission primacy for Agent with light secondary dim and no Review meta", () => {
+    expect(workspaceVisualPrimacy("agent")).toEqual({
+      mission: "primary",
+      editors: "secondary",
+      secondaryDim: "light",
+      missionReviewMeta: false,
+    });
+  });
+
+  it("distinguishes Review from Agent via stronger dim and Mission Review meta", () => {
+    const review = workspaceVisualPrimacy("review");
+    const agent = workspaceVisualPrimacy("agent");
+    expect(review.mission).toBe("primary");
+    expect(review.editors).toBe("secondary");
+    expect(review.secondaryDim).toBe("strong");
+    expect(review.missionReviewMeta).toBe(true);
+    expect(review.secondaryDim).not.toBe(agent.secondaryDim);
+    expect(review.missionReviewMeta).not.toBe(agent.missionReviewMeta);
+  });
+
+  it("gives Editors primacy for SQL and Files with light Mission dim", () => {
+    for (const mode of ["sql", "files"] as const) {
+      expect(workspaceVisualPrimacy(mode)).toEqual({
+        mission: "secondary",
+        editors: "primary",
+        secondaryDim: "light",
+        missionReviewMeta: false,
+      });
+    }
   });
 });
