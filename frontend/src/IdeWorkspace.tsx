@@ -75,6 +75,7 @@ import {
   type FileTreeNode,
 } from "./projectFs";
 import { schemaTablesToQuickOpenItems, type QuickOpenItem } from "./quickOpenModel";
+import { pickAdjacentEditorTab } from "./workspaceTabs";
 
 const explorerPostureFromRail = (rail: ActivityRailId): ExplorerSectionId =>
   rail === "database" ? "files" : rail;
@@ -649,13 +650,16 @@ export const IdeWorkspace = ({
 
   const closeTab = (tabId: string) => {
     setTabs((current) => {
-      const closing = current.find((tab) => tab.id === tabId);
+      const closingIndex = current.findIndex((tab) => tab.id === tabId);
+      const closing = closingIndex >= 0 ? current[closingIndex] : undefined;
       const next = current.filter((tab) => tab.id !== tabId);
       if (closing && isEditorTab(closing) && activeCenterTabId === tabId) {
-        const fallback = next.find(isEditorTab) ?? null;
+        const fallback = pickAdjacentEditorTab(current, next, closingIndex, isEditorTab);
         if (fallback) {
-          // Defer so we don't nest focus-mode updates inside the tabs updater.
-          queueMicrotask(() => activateEditorTab(fallback.id, fallback.kind));
+          // Select next tab without Focus Mode auto-switch. activateEditorTab would
+          // run focusModeFromWork (Files→SQL) and applyFocusTransition would close
+          // the Files Explorer peer — closing a tab must not dismiss Explorer.
+          queueMicrotask(() => setActiveCenterTabId(fallback.id));
         } else {
           setActiveCenterTabId(null);
         }

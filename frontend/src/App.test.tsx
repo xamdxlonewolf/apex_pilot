@@ -1987,4 +1987,53 @@ describe("App", () => {
     expect(within(editors).getByLabelText("object viewer")).toBeInTheDocument();
     expect(within(editors).getByText(/TABLE APP\.EMPLOYEES/i)).toBeInTheDocument();
   });
+
+  it("keeps Files Explorer open when closing a file tab (does not Focus-switch to SQL)", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.project-tabs.proj-1",
+      JSON.stringify({
+        openTabs: [
+          { id: "sql", kind: "sql", title: "SQL Editor" },
+          { id: "file:readme", kind: "file", title: "README.md", path: "C:/tmp/demo/README.md" },
+        ],
+        activeTabId: "file:readme",
+        activeCenterTabId: "file:readme",
+        activeInspectorTabId: null,
+      }),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const activityRail = await screen.findByRole("navigation", { name: "Activity Rail" });
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Files" }));
+    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+    expect(within(activityRail).getByRole("button", { name: "Files" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    const editors = screen.getByRole("region", { name: "Editors" });
+    const fileTab = within(editors).getByRole("tab", { name: /README\.md/i });
+    expect(fileTab).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(within(fileTab).getByText("×"));
+
+    await waitFor(() => {
+      expect(within(editors).queryByRole("tab", { name: /README\.md/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
+    expect(within(activityRail).getByRole("button", { name: "Files" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    openAppMenu("View");
+    expect(screen.getByRole("menuitemradio", { name: "Files" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
 });

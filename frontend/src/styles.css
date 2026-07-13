@@ -1300,9 +1300,17 @@ button:disabled {
 
 .pane-body {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   padding: var(--pane-body-padding, 8px);
   overflow: auto;
+}
+
+/* Editors own horizontal scroll (Monaco / result tables). Pane-body must not
+   keep a stale wide min-content width after window grow→shrink. */
+.workspace-peer--editors .pane-body {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .mission-surface {
@@ -1823,13 +1831,19 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
   flex: 1;
 }
 
 .sql-editor .code-editor,
 .file-editor .code-editor {
   flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 180px;
   border: 1px solid var(--chrome-border);
   border-radius: var(--radius-control);
@@ -1837,15 +1851,35 @@ button:disabled {
   background: var(--window);
 }
 
+.code-editor {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+/* monaco-react wrapper must shrink with the pane or automaticLayout sticks wide. */
+.code-editor > section,
+.code-editor > div {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100%;
+  height: 100% !important;
+}
+
 .code-editor .monaco-editor {
   outline: none;
+  min-width: 0 !important;
+  width: 100% !important;
 }
 
 .file-editor {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
   height: 100%;
 }
 
@@ -1854,10 +1888,15 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .file-editor-meta .pane-muted {
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab-strip {
@@ -1944,11 +1983,13 @@ button:disabled {
 
 .tool-panel,
 .sql-sheet,
-.schema-view,
-.file-editor {
+.schema-view {
   display: grid;
   gap: 10px;
+  min-width: 0;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .tool-toolbar,

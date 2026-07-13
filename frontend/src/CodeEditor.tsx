@@ -1,4 +1,7 @@
-import Editor from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
+import { useEffect, useRef } from "react";
+
+import type { editor as MonacoEditor } from "monaco-editor";
 
 export type CodeEditorProps = Readonly<{
   /** Stable id — used as Monaco model path and optional DOM id for labels. */
@@ -27,15 +30,44 @@ export const CodeEditor = ({
   className,
 }: CodeEditorProps) => {
   const locked = readOnly || disabled;
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
+
+  const onMount: OnMount = (editor) => {
+    editorRef.current = editor;
+    // Immediate layout so the first paint matches the current pane width.
+    editor.layout();
+  };
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      // Re-layout on host shrink/grow — automaticLayout alone can stick wide after
+      // window grow→shrink when ancestors briefly report a larger content width.
+      editorRef.current?.layout();
+    });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className={`code-editor${className ? ` ${className}` : ""}`} data-language={language}>
+    <div
+      ref={hostRef}
+      className={`code-editor${className ? ` ${className}` : ""}`}
+      data-language={language}
+    >
       <Editor
         path={id}
         language={language}
         value={value}
+        width="100%"
+        height="100%"
         theme="vs-dark"
         loading={<p className="pane-muted">Loading editor…</p>}
+        onMount={onMount}
         onChange={(next) => {
           if (locked) {
             return;
@@ -51,6 +83,12 @@ export const CodeEditor = ({
           lineHeight: 20,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
+          scrollbar: {
+            // Keep Monaco's own bar; hide when content fits (word wrap on).
+            horizontal: "auto",
+            vertical: "auto",
+            alwaysConsumeMouseWheel: false,
+          },
           automaticLayout: true,
           wordWrap: "on",
           tabSize: 2,
