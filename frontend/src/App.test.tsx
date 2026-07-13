@@ -36,6 +36,11 @@ const openedProjectFixture = {
   },
 };
 
+/** Open a BrowserAppMenu top-level dropdown (items are hidden until clicked). */
+const openAppMenu = (label: "File" | "Edit" | "View" | "Help") => {
+  fireEvent.click(screen.getByRole("menuitem", { name: label }));
+};
+
 const workspaceFetch = (opened = openedProjectFixture) =>
   vi.fn((url: string, init?: RequestInit) => {
     if (url.includes("/preflight")) {
@@ -143,7 +148,9 @@ describe("App", () => {
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toHaveTextContent(/backend not configured/i);
     expect(await screen.findByLabelText("Starting")).toBeInTheDocument();
+    openAppMenu("View");
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeDisabled();
+    openAppMenu("File");
     expect(screen.getByRole("menuitem", { name: /new/i })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: /settings/i })).toBeDisabled();
   });
@@ -188,7 +195,9 @@ describe("App", () => {
 
     expect(await screen.findByLabelText("Status bar")).toHaveTextContent(/backend:\s*healthy/i);
     expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
+    openAppMenu("View");
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeEnabled();
+    openAppMenu("File");
     expect(screen.getByRole("menuitem", { name: /settings/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
@@ -199,6 +208,7 @@ describe("App", () => {
     expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^settings$/i })).not.toBeInTheDocument();
 
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitem", { name: /mcp activity/i }));
     expect(
       await screen.findByText(/not connected to a database/i),
@@ -245,8 +255,10 @@ describe("App", () => {
       screen.getByText(/click/i).closest(".funnel-callout"),
     ).toHaveTextContent(/continue to profile setup/i);
     expect(screen.getByRole("button", { name: /continue to profile setup/i })).toBeEnabled();
+    openAppMenu("File");
     expect(screen.getByRole("menuitem", { name: /new/i })).toBeDisabled();
     expect(screen.getByRole("menuitem", { name: /settings/i })).toBeDisabled();
+    openAppMenu("View");
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeDisabled();
   });
 
@@ -348,6 +360,7 @@ describe("App", () => {
 
     // Open a project workspace path by simulating an opened project via New Project cancel path
     // is not enough for connect UI; connect lives in workspace. Open MCP from menu first.
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitem", { name: /mcp activity/i }));
     expect(await screen.findByLabelText("MCP Activity")).toBeInTheDocument();
   });
@@ -466,12 +479,13 @@ describe("App", () => {
     expect(screen.getByLabelText("Connection health")).toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "File" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Edit" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "View" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Help" })).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Project" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "File" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "View" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Help" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Project" })).not.toBeInTheDocument();
 
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
     const consoleRegion = screen.getByRole("region", { name: "Developer Console" });
     expect(consoleRegion).toBeInTheDocument();
@@ -556,6 +570,7 @@ describe("App", () => {
       "aria-pressed",
       "true",
     );
+    openAppMenu("View");
     expect(screen.getByRole("menuitemradio", { name: "Agent" })).toHaveAttribute(
       "aria-checked",
       "true",
@@ -673,6 +688,7 @@ describe("App", () => {
     expect(run).not.toHaveAttribute("title", "Not implemented yet");
 
     fireEvent.click(newSql);
+    openAppMenu("View");
     expect(screen.getByRole("menuitemradio", { name: "SQL" })).toHaveAttribute(
       "aria-checked",
       "true",
@@ -837,6 +853,7 @@ describe("App", () => {
     expect(within(mappingList).getByRole("button", { name: /Save mapping/i })).toBeInTheDocument();
 
     fireEvent.click(within(settings).getByRole("button", { name: "Done" }));
+    openAppMenu("File");
     fireEvent.click(screen.getByRole("menuitem", { name: /^Settings$/i }));
     const settingsFromMenu = await screen.findByLabelText("Settings");
     expect(within(settingsFromMenu).getByLabelText("Project mappings")).toBeInTheDocument();
@@ -931,6 +948,7 @@ describe("App", () => {
       target: { value: "select 1 from dual" },
     });
 
+    openAppMenu("File");
     fireEvent.click(screen.getByRole("menuitem", { name: /^Close Project$/i }));
 
     await waitFor(() => {
@@ -962,6 +980,7 @@ describe("App", () => {
       target: { value: "select * from emp" },
     });
 
+    openAppMenu("File");
     fireEvent.click(screen.getByRole("menuitem", { name: /^Close Project$/i }));
 
     await waitFor(() => {
@@ -983,6 +1002,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByRole("region", { name: "Mission" });
+    openAppMenu("File");
     fireEvent.click(screen.getByRole("menuitem", { name: /^Close Project$/i }));
 
     expect(await screen.findByRole("toolbar", { name: /project menu/i })).toBeInTheDocument();
@@ -1005,6 +1025,7 @@ describe("App", () => {
     const shell = contextBar.closest(".ide-workspace");
     expect(shell).toHaveAttribute("data-density", "compact");
 
+    openAppMenu("File");
     fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
     fireEvent.change(await screen.findByLabelText("Active profile"), {
       target: { value: "profile-1" },
@@ -1146,16 +1167,21 @@ describe("App", () => {
     expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
 
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^explorer$/i }));
     expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^explorer$/i }));
     expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
 
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^inspector$/i }));
     expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^mission$/i }));
     expect(screen.queryByRole("region", { name: "Mission" })).not.toBeInTheDocument();
 
+    openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /developer console/i }));
     expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
 

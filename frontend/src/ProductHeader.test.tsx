@@ -58,23 +58,58 @@ const openedProject = (): OpenedProject =>
   }) as OpenedProject;
 
 describe("BrowserAppMenu", () => {
-  it("exposes File Edit View Help and routes Check for updates", () => {
+  it("shows only File Edit View Help until a top-level menu is opened", () => {
+    render(<BrowserAppMenu state={baseState()} handlers={baseHandlers()} />);
+
+    expect(screen.getByRole("menuitem", { name: "File" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "View" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Help" })).toBeInTheDocument();
+
+    expect(screen.queryByRole("menuitem", { name: "New…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Check for updates/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("opens Help on click and routes Check for updates", () => {
     const handlers = baseHandlers();
     render(<BrowserAppMenu state={baseState()} handlers={handlers} />);
 
-    expect(screen.getByRole("group", { name: "File" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Edit" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "View" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Help" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Help" }));
+    expect(screen.getByRole("menu", { name: "Help" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Check for updates/i }));
     expect(handlers.onUpdates).toHaveBeenCalled();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("does not open top-level menus on hover", () => {
+    render(<BrowserAppMenu state={baseState()} handlers={baseHandlers()} />);
+
+    fireEvent.mouseEnter(screen.getByRole("menuitem", { name: "File" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("closes on Escape and outside click", () => {
+    render(<BrowserAppMenu state={baseState()} handlers={baseHandlers()} />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "File" }));
+    expect(screen.getByRole("menu", { name: "File" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit" }));
+    expect(screen.getByRole("menu", { name: "Edit" })).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("routes Compare project to database when enabled", () => {
     const handlers = baseHandlers();
     render(<BrowserAppMenu state={baseState()} handlers={handlers} />);
 
+    fireEvent.click(screen.getByRole("menuitem", { name: "Help" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Compare project to database/i }));
     expect(handlers.onCompareProjectToDatabase).toHaveBeenCalled();
   });
@@ -88,6 +123,7 @@ describe("BrowserAppMenu", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("menuitem", { name: "Help" }));
     expect(screen.getByRole("menuitem", { name: /Compare project to database/i })).toBeDisabled();
   });
 });
