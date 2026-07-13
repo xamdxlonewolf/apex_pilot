@@ -230,8 +230,9 @@ const defaultConnectionFromMappings = (openedProject: OpenedProject): string | n
   return openedProject.environment_mappings[0]?.sqlcl_connection_name ?? null;
 };
 
-type SplitAxis = "explorer" | "inspector" | "console" | "mission";
+type SplitAxis = "explorer" | "inspector" | "database" | "console" | "mission";
 
+/** Shared drag handle for every visible layout peer edge (Explorer / Mission / Editors / drawers / console). */
 const PanelSplitter = ({
   axis,
   label,
@@ -270,11 +271,10 @@ const PanelSplitter = ({
       type="button"
       className={
         vertical
-          ? axis === "mission"
-            ? "panel-splitter panel-splitter--vertical panel-splitter--peer"
-            : "panel-splitter panel-splitter--vertical"
+          ? "panel-splitter panel-splitter--vertical"
           : "panel-splitter panel-splitter--horizontal"
       }
+      data-split-axis={axis}
       aria-label={label}
       aria-orientation={vertical ? "vertical" : "horizontal"}
       onPointerDown={startDrag}
@@ -1006,7 +1006,7 @@ export const IdeWorkspace = ({
         onClose={closeDatabase}
         splitter={
           <PanelSplitter
-            axis="inspector"
+            axis="database"
             label="Resize Database"
             onDelta={(delta) =>
               onLayoutChange((current) => ({
@@ -1177,7 +1177,7 @@ export const IdeWorkspace = ({
             style={
               showMission
                 ? {
-                    gridTemplateColumns: `${layout.missionWidth}px var(--workspace-peer-splitter, 4px) minmax(0, 1fr)`,
+                    gridTemplateColumns: `${layout.missionWidth}px var(--panel-splitter-size, 4px) minmax(0, 1fr)`,
                   }
                 : undefined
             }

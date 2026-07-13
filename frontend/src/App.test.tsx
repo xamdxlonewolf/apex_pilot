@@ -599,19 +599,28 @@ describe("App", () => {
     fireEvent.click(within(activityRail).getByRole("button", { name: "Files" }));
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
     const explorer = screen.getByRole("region", { name: "Explorer" });
+    // Explorer peer shares a uniform in-flow splitter with the Workspace.
+    expect(within(explorer).getByRole("button", { name: "Resize Explorer" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Schema browser")).not.toBeInTheDocument();
     // Files hides Mission by default — splitter goes with it.
     expect(screen.queryByRole("button", { name: "Resize Mission" })).not.toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Inspector" }));
+    const inspector = screen.getByRole("region", { name: "Inspector" });
+    expect(within(inspector).getByRole("button", { name: "Resize Inspector" })).toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Inspector" }));
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
     const database = screen.getByRole("region", { name: "Database" });
     expect(within(database).getByLabelText("Schema browser")).toBeInTheDocument();
+    expect(within(database).getByRole("button", { name: "Resize Database" })).toBeInTheDocument();
     // Docked push: Database is a body-grid sibling, not an overlay inside Workspace.
     expect(database.closest(".ide-workspace-body")).toBeTruthy();
     expect(database.closest('[aria-label="Workspace"]')).toBeNull();
     fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
     const explorerAfterApex = screen.getByRole("region", { name: "Explorer" });
     expect(within(explorerAfterApex).getByLabelText("APEX browser")).toBeInTheDocument();
+    expect(within(explorerAfterApex).getByRole("button", { name: "Resize Explorer" })).toBeInTheDocument();
     const stubSurface = within(explorerAfterApex).getByTestId("stub-surface");
     expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
     expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
