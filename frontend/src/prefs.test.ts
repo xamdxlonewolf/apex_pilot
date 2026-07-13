@@ -21,6 +21,7 @@ describe("prefs persistence", () => {
       leftWidth: 320,
       rightWidth: 400,
       databaseWidth: 340,
+      missionWidth: 520,
       consoleHeight: 220,
       explorerDrawerSide: "right" as const,
       inspectorDrawerSide: "left" as const,
@@ -38,6 +39,7 @@ describe("prefs persistence", () => {
     expect(restored.leftWidth).toBe(320);
     expect(restored.rightWidth).toBe(400);
     expect(restored.databaseWidth).toBe(340);
+    expect(restored.missionWidth).toBe(520);
     expect(restored.consoleHeight).toBe(220);
     expect(restored.explorerDrawerSide).toBe("right");
     expect(restored.inspectorDrawerSide).toBe("left");

@@ -5,10 +5,12 @@ import {
   DATABASE_DEFAULT_WIDTH,
   EXPLORER_DEFAULT_WIDTH,
   INSPECTOR_DEFAULT_WIDTH,
+  MISSION_DEFAULT_WIDTH,
   clampConsoleHeight,
   clampDatabaseWidth,
   clampExplorerWidth,
   clampInspectorWidth,
+  clampMissionWidth,
 } from "./panelLayout";
 import type { DrawerSide } from "./shellSession";
 
@@ -16,6 +18,8 @@ export type ProfileLayoutPrefs = Readonly<{
   leftWidth: number;
   rightWidth: number;
   databaseWidth: number;
+  /** Mission peer width when Mission is visible beside Editors. */
+  missionWidth: number;
   consoleHeight: number;
   density: DensityMode;
   /** Activity Rail label mode — independent of Density. */
@@ -131,6 +135,7 @@ export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   leftWidth: EXPLORER_DEFAULT_WIDTH,
   rightWidth: INSPECTOR_DEFAULT_WIDTH,
   databaseWidth: DATABASE_DEFAULT_WIDTH,
+  missionWidth: MISSION_DEFAULT_WIDTH,
   consoleHeight: CONSOLE_DEFAULT_HEIGHT,
   density: "default",
   activityRailLabels: "auto",
@@ -168,6 +173,7 @@ export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs 
       leftWidth: clampExplorerWidth(merged.leftWidth),
       rightWidth: clampInspectorWidth(merged.rightWidth),
       databaseWidth: clampDatabaseWidth(merged.databaseWidth ?? defaults.databaseWidth),
+      missionWidth: clampMissionWidth(merged.missionWidth ?? defaults.missionWidth),
       consoleHeight: clampConsoleHeight(merged.consoleHeight),
       density: sanitizeDensity(merged.density),
       activityRailLabels: sanitizeActivityRailLabels(merged.activityRailLabels),
