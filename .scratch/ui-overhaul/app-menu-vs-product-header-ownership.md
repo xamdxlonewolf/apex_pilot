@@ -48,8 +48,29 @@ rows. Inventory locked by
 Stub-honest until wired; per-row Check disabled until real; footer Close only.
 Git/DB drift is **not** an Updates row (separate sync surface).
 
+## Browser App Menu presentation
+
+Locked by
+[Grilling: Browser App Menu presentation](https://github.com/xamdxlonewolf/apex_pilot/issues/91)
+(UX review B1):
+
+- **BrowserAppMenu** (Vite / tests / non-Tauri) ships as a true **dropdown
+  menubar**: only **File | Edit | View | Help** visible until opened — never a
+  flat horizontal expansion of every menuitem.
+- **Native Tauri App Menu** remains the IA source of truth; browser fallback
+  mirrors that shape (same items, separators, enablement).
+- **Top-level** open/switch is **click-only** (no hover-to-open or
+  hover-to-switch among File / Edit / View / Help). Escape and outside-click
+  close.
+- **Nested submenu cascades** may open on hover **when IA actually has them**.
+  Do not invent nests for their own sake (today View stays one flat dropdown
+  with separators, matching native). Keep the interaction ready for cascades if
+  IA adds them later.
+- Implement as a follow-on Task (B1), not in this grilling.
+
 ## Explicit non-goals (this ticket)
 
 - Activity Rail ↔ Focus Mode pairing chrome (sibling grilling ticket)
 - Implementing native Tauri menus / Product Header UI (task ticket)
 - Wiring real update checkers (later tasks once inventory is locked)
+- Implementing dropdown BrowserAppMenu chrome (graduated B1 Task)
