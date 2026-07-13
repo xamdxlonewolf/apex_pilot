@@ -35,6 +35,10 @@ _MCP_SESSION_DEAD_MARKERS = (
     "connection closed",
     "broken pipe",
     "closedresourceerror",
+    "end of file",
+    "eof",
+    "stream closed",
+    "transport closed",
 )
 
 
@@ -220,5 +224,9 @@ class ApexPilotRuntime:
 
 
 def _looks_like_dead_mcp_session(error: Exception) -> bool:
-    message = str(error).casefold()
+    message = str(error).casefold().strip()
+    # Empty detail after `failed:` is what we saw when the SQLcl MCP child died
+    # while FastAPI stayed up — treat as a dead transport, not a tool-level error.
+    if message.endswith("failed:") or message.endswith("failed: "):
+        return True
     return any(marker in message for marker in _MCP_SESSION_DEAD_MARKERS)

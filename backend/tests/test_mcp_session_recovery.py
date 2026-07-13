@@ -58,6 +58,41 @@ class RecoverableConnectClient:
         return {}
 
 
+def test_list_connections_restarts_on_empty_transport_failure() -> None:
+    """Empty `failed:` detail (dead SQLcl child, FastAPI still up) triggers recovery."""
+
+    class EmptyFailClient:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.starts = 0
+            self.stops = 0
+
+        async def start(self) -> None:
+            self.starts += 1
+
+        async def stop(self) -> None:
+            self.stops += 1
+
+        async def call_tool(self, tool_name: str, arguments: Mapping[str, object]) -> Any:
+            _ = arguments
+            self.calls += 1
+            if tool_name != "list-connections":
+                raise AssertionError(f"Unexpected tool {tool_name}")
+            if self.calls == 1:
+                raise SqlclMcpError("SQLcl MCP tool `connections_list` failed: ")
+            return {"connections": ["dev"]}
+
+    client = EmptyFailClient()
+    runtime = ApexPilotRuntime(client, managed_client=client)  # type: ignore[arg-type]
+
+    connections = asyncio.run(runtime.list_saved_connections())
+
+    assert [item.name for item in connections] == ["dev"]
+    assert client.stops == 1
+    assert client.starts == 1
+    assert client.calls == 2
+
+
 def test_list_connections_restarts_dead_managed_mcp_client() -> None:
     """A closed MCP transport is restarted once and the list call is retried."""
     client = RecoverableListClient()

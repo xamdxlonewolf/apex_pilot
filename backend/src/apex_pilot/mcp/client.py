@@ -98,7 +98,8 @@ class SqlclMcpSdkClient:
         try:
             result = await self._session.call_tool(live_tool_name, live_arguments)
         except Exception as error:
-            msg = f"SQLcl MCP tool `{live_tool_name}` failed: {error}"
+            detail = str(error).strip() or repr(error)
+            msg = f"SQLcl MCP tool `{live_tool_name}` failed: {detail}"
             raise SqlclMcpError(msg) from error
 
         if result.isError:
