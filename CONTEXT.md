@@ -117,10 +117,14 @@ One of four named Workspace arrangements — Agent, SQL, Files, or Review —
 that switches which peer has primacy without removing the other from the
 product. Agent is Mission-forward (default when a project opens) with SQL and
 File editors still present as peers; SQL and Files are editor-forward; Review
-is for AI-generated SQL review posture. Agent is sticky when editors receive
-focus; SQL and Files follow the active editor peer; focusing Mission restores
-Agent; Review is entered only explicitly (App Menu, Focus Mode control, or
-Review rail). Explicit Focus Mode or paired rail selection overrides sticky
+is for AI-generated SQL review posture. Primacy is readable beyond layout ratio:
+the secondary peer is visually de-emphasized while remaining fully usable, and
+the primacy peer uses a light header accent. Agent uses a light secondary dim;
+Review uses a stronger dim and quiet Review meta on the Mission header; SQL and
+Files use a slightly stronger editor-forward ratio. Agent is sticky when editors
+receive focus; SQL and Files follow the active editor peer; focusing Mission
+restores Agent; Review is entered only explicitly (App Menu, Focus Mode control,
+or Review rail). Explicit Focus Mode or paired rail selection overrides sticky
 Agent. Agent / Files / Review update the matching Activity Rail icon; SQL does
 not. Primary way to change working posture; not the same as permanently hiding
 regions as navigation.
@@ -128,7 +132,9 @@ _Avoid_: View menu as show/hide-only navigation; VS Code Views as the product
 model; a single forever-fixed center layout; Mission Mode / Build Mode /
 Investigation Mode / Presentation Mode (as Focus Mode names); minimizing
 editors away in Agent mode; auto-leaving Agent on editor focus; auto-entering
-Review from Mission stage; treating Code / Database / APEX rail as Focus Modes
+Review from Mission stage; treating Code / Database / APEX rail as Focus Modes;
+relying on Mission↔Editors ratio alone; disabling the secondary peer; Review
+looking identical to Agent side-by-side
 
 **Layout Chrome**:
 Power-user controls for showing, hiding, and resizing Explorer, Inspector, and
