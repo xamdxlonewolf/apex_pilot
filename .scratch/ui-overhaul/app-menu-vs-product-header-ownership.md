@@ -85,4 +85,5 @@ Locked by
 - Activity Rail ↔ Focus Mode pairing chrome (sibling grilling ticket)
 - Implementing native Tauri menus / Product Header UI (task ticket)
 - Wiring real update checkers (later tasks once inventory is locked)
-- Implementing dropdown BrowserAppMenu chrome (graduated B1 Task)
+- ~~Implementing dropdown BrowserAppMenu chrome~~ — shipped in
+  [Task: BrowserAppMenu dropdown menubar (B1)](https://github.com/xamdxlonewolf/apex_pilot/issues/102)

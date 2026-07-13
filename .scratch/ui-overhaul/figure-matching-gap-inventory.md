@@ -23,7 +23,7 @@ map fog / sibling tickets.
 
 | Region | Current implementation | Fidelity |
 | --- | --- | --- |
-| App Menu | Native Tauri File/Edit/View/Help (`useNativeAppMenu`); browser fallback File/Edit/View/Help for Vite/tests; interim Project/View menubar removed | Match (IA) |
+| App Menu | Native Tauri File/Edit/View/Help (`useNativeAppMenu`); browser Vite/tests use dropdown File/Edit/View/Help (`BrowserAppMenu`); interim Project/View menubar removed | Match (IA) |
 | Product Header | Brand + Context Bar role (project/connection/Connect/schema/env badge/health dots) + Settings gear | Match (IA + craft) |
 | Toolbar | New SQL, Run (progressive), optional MCP Activity shortcut | Match (verbs); Connect lives in Product Header |
 | Left | Activity Rail + hybrid Explorer | Match (IA); DB/APEX open-to-view detail still fog |
@@ -52,7 +52,7 @@ Legend:
 | Figure / CONTEXT | Current | Verdict |
 | --- | --- | --- |
 | Dense top Product Header: brand, project, environment, health, connection/schema cues, utility actions | Product Header hosts brand + Context Bar role (connection/schema/env badge/health dots + Connect) + Settings; Toolbar keeps New SQL / Run / MCP | **Match** (IA + craft) |
-| Native App Menu owns OS-standard File/Edit/View/Help discoverability | Native Tauri App Menu via `useNativeAppMenu` (+ browser File/Edit/View/Help fallback for Vite/tests); interim Project/View menubar removed | **Match** |
+| Native App Menu owns OS-standard File/Edit/View/Help discoverability | Native Tauri App Menu via `useNativeAppMenu`; browser Vite/tests use dropdown `BrowserAppMenu` mirroring native IA; interim Project/View menubar removed | **Match** |
 | “Conversation” label in figures | Product language is **Mission** (`CONTEXT.md`) | **Match** (naming policy) — implement Mission, do not revive Conversation |
 
 **Gap:** Closed for IA + Spec token craft. Updates dialog entry point ships with Stub inventory rows (exact updatable list still fog).
