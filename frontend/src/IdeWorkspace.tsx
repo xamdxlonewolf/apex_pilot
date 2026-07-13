@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { ActivityRail } from "./ActivityRail";
 import { type ApexOpenTarget } from "./ApexBrowser";
 import { CodeEditor } from "./CodeEditor";
+import { DatabaseDrawer } from "./DatabaseDrawer";
 import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer, type ExplorerSectionId } from "./Explorer";
 import { InspectorPanel } from "./InspectorPanel";
@@ -10,6 +11,7 @@ import { MissionComposer } from "./MissionComposer";
 import { MissionPeerHeader } from "./MissionPeerHeader";
 import { ProductHeader } from "./ProductHeader";
 import { QuickOpenHost } from "./QuickOpenHost";
+import { ShellDrawer } from "./ShellDrawer";
 import { type SchemaOpenTarget } from "./SchemaBrowser";
 import { SqlSheet, WORKSPACE_SQL_FORM_ID, type SqlRunState } from "./SqlSheet";
 import { StubSurface } from "./StubSurface";
@@ -42,6 +44,7 @@ import {
 } from "./focusMode";
 import {
   clampConsoleHeight,
+  clampDatabaseWidth,
   clampExplorerWidth,
   clampInspectorWidth,
 } from "./panelLayout";
@@ -55,6 +58,12 @@ import {
   type WorkspaceTabKind,
 } from "./prefs";
 import {
+  explorerIsPeer,
+  missionVisible,
+  withDrawerOpen,
+  type ShellSessionState,
+} from "./shellSession";
+import {
   isApexExportFolderName,
   isRootApexExportSql,
   joinPath,
@@ -63,6 +72,9 @@ import {
   type FileTreeNode,
 } from "./projectFs";
 import { schemaTablesToQuickOpenItems, type QuickOpenItem } from "./quickOpenModel";
+
+const explorerPostureFromRail = (rail: ActivityRailId): ExplorerSectionId =>
+  rail === "database" ? "files" : rail;
 type WorkspaceTab = Readonly<{
   id: string;
   kind: WorkspaceTabKind;
@@ -166,6 +178,10 @@ type IdeWorkspaceProps = Readonly<{
   openCenterEditorRequest?: number;
   focusMode: FocusMode;
   onFocusModeChange: (mode: FocusMode) => void;
+  shellSession: ShellSessionState;
+  onShellSessionChange: (
+    next: ShellSessionState | ((current: ShellSessionState) => ShellSessionState),
+  ) => void;
 }>;
 
 // Survives StrictMode remounts; component refs alone do not.
@@ -304,6 +320,8 @@ export const IdeWorkspace = ({
   openCenterEditorRequest = 0,
   focusMode,
   onFocusModeChange,
+  shellSession,
+  onShellSessionChange,
 }: IdeWorkspaceProps) => {
   const projectId = openedProject.project.project_id;
   const [tabsProjectId, setTabsProjectId] = useState<string | null>(null);
@@ -326,6 +344,8 @@ export const IdeWorkspace = ({
     canRun: false,
   });
   const schemaAutofillKey = useRef<string | null>(null);
+  /** When true, the next focusMode effect must not clobber rail (rail-driven select). */
+  const skipFocusRailSync = useRef(false);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -348,8 +368,19 @@ export const IdeWorkspace = ({
 
   const onActivityRailSelect = (rail: ActivityRailId) => {
     const next = applyRailSelection(rail, focusMode);
+    // When Focus changes (e.g. Review→Agent for Code/APEX), skip the Focus→rail
+    // sync so the selected explorer-only rail is not rewritten to Agent.
+    if (next.focusMode !== focusMode) {
+      skipFocusRailSync.current = true;
+    }
     onFocusModeChange(next.focusMode);
     setActivityRail(next.rail);
+    if (rail === "database") {
+      onShellSessionChange((current) => withDrawerOpen(current, layout, "database", true));
+      return;
+    }
+    // Files / Agent / Review / Code / APEX all open Explorer (peer in Files, dock elsewhere).
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", true));
   };
 
   const activateEditorTab = (tabId: string, kindHint?: WorkspaceTabKind) => {
@@ -387,7 +418,12 @@ export const IdeWorkspace = ({
   }, [explorerFocusSection, focusMode, onFocusModeChange]);
 
   // Keep rail in sync when Focus Mode is set from App menu / palette (SQL leaves rail).
+  // Skip when the rail itself drove the Focus change (preserves Code / APEX / Database).
   useEffect(() => {
+    if (skipFocusRailSync.current) {
+      skipFocusRailSync.current = false;
+      return;
+    }
     const paired = railForFocusMode(focusMode);
     if (paired) {
       setActivityRail(paired);
@@ -668,10 +704,7 @@ export const IdeWorkspace = ({
       const objectType = item.objectType ?? "TABLE";
       const qualified = item.detail ?? `${schemaName}.${objectName}`;
       setFocusedObjectName(qualified);
-      if (!layout.showExplorer) {
-        onLayoutChange((current) => ({ ...current, showExplorer: true }));
-      }
-      setExplorerFocusSection("database");
+      onShellSessionChange((current) => withDrawerOpen(current, layout, "database", true));
       onOpenObject({
         schemaName,
         objectType,
@@ -731,6 +764,10 @@ export const IdeWorkspace = ({
   const visualPrimacy = workspaceVisualPrimacy(focusMode);
   const missionPrimacy = visualPrimacy.mission;
   const editorsPrimacy = visualPrimacy.editors;
+  const showMission = missionVisible(shellSession, focusMode);
+  const explorerPeer = explorerIsPeer(focusMode) && shellSession.explorerOpen;
+  const explorerDrawer = !explorerIsPeer(focusMode) && shellSession.explorerOpen;
+  const explorerPosture = explorerPostureFromRail(activityRail);
 
   const handleNewSql = () => {
     const existing = tabs.find((tab) => tab.kind === "sql");
@@ -759,15 +796,197 @@ export const IdeWorkspace = ({
             ? "Enter SQL to run."
             : "Run the SQL Editor buffer.";
 
-  const bodyColumns = [
-    layout.showExplorer ? `${layout.leftWidth}px` : null,
-    "minmax(600px, 1fr)",
-    layout.showInspector ? `${layout.rightWidth}px` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const bodyColumnParts: string[] = ["44px"];
+  const explorerSide = explorerPeer ? "left" : layout.explorerDrawerSide;
+  const explorerDockOpen = explorerPeer || explorerDrawer;
+  if (explorerDockOpen && explorerSide === "left") {
+    bodyColumnParts.push(`${layout.leftWidth}px`);
+  }
+  if (shellSession.inspectorOpen && layout.inspectorDrawerSide === "left") {
+    bodyColumnParts.push(`${layout.rightWidth}px`);
+  }
+  if (shellSession.databaseOpen && layout.databaseDrawerSide === "left") {
+    bodyColumnParts.push(`${layout.databaseWidth}px`);
+  }
+  bodyColumnParts.push("minmax(600px, 1fr)");
+  if (explorerDockOpen && explorerSide === "right") {
+    bodyColumnParts.push(`${layout.leftWidth}px`);
+  }
+  if (shellSession.inspectorOpen && layout.inspectorDrawerSide === "right") {
+    bodyColumnParts.push(`${layout.rightWidth}px`);
+  }
+  if (shellSession.databaseOpen && layout.databaseDrawerSide === "right") {
+    bodyColumnParts.push(`${layout.databaseWidth}px`);
+  }
+  const bodyColumns = bodyColumnParts.join(" ");
 
   const consoleHeight = layout.showConsole ? layout.consoleHeight : 0;
+
+  const closeExplorer = () =>
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", false));
+  const closeInspector = () =>
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "inspector", false));
+  const closeDatabase = () =>
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "database", false));
+  const closeMission = () =>
+    onShellSessionChange((current) => ({
+      ...current,
+      missionOverrideByFocus: {
+        ...current.missionOverrideByFocus,
+        [focusMode]: false,
+      },
+    }));
+  const closeConsole = () =>
+    onLayoutChange((current) => ({ ...current, showConsole: false }));
+
+  const explorerProps = {
+    rootPath: openedProject.project.root_path,
+    showJunk: layout.showJunkFiles,
+    onToggleJunk: () =>
+      onLayoutChange((current) => ({
+        ...current,
+        showJunkFiles: !current.showJunkFiles,
+      })),
+    onOpenFile,
+    activePosture: explorerPosture,
+    focusSection: explorerFocusSection,
+    onFocusSectionHandled: () => setExplorerFocusSection(null),
+    apexMappings: openedProject.apex_workspace_mappings,
+    onOpenApex,
+    onClose: explorerDrawer ? closeExplorer : undefined,
+  } as const;
+
+  const databaseProps = {
+    backendConfig,
+    connectedConnection,
+    isBackendOnline,
+    projectSchemaOverride,
+    workingSchema,
+    onWorkingSchemaChange: handleWorkingSchemaChange,
+    onActivityRefresh,
+    onSaveSummary: (summary: SchemaSummary) => void saveSchemaSummary(summary),
+    onSummaryChange: onSchemaSummaryChange,
+    onOpenObject,
+    focusedObjectName,
+  } as const;
+
+  const renderExplorerDock = (side: "left" | "right") => {
+    if (!explorerDockOpen || explorerSide !== side) {
+      return null;
+    }
+    return (
+      <section
+        className={`ide-region ide-region--explorer ide-region--dock ide-region--dock-${side}${
+          explorerDrawer ? " ide-region--dock-slide" : ""
+        }`}
+        role="region"
+        aria-label="Explorer"
+        data-dock="explorer"
+        data-side={side}
+      >
+        {side === "right" ? (
+          <PanelSplitter
+            axis="explorer"
+            label="Resize Explorer"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                leftWidth: clampExplorerWidth(current.leftWidth - delta),
+              }))
+            }
+          />
+        ) : null}
+        <Explorer {...explorerProps} />
+        {side === "left" ? (
+          <PanelSplitter
+            axis="explorer"
+            label="Resize Explorer"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                leftWidth: clampExplorerWidth(current.leftWidth + delta),
+              }))
+            }
+          />
+        ) : null}
+      </section>
+    );
+  };
+
+  const renderInspectorDock = (side: "left" | "right") => {
+    if (!shellSession.inspectorOpen || layout.inspectorDrawerSide !== side) {
+      return null;
+    }
+    return (
+      <ShellDrawer
+        id="inspector"
+        side={side}
+        open
+        width={layout.rightWidth}
+        title="Inspector"
+        ariaLabel="Inspector"
+        onClose={closeInspector}
+        splitter={
+          <PanelSplitter
+            axis="inspector"
+            label="Resize Inspector"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                rightWidth: clampInspectorWidth(
+                  current.rightWidth + (side === "right" ? -delta : delta),
+                ),
+              }))
+            }
+          />
+        }
+      >
+        <div className="ide-pane ide-pane--right">
+          {saveMessage ? (
+            <p className="pane-muted connection-strip-message">{saveMessage}</p>
+          ) : null}
+          <InspectorPanel
+            projectName={openedProject.project.name}
+            connectionName={connectedConnection}
+            workingSchema={workingSchema}
+          />
+        </div>
+      </ShellDrawer>
+    );
+  };
+
+  const renderDatabaseDock = (side: "left" | "right") => {
+    if (!shellSession.databaseOpen || layout.databaseDrawerSide !== side) {
+      return null;
+    }
+    return (
+      <ShellDrawer
+        id="database"
+        side={side}
+        open
+        width={layout.databaseWidth}
+        title="Database"
+        ariaLabel="Database"
+        onClose={closeDatabase}
+        splitter={
+          <PanelSplitter
+            axis="inspector"
+            label="Resize Database"
+            onDelta={(delta) =>
+              onLayoutChange((current) => ({
+                ...current,
+                databaseWidth: clampDatabaseWidth(
+                  current.databaseWidth + (side === "right" ? -delta : delta),
+                ),
+              }))
+            }
+          />
+        }
+      >
+        <DatabaseDrawer {...databaseProps} />
+      </ShellDrawer>
+    );
+  };
 
   return (
     <div
@@ -844,62 +1063,63 @@ export const IdeWorkspace = ({
           MCP Activity
           {activityCount > 0 ? <span className="menu-count">{activityCount}</span> : null}
         </button>
+        <span className="ide-toolbar-spacer" aria-hidden="true" />
+        <button
+          type="button"
+          className="chrome-button"
+          aria-pressed={showMission}
+          title={showMission ? "Hide Mission" : "Show Mission"}
+          onClick={() =>
+            onShellSessionChange((current) => ({
+              ...current,
+              missionOverrideByFocus: {
+                ...current.missionOverrideByFocus,
+                [focusMode]: !showMission,
+              },
+            }))
+          }
+        >
+          Mission
+        </button>
+        <button
+          type="button"
+          className="chrome-button"
+          aria-pressed={shellSession.inspectorOpen}
+          title={shellSession.inspectorOpen ? "Hide Inspector" : "Show Inspector"}
+          onClick={() =>
+            onShellSessionChange((current) =>
+              withDrawerOpen(current, layout, "inspector", !current.inspectorOpen),
+            )
+          }
+        >
+          Inspector
+        </button>
+        <button
+          type="button"
+          className="chrome-button"
+          aria-pressed={shellSession.databaseOpen}
+          title={shellSession.databaseOpen ? "Hide Database" : "Show Database"}
+          onClick={() =>
+            onShellSessionChange((current) =>
+              withDrawerOpen(current, layout, "database", !current.databaseOpen),
+            )
+          }
+        >
+          Database
+        </button>
       </div>
 
       <div
         className="ide-workspace-body"
         style={{ gridTemplateColumns: bodyColumns || "minmax(0, 1fr)" }}
       >
-        {layout.showExplorer ? (
-          <section
-            className="ide-region ide-region--explorer"
-            role="region"
-            aria-label="Explorer"
-          >
-            <div className="explorer-with-rail">
-              <ActivityRail active={activityRail} onSelect={onActivityRailSelect} />
-              <Explorer
-                rootPath={openedProject.project.root_path}
-                showJunk={layout.showJunkFiles}
-                onToggleJunk={() =>
-                  onLayoutChange((current) => ({
-                    ...current,
-                    showJunkFiles: !current.showJunkFiles,
-                  }))
-                }
-                onOpenFile={onOpenFile}
-                activePosture={activityRail}
-                focusSection={explorerFocusSection}
-                onFocusSectionHandled={() => setExplorerFocusSection(null)}
-                focusedObjectName={focusedObjectName}
-                apexMappings={openedProject.apex_workspace_mappings}
-                onOpenApex={onOpenApex}
-                schema={{
-                  backendConfig,
-                  connectedConnection,
-                  isBackendOnline,
-                  projectSchemaOverride,
-                  workingSchema,
-                  onWorkingSchemaChange: handleWorkingSchemaChange,
-                  onActivityRefresh,
-                  onSaveSummary: (summary) => void saveSchemaSummary(summary),
-                  onSummaryChange: onSchemaSummaryChange,
-                  onOpenObject,
-                }}
-              />
-            </div>
-            <PanelSplitter
-              axis="explorer"
-              label="Resize Explorer"
-              onDelta={(delta) =>
-                onLayoutChange((current) => ({
-                  ...current,
-                  leftWidth: clampExplorerWidth(current.leftWidth + delta),
-                }))
-              }
-            />
-          </section>
-        ) : null}
+        <section className="ide-region ide-region--rail">
+          <ActivityRail active={activityRail} onSelect={onActivityRailSelect} />
+        </section>
+
+        {renderExplorerDock("left")}
+        {renderInspectorDock("left")}
+        {renderDatabaseDock("left")}
 
         <section
           className="ide-region ide-region--workspace"
@@ -909,10 +1129,10 @@ export const IdeWorkspace = ({
         >
           <div
             className="workspace-peers"
-            data-mission-visible={layout.showMission ? "true" : "false"}
+            data-mission-visible={showMission ? "true" : "false"}
             data-secondary-dim={visualPrimacy.secondaryDim}
           >
-            {layout.showMission ? (
+            {showMission ? (
               <section
                 className={
                   missionPrimacy === "primary"
@@ -926,7 +1146,12 @@ export const IdeWorkspace = ({
                 onClick={focusMissionPeer}
               >
                 <div className="ide-pane ide-pane--mission">
-                  <MissionPeerHeader showReviewMeta={visualPrimacy.missionReviewMeta} />
+                  <MissionPeerHeader
+                    showReviewMeta={visualPrimacy.missionReviewMeta}
+                    onClose={
+                      focusMode === "sql" || focusMode === "files" ? closeMission : undefined
+                    }
+                  />
                   <div className="pane-body">
                     <MissionComposer projectName={openedProject.project.name} />
                   </div>
@@ -1049,34 +1274,9 @@ export const IdeWorkspace = ({
           </div>
         </section>
 
-        {layout.showInspector ? (
-          <section
-            className="ide-region ide-region--inspector"
-            role="region"
-            aria-label="Inspector"
-          >
-            <PanelSplitter
-              axis="inspector"
-              label="Resize Inspector"
-              onDelta={(delta) =>
-                onLayoutChange((current) => ({
-                  ...current,
-                  rightWidth: clampInspectorWidth(current.rightWidth - delta),
-                }))
-              }
-            />
-            <div className="ide-pane ide-pane--right">
-              {saveMessage ? (
-                <p className="pane-muted connection-strip-message">{saveMessage}</p>
-              ) : null}
-              <InspectorPanel
-                projectName={openedProject.project.name}
-                connectionName={connectedConnection}
-                workingSchema={workingSchema}
-              />
-            </div>
-          </section>
-        ) : null}
+        {renderExplorerDock("right")}
+        {renderInspectorDock("right")}
+        {renderDatabaseDock("right")}
       </div>
 
       {layout.showConsole ? (
@@ -1102,6 +1302,7 @@ export const IdeWorkspace = ({
               activeSessionId={activeActivitySessionId}
               mcpFocusRequest={mcpFocusRequest}
               onMcpFocusHandled={onMcpFocusHandled}
+              onClose={closeConsole}
             />
           </section>
         </div>

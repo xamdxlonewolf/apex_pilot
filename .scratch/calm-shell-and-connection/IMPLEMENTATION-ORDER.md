@@ -31,13 +31,14 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 
 | # | Run order | Ticket (name + link) | Type | Blocked by | Status |
 | --- | --- | --- | --- | --- | --- |
-| A0 | 1 | [Grilling: Calm shell visual direction](https://github.com/xamdxlonewolf/apex_pilot/issues/114) | grilling | — | ☐ |
-| A1 | 2 | [Grilling: Focus Mode hide/show + slide-out ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/115) | grilling | — | ☐ |
+| A0 | 1 | [Grilling: Calm shell visual direction](https://github.com/xamdxlonewolf/apex_pilot/issues/114) | grilling | — | ☑ |
+| A1 | 2 | [Grilling: Focus Mode hide/show + slide-out ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/115) | grilling | — | ☑ |
 | A2 | 3 | [Grilling: Activity Rail density + labels preference](https://github.com/xamdxlonewolf/apex_pilot/issues/116) | grilling | — | ☐ |
 | A3 | 4 | [Task: Activity Rail ~1.5x + icons/labels mode](https://github.com/xamdxlonewolf/apex_pilot/issues/117) | task | A0 + A2 | ☐ |
 | A4 | 5 | [Task: File tree explorer + type icons](https://github.com/xamdxlonewolf/apex_pilot/issues/118) | task | A0 | ☐ |
 | A5 | 6 | [Task: Uniform splitters for visible peers](https://github.com/xamdxlonewolf/apex_pilot/issues/119) | task | A0 | ☐ |
-| A6 | 7 | [Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120) | task | A0 + A1 | ☐ |
+| A6 | 7 | [Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120) | task | A0 + A1 | ☑ |
+| A6b | 7b | [Task: Dock drawers + console dismiss + rail open semantics](https://github.com/xamdxlonewolf/apex_pilot/issues/129) | task | A6 | ☑ |
 
 ### Suggested `/wayfinder` invocations (Map A)
 
@@ -50,16 +51,17 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 /wayfinder on Task: File tree explorer + type icons
 /wayfinder on Task: Uniform splitters for visible peers
 /wayfinder on Task: Wire Focus hide + slide-out drawers
+/wayfinder on Task: Dock drawers + console dismiss + rail open semantics
 ```
 
 ### Map A acceptance (when “done enough”)
 
-- [ ] Files Focus: Mission not stealing unusable space (hidden or equivalent)
-- [ ] Secondary tools slide out and dismiss
+- [x] Files Focus: Mission not stealing unusable space (hidden or equivalent)
+- [x] Secondary tools slide out and dismiss
 - [ ] Activity Rail ~1.5× and labels mode (+ user preference)
 - [ ] File tree left-aligned with folder/file-type icons
 - [ ] Visible peers share consistent drag-resize
-- [ ] Visual direction decided and AFK tasks respect it
+- [x] Visual direction decided and AFK tasks respect it
 
 ---
 
@@ -113,13 +115,14 @@ Make the project’s chosen Oracle connection durable for the app session: app-o
 
 **Map A cook**
 
-- [ ] A0 visual direction
-- [ ] A1 focus/drawers
+- [x] A0 visual direction
+- [x] A1 focus/drawers
+- [x] A6b dock/console/rail fix
 - [ ] A2 rail preference
 - [ ] A3 rail task
 - [ ] A4 file tree
 - [ ] A5 splitters
-- [ ] A6 drawers wire
+- [x] A6 drawers wire
 
 **Map B cook**
 

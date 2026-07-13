@@ -31,11 +31,19 @@ import {
   type ProfileLayoutPrefs,
   loadProfileLayout,
   saveProfileLayout,
-  togglePanelVisibility,
 } from "./prefs";
 import { StartupFunnel, type WizardMode } from "./StartupFunnel";
 import { isTauriRuntime, type AppMenuHandlers, type AppMenuState } from "./appMenuModel";
 import { useNativeAppMenu } from "./useNativeAppMenu";
+import {
+  applyEscapeDismiss,
+  applyFocusTransition,
+  initialShellSession,
+  toggleDrawer,
+  toggleMissionVisible,
+  type ShellPanelId,
+  type ShellSessionState,
+} from "./shellSession";
 import {
   type ActivityEntry,
   type BackendConfig,
@@ -110,6 +118,9 @@ export const App = () => {
   const [openCenterEditorRequest, setOpenCenterEditorRequest] = useState(0);
   const [focusMode, setFocusMode] = useState<FocusMode>(DEFAULT_FOCUS_MODE);
   const [focusModeProjectId, setFocusModeProjectId] = useState<string | null>(null);
+  const [shellSession, setShellSession] = useState<ShellSessionState>(() =>
+    initialShellSession(DEFAULT_FOCUS_MODE),
+  );
   const [aboutOpen, setAboutOpen] = useState(false);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [compareProjectDbOpen, setCompareProjectDbOpen] = useState(false);
@@ -118,6 +129,7 @@ export const App = () => {
   if (openedProjectId !== focusModeProjectId) {
     setFocusModeProjectId(openedProjectId);
     setFocusMode(DEFAULT_FOCUS_MODE);
+    setShellSession(initialShellSession(DEFAULT_FOCUS_MODE));
   }
 
   if (profileId !== layoutProfileId) {
@@ -303,6 +315,11 @@ export const App = () => {
   const openMcp = useCallback(async () => {
     if (projectOpen) {
       setMcpOpen(false);
+      // Toggle: open if closed (and focus MCP tab), close if open.
+      if (layout.showConsole) {
+        setLayout((current) => ({ ...current, showConsole: false }));
+        return;
+      }
       setLayout((current) => ({ ...current, showConsole: true }));
       setMcpFocusRequest((token) => token + 1);
       return;
@@ -312,20 +329,33 @@ export const App = () => {
     if (!openedNative) {
       setMcpOpen(true);
     }
-  }, [projectOpen]);
+  }, [layout.showConsole, projectOpen]);
 
   const handleMcpFocusHandled = useCallback(() => {
     setMcpFocusRequest(0);
   }, []);
 
+  const handleFocusModeChange = useCallback((mode: FocusMode) => {
+    setFocusMode(mode);
+    setShellSession((current) => applyFocusTransition(current, mode));
+  }, []);
+
   const togglePanel = useCallback(
-    (panel: Parameters<typeof togglePanelVisibility>[1]) => {
+    (panel: ShellPanelId) => {
       if (!canTogglePanels) {
         return;
       }
-      setLayout((current) => togglePanelVisibility(current, panel));
+      if (panel === "console") {
+        setLayout((current) => ({ ...current, showConsole: !current.showConsole }));
+        return;
+      }
+      if (panel === "mission") {
+        setShellSession((current) => toggleMissionVisible(current, focusMode));
+        return;
+      }
+      setShellSession((current) => toggleDrawer(current, layout, panel));
     },
-    [canTogglePanels],
+    [canTogglePanels, focusMode, layout],
   );
 
   const commandActions = useMemo((): CommandPaletteAction[] => {
@@ -333,7 +363,7 @@ export const App = () => {
       id: `focus-mode-${mode}`,
       label: `Focus Mode: ${focusModeLabel(mode)}`,
       enabled: projectOpen,
-      run: () => setFocusMode(mode),
+      run: () => handleFocusModeChange(mode),
     }));
     const actions: CommandPaletteAction[] = [
       ...focusActions,
@@ -357,6 +387,13 @@ export const App = () => {
         shortcut: "Ctrl+Shift+I",
         enabled: canTogglePanels,
         run: () => togglePanel("inspector"),
+      },
+      {
+        id: "toggle-database",
+        label: "Layout: Toggle Database",
+        shortcut: "Ctrl+Shift+D",
+        enabled: canTogglePanels,
+        run: () => togglePanel("database"),
       },
       {
         id: "toggle-console",
@@ -455,6 +492,7 @@ export const App = () => {
     projectOpen,
     setupLocked,
     togglePanel,
+    handleFocusModeChange,
     openMcp,
   ]);
 
@@ -473,6 +511,11 @@ export const App = () => {
       if (commandPaletteOpen) {
         return;
       }
+      if (event.key === "Escape" && canTogglePanels) {
+        event.preventDefault();
+        setShellSession((current) => applyEscapeDismiss(current, focusMode));
+        return;
+      }
       const panel = matchPanelToggleShortcut(event);
       if (!panel || !canTogglePanels) {
         return;
@@ -482,7 +525,7 @@ export const App = () => {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canTogglePanels, togglePanel, commandPaletteOpen]);
+  }, [canTogglePanels, togglePanel, commandPaletteOpen, focusMode]);
 
   const appMenuState: AppMenuState = {
     canUseProjectMenus,
@@ -493,6 +536,7 @@ export const App = () => {
     projectOpen,
     focusMode,
     layout,
+    shellSession,
     mcpActivityCount: connectedConnection ? activityEntries.length : 0,
   };
 
@@ -511,7 +555,7 @@ export const App = () => {
       void openMcp();
     },
     onTogglePanel: togglePanel,
-    onFocusMode: setFocusMode,
+    onFocusMode: handleFocusModeChange,
     onAbout: () => setAboutOpen(true),
     onDocs: () => undefined,
     onShortcuts: () => setCommandPaletteOpen(true),
@@ -583,7 +627,9 @@ export const App = () => {
             openCenterEditorKind={openCenterEditorKind}
             openCenterEditorRequest={openCenterEditorRequest}
             focusMode={focusMode}
-            onFocusModeChange={setFocusMode}
+            onFocusModeChange={handleFocusModeChange}
+            shellSession={shellSession}
+            onShellSessionChange={setShellSession}
           />
         ) : (
           <StartupFunnel

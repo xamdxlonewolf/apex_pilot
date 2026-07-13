@@ -11,6 +11,7 @@ import {
   DOCS_URL,
   FOCUS_MODE_MENU_ITEMS,
   LAYOUT_MENU_ITEMS,
+  layoutPanelChecked,
   runBrowserEditCommand,
   type AppMenuHandlers,
   type AppMenuState,
@@ -395,15 +396,7 @@ export const BrowserAppMenu = ({ state, handlers }: BrowserAppMenuProps) => {
                 key={item.id}
                 type="button"
                 role="menuitemcheckbox"
-                aria-checked={
-                  item.panel === "explorer"
-                    ? state.layout.showExplorer
-                    : item.panel === "mission"
-                      ? state.layout.showMission
-                      : item.panel === "inspector"
-                        ? state.layout.showInspector
-                        : state.layout.showConsole
-                }
+                aria-checked={layoutPanelChecked(state, item.panel)}
                 disabled={!state.canTogglePanels}
                 title={`Toggle ${item.label} (${item.shortcut})`}
                 onClick={() => closeAndRun(() => handlers.onTogglePanel(item.panel))}

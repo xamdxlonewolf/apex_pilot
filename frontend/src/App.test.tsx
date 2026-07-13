@@ -465,10 +465,11 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
-    // Spec startup layout: bottom Developer Console starts collapsed/hidden.
+    expect(await screen.findByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Activity Rail")).toBeInTheDocument();
+    // Calm Focus: drawers start closed; Developer Console remains profile-collapsed.
     expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
     expect(screen.getByRole("toolbar", { name: "Toolbar" })).toBeInTheDocument();
     expect(screen.getByRole("banner", { name: "Product Header" })).toBeInTheDocument();
@@ -531,19 +532,24 @@ describe("App", () => {
     expect(run).toHaveAttribute("title", "Connect a SQLcl saved connection to run SQL.");
     expect(run).not.toHaveAttribute("title", "Not implemented yet");
 
-    // Product path: toolbar MCP Activity opens the Console tab, not the floating overlay.
-    fireEvent.click(within(consoleTabs).getByRole("tab", { name: "Problems" }));
-    expect(within(consoleTabs).getByRole("tab", { name: "Problems" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    // Product path: toolbar MCP Activity toggles the Console (open + MCP tab, or close).
+    fireEvent.click(screen.getByRole("button", { name: "Close Developer Console" }));
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
-    expect(within(consoleTabs).getByRole("tab", { name: "MCP Activity" })).toHaveAttribute(
+    const consoleAfterOpen = screen.getByRole("region", { name: "Developer Console" });
+    const consoleTabsAfterOpen = within(consoleAfterOpen).getByRole("tablist", {
+      name: "Developer Console tabs",
+    });
+    expect(within(consoleTabsAfterOpen).getByRole("tab", { name: "MCP Activity" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     expect(screen.queryByRole("dialog", { name: "MCP Activity" })).not.toBeInTheDocument();
-    expect(within(consoleRegion).getByRole("tabpanel")).not.toHaveTextContent("Stub");
+    expect(within(consoleAfterOpen).getByRole("tabpanel")).not.toHaveTextContent("Stub");
+    fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
+    expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "MCP Activity" }));
+    expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
 
     // Mission peer is present before Agent Core with explicit stub treatment.
     const mission = screen.getByRole("region", { name: "Mission" });
@@ -560,6 +566,15 @@ describe("App", () => {
     const send = screen.getByRole("button", { name: "Send" });
     expect(send).toBeDisabled();
     expect(send).toHaveAttribute("title", "Not implemented yet");
+
+    // Layout chrome toggles: Mission / Inspector / Database on the toolbar.
+    expect(within(toolbar).getByRole("button", { name: "Mission" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Inspector" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Database" })).toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Inspector" }));
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Inspector" }));
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
 
     // Activity Rail + dual-primary Workspace (Shell IA).
     expect(screen.getByRole("region", { name: "Workspace" })).toBeInTheDocument();
@@ -578,22 +593,49 @@ describe("App", () => {
       "true",
     );
 
-    // Files posture hosts the project tree; Database hosts schema browse.
+    // Files Focus opens Explorer as a peer; Database opens the dedicated Database drawer.
     fireEvent.click(within(activityRail).getByRole("button", { name: "Files" }));
     expect(screen.getByLabelText("Project file tree")).toBeInTheDocument();
     const explorer = screen.getByRole("region", { name: "Explorer" });
-    const inspector = screen.getByRole("region", { name: "Inspector" });
-    expect(within(inspector).queryByRole("tablist", { name: "Inspector tabs" })).not.toBeInTheDocument();
-    expect(within(inspector).queryByRole("tab", { name: /^schema$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Schema browser")).not.toBeInTheDocument();
     fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
-    expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
+    const database = screen.getByRole("region", { name: "Database" });
+    expect(within(database).getByLabelText("Schema browser")).toBeInTheDocument();
+    // Docked push: Database is a body-grid sibling, not an overlay inside Workspace.
+    expect(database.closest(".ide-workspace-body")).toBeTruthy();
+    expect(database.closest('[aria-label="Workspace"]')).toBeNull();
     fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
-    expect(within(explorer).getByLabelText("APEX browser")).toBeInTheDocument();
-    const stubSurface = within(explorer).getByTestId("stub-surface");
+    const explorerAfterApex = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerAfterApex).getByLabelText("APEX browser")).toBeInTheDocument();
+    const stubSurface = within(explorerAfterApex).getByTestId("stub-surface");
     expect(within(stubSurface).getByText("Stub")).toBeInTheDocument();
     expect(within(stubSurface).getByText("Not implemented yet")).toBeInTheDocument();
     expect(within(stubSurface).queryByText(/sample row|EMPLOYEE|mock timeline/i)).not.toBeInTheDocument();
+    expect(explorer).toBeInTheDocument();
+
+    // Agent / Review open Explorer dock to their posture (not Focus-only).
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Agent" }));
+    const explorerAgent = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerAgent).getByTestId("stub-surface")).toHaveTextContent("Agent");
+    expect(within(explorerAgent).getByRole("button", { name: "Close Explorer" })).toBeInTheDocument();
+    // APEX must keep APEX posture — Focus→rail sync must not rewrite it to Agent.
+    fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
+    const explorerApex = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerApex).getByLabelText("APEX browser")).toBeInTheDocument();
+    expect(within(activityRail).getByRole("button", { name: "APEX" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Review" }));
+    const explorerReview = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerReview).getByTestId("stub-surface")).toHaveTextContent("Review");
+    // Code opens Explorer dock (same column UI as Files peer / Agent).
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Code" }));
+    const explorerDock = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerDock).getByTestId("stub-surface")).toHaveTextContent("Code");
+    expect(within(explorerDock).getByRole("button", { name: "Close Explorer" })).toBeInTheDocument();
+    expect(explorerDock.closest('[aria-label="Workspace"]')).toBeNull();
   });
 
   it("hosts SQL Editor in dual-primary Workspace editors only and never in the Inspector", async () => {
@@ -607,6 +649,8 @@ describe("App", () => {
 
     const mission = await screen.findByRole("region", { name: "Mission" });
     const editors = screen.getByRole("region", { name: "Editors" });
+    openAppMenu("View");
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^inspector$/i }));
     const inspector = screen.getByRole("region", { name: "Inspector" });
 
     const editorTabs = within(editors).getByRole("tablist", {
@@ -780,6 +824,8 @@ describe("App", () => {
       ).not.toBeInTheDocument();
     }
 
+    openAppMenu("View");
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^inspector$/i }));
     const inspector = screen.getByRole("region", { name: "Inspector" });
     expect(within(inspector).queryByRole("tab", { name: /Object Editor|Package Editor/i })).not.toBeInTheDocument();
   });
@@ -793,7 +839,10 @@ describe("App", () => {
 
     render(<App />);
 
-    const inspector = await screen.findByRole("region", { name: "Inspector" });
+    await screen.findByRole("region", { name: "Mission" });
+    openAppMenu("View");
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^inspector$/i }));
+    const inspector = screen.getByRole("region", { name: "Inspector" });
     expect(within(inspector).getByLabelText("Inspector panel")).toBeInTheDocument();
     const stages = within(inspector).getByLabelText("Inspector stages");
     for (const name of ["Plan", "SQL Generated", "Review", "Execute", "Complete"]) {
@@ -841,9 +890,7 @@ describe("App", () => {
     expect(within(productHeader).getByRole("button", { name: "Open Settings" })).toBeInTheDocument();
     expect(within(contextBar).queryByRole("button", { name: /^Mappings$/i })).not.toBeInTheDocument();
 
-    const inspector = screen.getByRole("region", { name: "Inspector" });
-    expect(within(inspector).queryByLabelText("Project mappings")).not.toBeInTheDocument();
-    expect(within(inspector).queryByRole("region", { name: "Mappings preferences" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
 
     fireEvent.click(within(productHeader).getByRole("button", { name: "Open Settings" }));
 
@@ -864,7 +911,7 @@ describe("App", () => {
     expect(within(settingsFromPalette).getByLabelText("Project mappings")).toBeInTheDocument();
   });
 
-  it("persists profile layout panel visibility across workspace remounts", async () => {
+  it("persists console and drawer side prefs; open/closed stays session-only", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",
       bearerToken: "test-token",
@@ -872,11 +919,10 @@ describe("App", () => {
     localStorage.setItem(
       "apex-pilot.profile-layout.profile-1",
       JSON.stringify({
-        showExplorer: false,
-        showInspector: false,
         showConsole: true,
         leftWidth: 340,
         rightWidth: 420,
+        databaseDrawerSide: "left",
       }),
     );
     vi.stubGlobal("fetch", workspaceFetch());
@@ -896,8 +942,12 @@ describe("App", () => {
     expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Developer Console" })).toBeInTheDocument();
     expect(
-      JSON.parse(localStorage.getItem("apex-pilot.profile-layout.profile-1") ?? "{}").showExplorer,
-    ).toBe(false);
+      JSON.parse(localStorage.getItem("apex-pilot.profile-layout.profile-1") ?? "{}").showConsole,
+    ).toBe(true);
+    expect(
+      JSON.parse(localStorage.getItem("apex-pilot.profile-layout.profile-1") ?? "{}")
+        .databaseDrawerSide,
+    ).toBe("left");
   });
 
   it("restores project-scoped center tabs for Mission Control arrangement", async () => {
@@ -1167,20 +1217,24 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
 
     openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^explorer$/i }));
-    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
     openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^explorer$/i }));
-    expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
 
     openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^inspector$/i }));
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    openAppMenu("View");
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^database$/i }));
+    expect(screen.getByRole("region", { name: "Database" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
     openAppMenu("View");
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^mission$/i }));
@@ -1194,16 +1248,19 @@ describe("App", () => {
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
     expect(screen.getByRole("toolbar", { name: "Toolbar" })).toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
+    expect(screen.getByLabelText("Activity Rail")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "b", ctrlKey: true });
-    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
-    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
     expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "I", ctrlKey: true, shiftKey: true });
     expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "M", ctrlKey: true, shiftKey: true });
     expect(screen.getByRole("region", { name: "Mission" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "D", ctrlKey: true, shiftKey: true });
+    expect(screen.getByRole("region", { name: "Database" })).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "`", ctrlKey: true });
     expect(screen.queryByRole("region", { name: "Developer Console" })).not.toBeInTheDocument();
   });
@@ -1301,13 +1358,15 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Mission" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: /command palette/i })).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "P", ctrlKey: true, shiftKey: true });
     const palette = await screen.findByRole("dialog", { name: /command palette/i });
     expect(palette).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /toggle explorer/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /toggle database/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /toggle developer console/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /^Settings$/i })).toBeInTheDocument();
 
@@ -1315,7 +1374,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: /command palette/i })).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Explorer" })).toBeInTheDocument();
   });
 
   it("opens Quick Open with Ctrl+P without breaking Ctrl+Shift+P command palette", async () => {
@@ -1422,7 +1481,7 @@ describe("App", () => {
 
     try {
       render(<App />);
-      expect(await screen.findByRole("region", { name: "Explorer" })).toBeInTheDocument();
+      expect(await screen.findByRole("region", { name: "Mission" })).toBeInTheDocument();
 
       fireEvent.keyDown(window, { key: "p", ctrlKey: true, code: "KeyP" });
       expect(await screen.findByRole("dialog", { name: /quick open/i })).toBeInTheDocument();
@@ -1782,17 +1841,14 @@ describe("App", () => {
     });
     expect(screen.getByText(/unqualified objects target APP/i)).toBeInTheDocument();
 
-    // Schema browsing lives under Explorer Database — not a permanent Inspector tab.
-    const explorer = screen.getByRole("region", { name: "Explorer" });
-    fireEvent.click(within(explorer).getByRole("button", { name: "Database" }));
-    expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
-    expect(
-      within(screen.getByRole("region", { name: "Inspector" })).queryByRole("tab", {
-        name: /^schema$/i,
-      }),
-    ).not.toBeInTheDocument();
-    expect(within(explorer).queryByText(/connect, then load/i)).not.toBeInTheDocument();
-    expect(within(explorer).queryByText(/use connect in the strip/i)).not.toBeInTheDocument();
+    // Schema browsing lives in the Database Drawer — not Explorer posture or Inspector tabs.
+    const activityRail = screen.getByRole("navigation", { name: "Activity Rail" });
+    fireEvent.click(within(activityRail).getByRole("button", { name: "Database" }));
+    const database = screen.getByRole("region", { name: "Database" });
+    expect(within(database).getByLabelText("Schema browser")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+    expect(within(database).queryByText(/connect, then load/i)).not.toBeInTheDocument();
+    expect(within(database).queryByText(/use connect in the strip/i)).not.toBeInTheDocument();
 
     // After connect + opening Database, schema auto-selects from session context and loads summary.
     expect(await screen.findByRole("button", { name: /loading/i })).toBeDisabled();
@@ -1828,7 +1884,7 @@ describe("App", () => {
     expect(screen.getByText(/db connected: dev/i)).toBeInTheDocument();
     expect(screen.getByText(/browsing: app/i)).toBeInTheDocument();
 
-    fireEvent.click(within(explorer).getByRole("button", { name: /EMPLOYEES/i }));
+    fireEvent.click(within(database).getByRole("button", { name: /EMPLOYEES/i }));
     const editors = screen.getByRole("region", { name: "Editors" });
     expect(within(editors).getByRole("tab", { name: /EMPLOYEES/i })).toBeInTheDocument();
     expect(within(editors).getByLabelText("object viewer")).toBeInTheDocument();

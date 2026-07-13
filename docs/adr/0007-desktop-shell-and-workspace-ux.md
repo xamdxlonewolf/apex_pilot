@@ -91,18 +91,30 @@ layout:
 3. **Left — Activity Rail + hybrid Explorer:**
    - **Activity Rail** is required chrome: Files, Agent, Code, Database, APEX,
      Review (Bookmarks / History deferred). Selective sync with Focus Mode:
-     Agent / Files / Review set and reflect matching modes; Code / Database /
-     APEX change Explorer posture only (from Review they exit Review → Agent);
-     SQL has no rail icon and leaves the current rail posture; project open
-     lands Agent Focus Mode + Agent rail
+     Agent / Files / Review set and reflect matching modes; Code / APEX change
+     Explorer posture only (from Review they exit Review → Agent); Database opens
+     the dedicated Database Drawer; SQL has no rail icon and leaves the current
+     rail posture; project open lands Agent Focus Mode + Agent rail
      ([Grilling: Activity Rail ↔ Focus Mode pairing](https://github.com/xamdxlonewolf/apex_pilot/issues/74)).
    - **Explorer** bodies are hybrid: Files posture is the real filesystem tree
      (local/git source of truth) via Tauri FS (browser fallback for Vite-only
      tests); junk hidden by default; APEX export folders and root `f*.sql` shown
-     as protected. Database and APEX are separate rail-selected bodies for live
-     (or summarized) objects that can be opened to view — not one tree
-     pretending to be both. REST / favorites / pinned / recent may remain
-     Explorer sections as Spec surfaces mature.
+     as protected. APEX remains an Explorer posture for this map; Database is a
+     dedicated Drawer (not an Explorer body). REST / favorites / pinned / recent
+     may remain Explorer sections as Spec surfaces mature.
+   - **Calm Focus drawers** ([Wayfinder: Ship calm Focus shell](https://github.com/xamdxlonewolf/apex_pilot/issues/113)):
+     Activity Rail is always-on. Mission defaults visible in Agent/Review and
+     hidden in SQL/Files (session per-Focus override). Explorer is a peer in
+     Files Focus and a **docked push drawer** elsewhere (same column UI).
+     Inspector and Database are docked push drawers (closed by default; Database
+     defaults right; same-side mutual exclusion with Inspector). Drawers take
+     layout width and shrink the Workspace — they must not overlay it. Side prefs
+     are profile-persisted; open/closed is session-only. Dismiss via close
+     control, Escape, or toggle — not click-outside. MCP Activity / View MCP
+     toggles Developer Console (with an explicit console close control).
+     Activity Rail: Files opens Explorer peer; Agent/Review switch Focus and open
+     Explorer dock; Code/APEX open Explorer dock (rail highlight preserved);
+     Database opens Database dock.
 4. **Center — dual-primary Workspace:** Mission and editors (SQL Editor, File
    Editor, and related viewers) share primacy as peers. Neither is demoted to
    secondary chrome.
@@ -117,9 +129,11 @@ layout:
      and tab focus. Explicit Focus Mode or paired rail selection overrides
      sticky Agent
      ([Grilling: Focus Mode auto-switch on open work](https://github.com/xamdxlonewolf/apex_pilot/issues/73)).
-   - **Layout Chrome** (App Menu View / shortcuts) shows, hides, and resizes
-     Explorer, Inspector, and Developer Console — secondary to Focus Mode; panel
-     toggles are never primary IA.
+   - **Layout Chrome** (App Menu View / shortcuts / Toolbar) shows, hides, and
+     resizes Explorer, Inspector, Database Drawer, Mission, and Developer
+     Console — secondary to Focus Mode; panel toggles are never primary IA.
+     Console open/closed and drawer side prefs are profile-persisted; drawer and
+     Mission open/closed are session-only.
    - **Mission** hosts timeline, mission card, plan/SQL/review/exec stages,
      composer, and history. Composer may ship with send disabled until Agent
      Core; stubs must be honest.
@@ -129,13 +143,11 @@ layout:
      (Oracle PL/SQL-ish extensions use Monaco `sql` until a dedicated grammar
      exists). Object / package / APEX / REST / diff viewers live in the Workspace
      as Spec surfaces mature.
-5. **Right — stage-driven Inspector only:** workflow progress, classification,
-   object / dependency summary, checklists, and related evidence driven by the
-   active Mission stage (Plan → SQL Generated → Review → Execute → Complete).
-   Before Agent Core, stages may ship as honest chrome with empty or stub
-   evidence — never fake plans, SQL, or successful execution. The Inspector
-   explains; it does not own execution or replace the SQL Editor / Explorer
-   object browse.
+5. **Inspector + Database Drawers:** Inspector remains stage-driven evidence
+   chrome (Plan → Complete) as a slide-out Drawer. Database is a dedicated Drawer
+   hosting schema browse. Both default closed; same-side mutual exclusion
+   applies. The Inspector explains; it does not own execution or replace the SQL
+   Editor / Database object browse.
 6. **Bottom — Developer Console:** in-shell console region with tabs such as
    Problems, Output, MCP Activity, SQL History, Oracle Messages, Tasks. **MCP
    Activity is a Console tab**, not a floating-window product target. A temporary
@@ -188,7 +200,8 @@ layout:
     - **Keyboard (shell / early overhaul):** always-visible focus; Tab/arrow
       traversal of shell chrome and panels; core Spec General panel toggles
       (`Ctrl+\`` Developer Console, `Ctrl+B` Explorer, `Ctrl+Shift+I`
-      Inspector, `Ctrl+Shift+M` Mission, and related shell toggles).
+      Inspector, `Ctrl+Shift+M` Mission, `Ctrl+Shift+D` Database, and related
+      shell toggles).
       Surface-specific shortcuts (Mission, SQL Editor, Explorer, Inspector,
       Console) ship with their owning features. Full “all shortcuts
       configurable” remains Spec Future.

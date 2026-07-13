@@ -1,5 +1,7 @@
 import { FOCUS_MODES, focusModeLabel, type FocusMode } from "./focusMode";
 import type { ProfileLayoutPrefs } from "./prefs";
+import type { ShellPanelId, ShellSessionState } from "./shellSession";
+import { panelIsVisible } from "./shellSession";
 
 export type AppMenuActionId =
   | "file-new"
@@ -10,6 +12,7 @@ export type AppMenuActionId =
   | "view-explorer"
   | "view-mission"
   | "view-inspector"
+  | "view-database"
   | "view-console"
   | `view-focus-${FocusMode}`
   | "help-about"
@@ -24,7 +27,7 @@ export type AppMenuHandlers = Readonly<{
   onRecentProjects: () => void;
   onCloseProject: () => void;
   onOpenMcp: () => void;
-  onTogglePanel: (panel: "explorer" | "mission" | "inspector" | "console") => void;
+  onTogglePanel: (panel: ShellPanelId) => void;
   onFocusMode: (mode: FocusMode) => void;
   onAbout: () => void;
   onDocs: () => void;
@@ -42,6 +45,7 @@ export type AppMenuState = Readonly<{
   projectOpen: boolean;
   focusMode: FocusMode;
   layout: ProfileLayoutPrefs;
+  shellSession: ShellSessionState;
   mcpActivityCount: number;
 }>;
 
@@ -73,12 +77,23 @@ export const LAYOUT_MENU_ITEMS = [
     shortcut: "Ctrl+Shift+I",
   },
   {
+    id: "view-database" as const,
+    panel: "database" as const,
+    label: "Database",
+    shortcut: "Ctrl+Shift+D",
+  },
+  {
     id: "view-console" as const,
     panel: "console" as const,
     label: "Developer Console",
     shortcut: "Ctrl+`",
   },
 ] as const;
+
+export const layoutPanelChecked = (
+  state: Pick<AppMenuState, "shellSession" | "focusMode" | "layout">,
+  panel: ShellPanelId,
+): boolean => panelIsVisible(state.shellSession, state.focusMode, panel, state.layout.showConsole);
 
 export const isTauriRuntime = (): boolean =>
   Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);

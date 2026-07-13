@@ -1,19 +1,24 @@
 /** Spec panel mins/defaults and core toggle shortcut matching (ADR-0007 §12). */
 
-export type PanelId = "explorer" | "mission" | "inspector" | "console";
+export type PanelId = "explorer" | "mission" | "inspector" | "console" | "database";
 
 export const EXPLORER_MIN_WIDTH = 240;
 export const INSPECTOR_MIN_WIDTH = 320;
+export const DATABASE_MIN_WIDTH = 280;
 export const CONSOLE_MIN_HEIGHT = 120;
 export const CONSOLE_DEFAULT_HEIGHT = 220;
 export const EXPLORER_DEFAULT_WIDTH = 300;
 export const INSPECTOR_DEFAULT_WIDTH = 360;
+export const DATABASE_DEFAULT_WIDTH = 320;
 
 export const clampExplorerWidth = (width: number): number =>
   Math.max(EXPLORER_MIN_WIDTH, Math.min(640, Math.round(width)));
 
 export const clampInspectorWidth = (width: number): number =>
   Math.max(INSPECTOR_MIN_WIDTH, Math.min(720, Math.round(width)));
+
+export const clampDatabaseWidth = (width: number): number =>
+  Math.max(DATABASE_MIN_WIDTH, Math.min(640, Math.round(width)));
 
 export const clampConsoleHeight = (
   height: number,
@@ -43,6 +48,9 @@ export const matchPanelToggleShortcut = (
   }
   if (event.shiftKey && (key === "m" || event.code === "KeyM")) {
     return "mission";
+  }
+  if (event.shiftKey && (key === "d" || event.code === "KeyD")) {
+    return "database";
   }
   return null;
 };
