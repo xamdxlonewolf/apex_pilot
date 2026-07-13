@@ -283,11 +283,10 @@ export const App = () => {
         setSelectedConnection(connectionName);
       }
       setIsConnecting(true);
-      setConnectionMessage(`Connecting to ${target}.`);
       try {
         const response = await connectSavedConnection(target, backendConfig);
         setConnectedConnection(response.connection_name);
-        setConnectionMessage(`Connected to ${response.connection_name}.`);
+        setConnectionMessage("");
         await refreshActivity();
       } catch (error) {
         setConnectedConnection(null);
@@ -406,7 +405,7 @@ export const App = () => {
       },
       {
         id: "file-settings",
-        label: "File: Settings",
+        label: "Settings",
         enabled: canOpenSettings,
         run: () => setWizardMode("settings"),
       },
@@ -487,7 +486,6 @@ export const App = () => {
 
   const appMenuState: AppMenuState = {
     canUseProjectMenus,
-    canOpenSettings,
     canOpenMcp,
     canTogglePanels,
     canCloseProject,
@@ -509,7 +507,6 @@ export const App = () => {
       setWizardMode(null);
     },
     onCloseProject: () => setRequestClose(true),
-    onSettings: () => setWizardMode("settings"),
     onOpenMcp: () => {
       void openMcp();
     },

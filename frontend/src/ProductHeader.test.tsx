@@ -12,7 +12,6 @@ const baseHandlers = (): AppMenuHandlers => ({
   onOpenProject: vi.fn(),
   onRecentProjects: vi.fn(),
   onCloseProject: vi.fn(),
-  onSettings: vi.fn(),
   onOpenMcp: vi.fn(),
   onTogglePanel: vi.fn(),
   onFocusMode: vi.fn(),
@@ -25,7 +24,6 @@ const baseHandlers = (): AppMenuHandlers => ({
 
 const baseState = (): AppMenuState => ({
   canUseProjectMenus: true,
-  canOpenSettings: true,
   canOpenMcp: true,
   canTogglePanels: true,
   canCloseProject: true,
@@ -69,6 +67,14 @@ describe("BrowserAppMenu", () => {
     expect(screen.queryByRole("menuitem", { name: "New…" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /Check for updates/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("does not put Settings under File (header gear owns it)", () => {
+    render(<BrowserAppMenu state={baseState()} handlers={baseHandlers()} />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "File" }));
+    expect(screen.getByRole("menuitem", { name: /New/i })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /^Settings$/i })).not.toBeInTheDocument();
   });
 
   it("opens Help on click and routes Check for updates", () => {
@@ -147,8 +153,6 @@ describe("ProductHeader", () => {
         connectedConnection={null}
         onConnect={onConnect}
         isConnecting={false}
-        activityCount={0}
-        activeActivitySessionId={null}
         workingSchema="HR"
         onWorkingSchemaChange={vi.fn()}
         onOpenSettings={onOpenSettings}
@@ -157,6 +161,9 @@ describe("ProductHeader", () => {
 
     expect(screen.getByRole("banner", { name: "Product Header" })).toHaveTextContent("Apex Pilot");
     expect(screen.getByRole("region", { name: "Context Bar" })).toHaveTextContent("Demo");
+    expect(screen.getByLabelText("Backend health")).toBeInTheDocument();
+    expect(screen.queryByLabelText("MCP health")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Connection health")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(onConnect).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));

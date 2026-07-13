@@ -1,12 +1,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { BackendStatus, OpenedProject, SavedConnection } from "./backend";
-import {
-  backendHealthLabel,
-  connectionHealthLabel,
-  environmentIdentity,
-  mcpHealthLabel,
-} from "./shellHealth";
+import { backendHealthLabel, environmentIdentity } from "./shellHealth";
 
 type ProductHeaderProps = Readonly<{
   openedProject: OpenedProject;
@@ -18,8 +13,6 @@ type ProductHeaderProps = Readonly<{
   connectedConnection: string | null;
   onConnect: (connectionName?: string) => Promise<void> | void;
   isConnecting: boolean;
-  activityCount: number;
-  activeActivitySessionId: string | null;
   workingSchema: string;
   onWorkingSchemaChange: (schema: string) => void;
   onOpenSettings: () => void;
@@ -28,6 +21,7 @@ type ProductHeaderProps = Readonly<{
 /**
  * Dense Product Header: brand + Context Bar role + Settings gear.
  * Context Bar is a role hosted here — not a second stacked chrome strip.
+ * Connection name lives only on select + Connect; Backend is the sole health pill.
  */
 export const ProductHeader = ({
   openedProject,
@@ -39,16 +33,12 @@ export const ProductHeader = ({
   connectedConnection,
   onConnect,
   isConnecting,
-  activityCount,
-  activeActivitySessionId,
   workingSchema,
   onWorkingSchemaChange,
   onOpenSettings,
 }: ProductHeaderProps) => {
   const environment = environmentIdentity(openedProject.manifest);
   const backendHealth = backendHealthLabel(backendStatus);
-  const mcpHealth = mcpHealthLabel(activityCount, Boolean(activeActivitySessionId));
-  const connectionHealth = connectionHealthLabel(connectedConnection, isConnecting);
 
   const onContextKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
@@ -141,17 +131,6 @@ export const ProductHeader = ({
           >
             <span className="health-pill-dot" aria-hidden="true" />
             {backendHealth.label}
-          </span>
-          <span className={`health-pill health-pill--${mcpHealth.tone}`} aria-label="MCP health">
-            <span className="health-pill-dot" aria-hidden="true" />
-            {mcpHealth.label}
-          </span>
-          <span
-            className={`health-pill health-pill--${connectionHealth.tone}`}
-            aria-label="Connection health"
-          >
-            <span className="health-pill-dot" aria-hidden="true" />
-            {connectionHealth.label}
           </span>
         </div>
       </div>

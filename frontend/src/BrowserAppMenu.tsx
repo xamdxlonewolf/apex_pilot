@@ -291,20 +291,6 @@ export const BrowserAppMenu = ({ state, handlers }: BrowserAppMenuProps) => {
             >
               Close Project
             </button>
-            <MenuSeparator />
-            <button
-              type="button"
-              role="menuitem"
-              disabled={!state.canOpenSettings}
-              title={
-                state.canOpenSettings
-                  ? "Profile and app settings"
-                  : "Complete the prerequisite check first."
-              }
-              onClick={() => closeAndRun(handlers.onSettings)}
-            >
-              Settings
-            </button>
           </>,
         )}
       </div>

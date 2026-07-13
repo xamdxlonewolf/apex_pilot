@@ -813,7 +813,8 @@ export const StartupFunnel = ({
         </button>
       </div>
       <p className="pane-muted">
-        Use <strong>File → Settings</strong> in the App Menu for profile and app preferences.
+        Use the Product Header <strong>Settings</strong> gear when a project is open, or
+        Command Palette → Settings, for profile and app preferences.
       </p>
       {recentProjects.length > 0 ? (
         <ul className="recent-project-list" aria-label="Recent projects">

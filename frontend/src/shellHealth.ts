@@ -20,39 +20,6 @@ export const backendHealthLabel = (status: BackendStatus): ShellHealthItem => {
   }
 };
 
-export const mcpHealthLabel = (
-  activityCount: number,
-  hasActiveSession: boolean,
-): ShellHealthItem => {
-  // Activity log presence is not an MCP health probe — stay idle/warn only.
-  if (hasActiveSession) {
-    return {
-      label:
-        activityCount > 0
-          ? `SQLcl MCP: Connected · ${activityCount}`
-          : "SQLcl MCP: Connected",
-      tone: "ok",
-    };
-  }
-  if (activityCount > 0) {
-    return { label: `SQLcl MCP: Idle · ${activityCount}`, tone: "idle" };
-  }
-  return { label: "SQLcl MCP: Idle", tone: "idle" };
-};
-
-export const connectionHealthLabel = (
-  connectedConnection: string | null,
-  isConnecting: boolean,
-): ShellHealthItem => {
-  if (isConnecting) {
-    return { label: "Connection: Connecting…", tone: "warn" };
-  }
-  if (connectedConnection) {
-    return { label: `Connected: ${connectedConnection}`, tone: "ok" };
-  }
-  return { label: "Connection: Offline", tone: "idle" };
-};
-
 export const environmentIdentity = (manifest: unknown): string => {
   const typed = manifest as {
     defaultEnvironment?: string;

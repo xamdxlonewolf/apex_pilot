@@ -152,7 +152,7 @@ describe("App", () => {
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeDisabled();
     openAppMenu("File");
     expect(screen.getByRole("menuitem", { name: /new/i })).toBeDisabled();
-    expect(screen.getByRole("menuitem", { name: /settings/i })).toBeDisabled();
+    expect(screen.queryByRole("menuitem", { name: /settings/i })).not.toBeInTheDocument();
   });
 
   it("loads the recent-projects picker when the backend is online", async () => {
@@ -198,9 +198,11 @@ describe("App", () => {
     openAppMenu("View");
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeEnabled();
     openAppMenu("File");
-    expect(screen.getByRole("menuitem", { name: /settings/i })).toBeEnabled();
+    expect(screen.queryByRole("menuitem", { name: /settings/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
+    fireEvent.keyDown(window, { key: "P", ctrlKey: true, shiftKey: true });
+    const palette = await screen.findByRole("dialog", { name: /command palette/i });
+    fireEvent.click(within(palette).getByRole("option", { name: /^Settings$/i }));
     expect(await screen.findByLabelText("Settings")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "App preferences" })).toBeInTheDocument();
     expect(screen.getByText(/skip destructive sql sheet confirmation/i)).toBeInTheDocument();
@@ -257,7 +259,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /continue to profile setup/i })).toBeEnabled();
     openAppMenu("File");
     expect(screen.getByRole("menuitem", { name: /new/i })).toBeDisabled();
-    expect(screen.getByRole("menuitem", { name: /settings/i })).toBeDisabled();
+    expect(screen.queryByRole("menuitem", { name: /settings/i })).not.toBeInTheDocument();
     openAppMenu("View");
     expect(screen.getByRole("menuitem", { name: /mcp activity/i })).toBeDisabled();
   });
@@ -475,8 +477,8 @@ describe("App", () => {
     expect(screen.getByLabelText("Working Schema")).toBeInTheDocument();
     expect(screen.getByLabelText("Environment")).toHaveTextContent(/dev/i);
     expect(screen.getByLabelText("Backend health")).toHaveTextContent(/healthy/i);
-    expect(screen.getByLabelText("MCP health")).toBeInTheDocument();
-    expect(screen.getByLabelText("Connection health")).toBeInTheDocument();
+    expect(screen.queryByLabelText("MCP health")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Connection health")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Status bar")).toBeInTheDocument();
     expect(screen.getByRole("menubar", { name: /application menu/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "File" })).toBeInTheDocument();
@@ -854,9 +856,12 @@ describe("App", () => {
 
     fireEvent.click(within(settings).getByRole("button", { name: "Done" }));
     openAppMenu("File");
-    fireEvent.click(screen.getByRole("menuitem", { name: /^Settings$/i }));
-    const settingsFromMenu = await screen.findByLabelText("Settings");
-    expect(within(settingsFromMenu).getByLabelText("Project mappings")).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /^Settings$/i })).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "P", ctrlKey: true, shiftKey: true });
+    const palette = await screen.findByRole("dialog", { name: /command palette/i });
+    fireEvent.click(within(palette).getByRole("option", { name: /^Settings$/i }));
+    const settingsFromPalette = await screen.findByLabelText("Settings");
+    expect(within(settingsFromPalette).getByLabelText("Project mappings")).toBeInTheDocument();
   });
 
   it("persists profile layout panel visibility across workspace remounts", async () => {
@@ -1025,8 +1030,8 @@ describe("App", () => {
     const shell = contextBar.closest(".ide-workspace");
     expect(shell).toHaveAttribute("data-density", "compact");
 
-    openAppMenu("File");
-    fireEvent.click(screen.getByRole("menuitem", { name: /settings/i }));
+    const productHeader = screen.getByRole("banner", { name: "Product Header" });
+    fireEvent.click(within(productHeader).getByRole("button", { name: "Open Settings" }));
     fireEvent.change(await screen.findByLabelText("Active profile"), {
       target: { value: "profile-1" },
     });
@@ -1304,7 +1309,7 @@ describe("App", () => {
     expect(palette).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /toggle explorer/i })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: /toggle developer console/i })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /file: settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^Settings$/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("option", { name: /toggle explorer/i }));
     await waitFor(() => {
