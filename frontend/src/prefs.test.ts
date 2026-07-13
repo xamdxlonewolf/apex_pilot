@@ -18,10 +18,11 @@ describe("prefs persistence", () => {
       density: "comfortable" as const,
       leftWidth: 320,
       rightWidth: 400,
+      databaseWidth: 340,
       consoleHeight: 220,
-      showExplorer: false,
-      showMission: true,
-      showInspector: false,
+      explorerDrawerSide: "right" as const,
+      inspectorDrawerSide: "left" as const,
+      databaseDrawerSide: "left" as const,
       showConsole: true,
       showJunkFiles: true,
       skipDestructiveSqlPrompt: true,
@@ -33,21 +34,32 @@ describe("prefs persistence", () => {
     expect(restored.density).toBe("comfortable");
     expect(restored.leftWidth).toBe(320);
     expect(restored.rightWidth).toBe(400);
+    expect(restored.databaseWidth).toBe(340);
     expect(restored.consoleHeight).toBe(220);
-    expect(restored.showExplorer).toBe(false);
-    expect(restored.showMission).toBe(true);
-    expect(restored.showInspector).toBe(false);
+    expect(restored.explorerDrawerSide).toBe("right");
+    expect(restored.inspectorDrawerSide).toBe("left");
+    expect(restored.databaseDrawerSide).toBe("left");
     expect(restored.showConsole).toBe(true);
     expect(restored.showJunkFiles).toBe(true);
     expect(restored.skipDestructiveSqlPrompt).toBe(true);
   });
 
-  it("scopes layout prefs per profile id", () => {
+  it("scopes layout prefs per profile id and ignores legacy show* panel flags", () => {
     saveProfileLayout("profile-a", {
       ...defaultProfileLayout(),
       density: "compact",
-      showExplorer: false,
+      databaseDrawerSide: "left",
     });
+    localStorage.setItem(
+      "apex-pilot.profile-layout.profile-legacy",
+      JSON.stringify({
+        ...defaultProfileLayout(),
+        showExplorer: false,
+        showMission: true,
+        showInspector: false,
+        density: "comfortable",
+      }),
+    );
     saveProfileLayout("profile-b", {
       ...defaultProfileLayout(),
       density: "comfortable",
@@ -55,7 +67,9 @@ describe("prefs persistence", () => {
     });
 
     expect(loadProfileLayout("profile-a").density).toBe("compact");
-    expect(loadProfileLayout("profile-a").showExplorer).toBe(false);
+    expect(loadProfileLayout("profile-a").databaseDrawerSide).toBe("left");
+    expect(loadProfileLayout("profile-legacy").density).toBe("comfortable");
+    expect(loadProfileLayout("profile-legacy").showConsole).toBe(false);
     expect(loadProfileLayout("profile-b").density).toBe("comfortable");
     expect(loadProfileLayout("profile-b").showConsole).toBe(true);
     expect(loadProfileLayout(null)).toEqual(defaultProfileLayout());

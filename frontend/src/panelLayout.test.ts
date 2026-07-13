@@ -2,16 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   clampConsoleHeight,
+  clampDatabaseWidth,
   clampExplorerWidth,
   clampInspectorWidth,
   matchPanelToggleShortcut,
 } from "./panelLayout";
-import { defaultProfileLayout, togglePanelVisibility } from "./prefs";
+import { defaultProfileLayout } from "./prefs";
 
 describe("panelLayout", () => {
   it("clamps panel sizes to Spec minima", () => {
     expect(clampExplorerWidth(100)).toBe(240);
     expect(clampInspectorWidth(100)).toBe(320);
+    expect(clampDatabaseWidth(100)).toBe(280);
     expect(clampConsoleHeight(50, 900)).toBe(120);
     expect(clampConsoleHeight(800, 900)).toBe(450);
   });
@@ -49,6 +51,16 @@ describe("panelLayout", () => {
     ).toBe("mission");
     expect(
       matchPanelToggleShortcut({
+        key: "D",
+        code: "KeyD",
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: true,
+        altKey: false,
+      }),
+    ).toBe("database");
+    expect(
+      matchPanelToggleShortcut({
         key: "`",
         code: "Backquote",
         ctrlKey: true,
@@ -59,12 +71,11 @@ describe("panelLayout", () => {
     ).toBe("console");
   });
 
-  it("defaults console collapsed per Spec startup layout", () => {
+  it("defaults console collapsed and drawer sides profile-ready", () => {
     const layout = defaultProfileLayout();
-    expect(layout.showExplorer).toBe(true);
-    expect(layout.showMission).toBe(true);
-    expect(layout.showInspector).toBe(true);
     expect(layout.showConsole).toBe(false);
-    expect(togglePanelVisibility(layout, "console").showConsole).toBe(true);
+    expect(layout.explorerDrawerSide).toBe("left");
+    expect(layout.inspectorDrawerSide).toBe("right");
+    expect(layout.databaseDrawerSide).toBe("right");
   });
 });

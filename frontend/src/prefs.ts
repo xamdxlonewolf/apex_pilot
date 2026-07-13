@@ -2,22 +2,27 @@
 
 import {
   CONSOLE_DEFAULT_HEIGHT,
+  DATABASE_DEFAULT_WIDTH,
   EXPLORER_DEFAULT_WIDTH,
   INSPECTOR_DEFAULT_WIDTH,
   clampConsoleHeight,
+  clampDatabaseWidth,
   clampExplorerWidth,
   clampInspectorWidth,
-  type PanelId,
 } from "./panelLayout";
+import type { DrawerSide } from "./shellSession";
 
 export type ProfileLayoutPrefs = Readonly<{
   leftWidth: number;
   rightWidth: number;
+  databaseWidth: number;
   consoleHeight: number;
   density: DensityMode;
-  showExplorer: boolean;
-  showMission: boolean;
-  showInspector: boolean;
+  /** Profile-persisted drawer side preferences. */
+  explorerDrawerSide: DrawerSide;
+  inspectorDrawerSide: DrawerSide;
+  databaseDrawerSide: DrawerSide;
+  /** Developer Console remains Layout Chrome — profile-persisted. */
   showConsole: boolean;
   showJunkFiles: boolean;
   skipDestructiveSqlPrompt: boolean;
@@ -26,28 +31,12 @@ export type ProfileLayoutPrefs = Readonly<{
 
 export type DensityMode = "compact" | "default" | "comfortable";
 
-export const panelVisibilityKey = (
-  panel: PanelId,
-): "showExplorer" | "showMission" | "showInspector" | "showConsole" => {
-  switch (panel) {
-    case "explorer":
-      return "showExplorer";
-    case "mission":
-      return "showMission";
-    case "inspector":
-      return "showInspector";
-    case "console":
-      return "showConsole";
-  }
-};
+const DRAWER_SIDES: readonly DrawerSide[] = ["left", "right"];
 
-export const togglePanelVisibility = (
-  prefs: ProfileLayoutPrefs,
-  panel: PanelId,
-): ProfileLayoutPrefs => {
-  const key = panelVisibilityKey(panel);
-  return { ...prefs, [key]: !prefs[key] };
-};
+const sanitizeDrawerSide = (value: unknown, fallback: DrawerSide): DrawerSide =>
+  typeof value === "string" && DRAWER_SIDES.includes(value as DrawerSide)
+    ? (value as DrawerSide)
+    : fallback;
 
 export type WorkspaceTabKind =
   | "mission"
@@ -96,17 +85,20 @@ const projectDefaultsKey = (projectId: string) => `apex-pilot.project-defaults.$
 const densityModes: readonly DensityMode[] = ["compact", "default", "comfortable"];
 
 const sanitizeDensity = (value: unknown): DensityMode =>
-  typeof value === "string" && densityModes.includes(value as DensityMode) ? (value as DensityMode) : "default";
+  typeof value === "string" && densityModes.includes(value as DensityMode)
+    ? (value as DensityMode)
+    : "default";
 
 export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   leftWidth: EXPLORER_DEFAULT_WIDTH,
   rightWidth: INSPECTOR_DEFAULT_WIDTH,
+  databaseWidth: DATABASE_DEFAULT_WIDTH,
   consoleHeight: CONSOLE_DEFAULT_HEIGHT,
   density: "default",
-  // Spec §20 startup: Explorer/Mission/Inspector expanded; bottom console collapsed.
-  showExplorer: true,
-  showMission: true,
-  showInspector: true,
+  explorerDrawerSide: "left",
+  inspectorDrawerSide: "right",
+  databaseDrawerSide: "right",
+  // Console remains profile-persisted Layout Chrome (collapsed by default).
   showConsole: false,
   showJunkFiles: false,
   skipDestructiveSqlPrompt: false,
@@ -123,16 +115,32 @@ export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs 
     if (!raw) {
       return defaultProfileLayout();
     }
+    const parsed = JSON.parse(raw) as Partial<ProfileLayoutPrefs> & {
+      showExplorer?: boolean;
+      showMission?: boolean;
+      showInspector?: boolean;
+    };
+    const defaults = defaultProfileLayout();
     const merged = {
-      ...defaultProfileLayout(),
-      ...(JSON.parse(raw) as Partial<ProfileLayoutPrefs>),
+      ...defaults,
+      ...parsed,
     };
     return {
-      ...merged,
       leftWidth: clampExplorerWidth(merged.leftWidth),
       rightWidth: clampInspectorWidth(merged.rightWidth),
+      databaseWidth: clampDatabaseWidth(merged.databaseWidth ?? defaults.databaseWidth),
       consoleHeight: clampConsoleHeight(merged.consoleHeight),
       density: sanitizeDensity(merged.density),
+      explorerDrawerSide: sanitizeDrawerSide(merged.explorerDrawerSide, defaults.explorerDrawerSide),
+      inspectorDrawerSide: sanitizeDrawerSide(
+        merged.inspectorDrawerSide,
+        defaults.inspectorDrawerSide,
+      ),
+      databaseDrawerSide: sanitizeDrawerSide(merged.databaseDrawerSide, defaults.databaseDrawerSide),
+      showConsole: Boolean(merged.showConsole),
+      showJunkFiles: Boolean(merged.showJunkFiles),
+      skipDestructiveSqlPrompt: Boolean(merged.skipDestructiveSqlPrompt),
+      rightTools: Array.isArray(merged.rightTools) ? merged.rightTools : [],
     };
   } catch {
     return defaultProfileLayout();

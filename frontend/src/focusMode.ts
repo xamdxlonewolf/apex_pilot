@@ -36,7 +36,7 @@ export const railForFocusMode = (mode: FocusMode): ActivityRailId | null => {
   }
 };
 
-/** Paired rails return a Focus Mode; Code / Database / APEX are Explorer-only. */
+/** Paired rails return a Focus Mode; Code / APEX are Explorer-only; Database opens its drawer. */
 export const focusModeForRail = (rail: ActivityRailId): FocusMode | null => {
   switch (rail) {
     case "agent":

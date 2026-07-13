@@ -6,6 +6,7 @@ import { ProductHeader } from "./ProductHeader";
 import { defaultProfileLayout } from "./prefs";
 import type { AppMenuHandlers, AppMenuState } from "./appMenuModel";
 import type { OpenedProject } from "./backend";
+import { initialShellSession } from "./shellSession";
 
 const baseHandlers = (): AppMenuHandlers => ({
   onNewProject: vi.fn(),
@@ -31,6 +32,7 @@ const baseState = (): AppMenuState => ({
   projectOpen: true,
   focusMode: "agent",
   layout: defaultProfileLayout(),
+  shellSession: initialShellSession("agent"),
   mcpActivityCount: 0,
 });
 

@@ -4,35 +4,21 @@ import { describe, expect, it, vi } from "vitest";
 import { Explorer } from "./Explorer";
 import { STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
 
-const schemaProps = {
-  backendConfig: { baseUrl: "http://127.0.0.1:8000", bearerToken: "t" },
-  connectedConnection: null as string | null,
-  isBackendOnline: false,
-  projectSchemaOverride: null as string | null,
-  workingSchema: "",
-  onWorkingSchemaChange: vi.fn(),
-  onActivityRefresh: vi.fn(async () => undefined),
-};
-
 const baseProps = {
   rootPath: "C:/tmp/demo",
   showJunk: false,
   onToggleJunk: () => undefined,
   onOpenFile: () => undefined,
-  schema: schemaProps,
   apexMappings: [] as ReadonlyArray<{ workspace_name: string; sqlcl_connection_name: string }>,
   onOpenApex: () => undefined,
 };
 
 describe("Explorer rail-driven postures", () => {
-  it("hosts schema browsing under Database and stubs unfinished postures", () => {
+  it("stubs unfinished postures and hosts APEX; Database lives in its own drawer", () => {
     const { rerender } = render(<Explorer {...baseProps} activePosture="files" />);
 
     const explorer = screen.getByLabelText("Explorer navigation");
     expect(within(explorer).queryByLabelText("Schema browser")).not.toBeInTheDocument();
-
-    rerender(<Explorer {...baseProps} activePosture="database" />);
-    expect(within(explorer).getByLabelText("Schema browser")).toBeInTheDocument();
 
     rerender(<Explorer {...baseProps} activePosture="apex" />);
     expect(within(explorer).getByLabelText("APEX browser")).toBeInTheDocument();

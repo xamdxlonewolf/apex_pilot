@@ -5,6 +5,7 @@ import {
   FOCUS_MODE_MENU_ITEMS,
   LAYOUT_MENU_ITEMS,
   isTauriRuntime,
+  layoutPanelChecked,
   type AppMenuHandlers,
   type AppMenuState,
 } from "./appMenuModel";
@@ -96,23 +97,15 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
       );
 
       const layoutItems = await Promise.all(
-        LAYOUT_MENU_ITEMS.map((item) => {
-          const checked =
-            item.panel === "explorer"
-              ? state.layout.showExplorer
-              : item.panel === "mission"
-                ? state.layout.showMission
-                : item.panel === "inspector"
-                  ? state.layout.showInspector
-                  : state.layout.showConsole;
-                  return CheckMenuItem.new({
-                    id: item.id,
-                    text: item.label,
-                    checked,
-                    enabled: state.canTogglePanels,
-                    action: () => h().onTogglePanel(item.panel),
-                  });
-        }),
+        LAYOUT_MENU_ITEMS.map((item) =>
+          CheckMenuItem.new({
+            id: item.id,
+            text: item.label,
+            checked: layoutPanelChecked(state, item.panel),
+            enabled: state.canTogglePanels,
+            action: () => h().onTogglePanel(item.panel),
+          }),
+        ),
       );
 
       const mcpLabel =
@@ -195,9 +188,10 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
     state.canCompareProjectToDatabase,
     state.projectOpen,
     state.focusMode,
-    state.layout.showExplorer,
-    state.layout.showMission,
-    state.layout.showInspector,
+    state.shellSession.explorerOpen,
+    state.shellSession.inspectorOpen,
+    state.shellSession.databaseOpen,
+    state.shellSession.missionOverrideByFocus,
     state.layout.showConsole,
     state.mcpActivityCount,
   ]);
