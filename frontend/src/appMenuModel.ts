@@ -6,7 +6,6 @@ export type AppMenuActionId =
   | "file-open"
   | "file-recent"
   | "file-close"
-  | "file-settings"
   | "view-mcp"
   | "view-explorer"
   | "view-mission"
@@ -24,7 +23,6 @@ export type AppMenuHandlers = Readonly<{
   onOpenProject: () => void;
   onRecentProjects: () => void;
   onCloseProject: () => void;
-  onSettings: () => void;
   onOpenMcp: () => void;
   onTogglePanel: (panel: "explorer" | "mission" | "inspector" | "console") => void;
   onFocusMode: (mode: FocusMode) => void;
@@ -37,7 +35,6 @@ export type AppMenuHandlers = Readonly<{
 
 export type AppMenuState = Readonly<{
   canUseProjectMenus: boolean;
-  canOpenSettings: boolean;
   canOpenMcp: boolean;
   canTogglePanels: boolean;
   canCloseProject: boolean;

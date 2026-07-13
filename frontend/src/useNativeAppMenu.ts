@@ -67,13 +67,6 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
             enabled: state.canCloseProject,
             action: () => h().onCloseProject(),
           }),
-          await PredefinedMenuItem.new({ item: "Separator" }),
-          await MenuItem.new({
-            id: "file-settings",
-            text: "Settings",
-            enabled: state.canOpenSettings,
-            action: () => h().onSettings(),
-          }),
         ],
       });
 
@@ -196,7 +189,6 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
   }, [
     enabled,
     state.canUseProjectMenus,
-    state.canOpenSettings,
     state.canOpenMcp,
     state.canTogglePanels,
     state.canCloseProject,
