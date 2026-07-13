@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { StubBadge, StubMessage, StubSurface } from "./StubSurface";
 import {
+  STUB_ACTION_CLASS,
   STUB_BADGE,
   STUB_PRIMARY_COPY,
   containsForbiddenStubUiCopy,
@@ -33,11 +34,12 @@ describe("stub convention (ADR-0007 §11)", () => {
 
   it("disables stubbed actions and never fakes a successful run", () => {
     const props = stubActionProps();
+    expect(props.className).toBe(STUB_ACTION_CLASS);
     render(
       <StubSurface
         title="Toolbar stubs"
         actions={
-          <button type="button" className="chrome-button" {...props}>
+          <button type="button" {...props}>
             Run
           </button>
         }
@@ -46,6 +48,7 @@ describe("stub convention (ADR-0007 §11)", () => {
 
     const run = screen.getByRole("button", { name: "Run" });
     expect(run).toBeDisabled();
+    expect(run).toHaveClass(STUB_ACTION_CLASS);
     expect(run).toHaveAttribute("title", "Not implemented yet");
     expect(screen.queryByText(/success|completed|1 row|mock timeline/i)).not.toBeInTheDocument();
   });

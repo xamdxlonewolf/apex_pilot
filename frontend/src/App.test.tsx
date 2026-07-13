@@ -1745,6 +1745,12 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeInTheDocument();
     });
 
+    // M3: Working Schema autofills from session context without opening Database Explorer.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Working Schema")).toHaveValue("APP");
+    });
+    expect(screen.getByText(/unqualified objects target APP/i)).toBeInTheDocument();
+
     // Schema browsing lives under Explorer Database — not a permanent Inspector tab.
     const explorer = screen.getByRole("region", { name: "Explorer" });
     fireEvent.click(within(explorer).getByRole("button", { name: "Database" }));
@@ -1754,6 +1760,8 @@ describe("App", () => {
         name: /^schema$/i,
       }),
     ).not.toBeInTheDocument();
+    expect(within(explorer).queryByText(/connect, then load/i)).not.toBeInTheDocument();
+    expect(within(explorer).queryByText(/use connect in the strip/i)).not.toBeInTheDocument();
 
     // After connect + opening Database, schema auto-selects from session context and loads summary.
     expect(await screen.findByRole("button", { name: /loading/i })).toBeDisabled();

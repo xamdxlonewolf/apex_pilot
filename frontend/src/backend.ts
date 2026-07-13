@@ -232,6 +232,25 @@ export const getSessionContext = async (
   config: BackendConfig = getBackendConfig(),
 ): Promise<SessionContext> => apiFetch("/session/context", {}, config);
 
+/** Deduplicate concurrent session-context calls (Strict Mode remounts / dual consumers). */
+let sessionContextInflight: Promise<SessionContext> | null = null;
+
+export const getSessionContextOnce = (
+  config: BackendConfig = getBackendConfig(),
+): Promise<SessionContext> => {
+  if (!sessionContextInflight) {
+    sessionContextInflight = getSessionContext(config).finally(() => {
+      sessionContextInflight = null;
+    });
+  }
+  return sessionContextInflight;
+};
+
+/** Test-only: clear the shared session-context inflight latch. */
+export const resetSessionContextInflightForTests = (): void => {
+  sessionContextInflight = null;
+};
+
 export const setSessionSchema = async (
   schemaName: string,
   config: BackendConfig = getBackendConfig(),

@@ -25,13 +25,19 @@ export const FORBIDDEN_STUB_UI_PATTERNS: ReadonlyArray<RegExp> = [
 export const containsForbiddenStubUiCopy = (text: string): boolean =>
   FORBIDDEN_STUB_UI_PATTERNS.some((pattern) => pattern.test(text));
 
+/** Chrome/muted class so disabled stub CTAs never keep primary accent fill. */
+export const STUB_ACTION_CLASS = "chrome-button";
+
 type StubActionProps = Readonly<
-  Pick<ButtonHTMLAttributes<HTMLButtonElement>, "disabled" | "title" | "aria-disabled">
+  Pick<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    "disabled" | "title" | "aria-disabled" | "className"
+  >
 >;
 
 /**
  * Props for Spec-layout actions that cannot work yet.
- * Always disabled; title defaults to the stub primary copy.
+ * Always disabled; muted chrome class; title defaults to the stub primary copy.
  */
 export const stubActionProps = (hint: string = STUB_PRIMARY_COPY): StubActionProps => {
   if (containsForbiddenStubUiCopy(hint)) {
@@ -43,5 +49,6 @@ export const stubActionProps = (hint: string = STUB_PRIMARY_COPY): StubActionPro
     disabled: true,
     "aria-disabled": true,
     title: hint,
+    className: STUB_ACTION_CLASS,
   };
 };

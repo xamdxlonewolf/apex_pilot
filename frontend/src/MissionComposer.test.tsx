@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { MissionComposer } from "./MissionComposer";
-import { STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
+import { STUB_ACTION_CLASS, STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
 
 describe("Mission timeline and stage chrome (#33)", () => {
   it("exposes timeline, mission card, plan/SQL/review/exec stages, and history layout", () => {
@@ -38,6 +38,7 @@ describe("Mission timeline and stage chrome (#33)", () => {
 
     const send = within(surface).getByRole("button", { name: "Send" });
     expect(send).toBeDisabled();
+    expect(send).toHaveClass(STUB_ACTION_CLASS);
     expect(send).toHaveAttribute("title", STUB_PRIMARY_COPY);
 
     const history = within(surface).getByLabelText("Mission history");
