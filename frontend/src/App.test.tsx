@@ -1097,6 +1097,103 @@ describe("App", () => {
     ).toBe("comfortable");
   });
 
+  it("switches Activity Rail labels mode via settings and shows labels when forced", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.profile-layout.profile-1",
+      JSON.stringify({ activityRailLabels: "icons" }),
+    );
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(min-width: 1100px)",
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const contextBar = await screen.findByRole("region", { name: "Context Bar" });
+    const shell = contextBar.closest(".ide-workspace");
+    expect(shell).toHaveAttribute("data-rail-labels", "off");
+    const activityRail = screen.getByRole("navigation", { name: "Activity Rail" });
+    expect(activityRail).toHaveAttribute("data-labels", "off");
+    expect(within(activityRail).getByRole("button", { name: "Database" })).toHaveAttribute(
+      "title",
+      "Database",
+    );
+    expect(within(activityRail).queryByText("Database")).not.toBeInTheDocument();
+
+    const productHeader = screen.getByRole("banner", { name: "Product Header" });
+    fireEvent.click(within(productHeader).getByRole("button", { name: "Open Settings" }));
+    fireEvent.change(await screen.findByLabelText("Active profile"), {
+      target: { value: "profile-1" },
+    });
+    fireEvent.change(await screen.findByLabelText("Activity Rail labels"), {
+      target: { value: "icons-labels" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    const shellAfterSave = (await screen.findByRole("region", { name: "Context Bar" })).closest(
+      ".ide-workspace",
+    );
+    expect(shellAfterSave).toHaveAttribute("data-rail-labels", "on");
+    const railAfter = screen.getByRole("navigation", { name: "Activity Rail" });
+    expect(railAfter).toHaveAttribute("data-labels", "on");
+    expect(within(railAfter).getByText("Database")).toBeInTheDocument();
+    expect(within(railAfter).getByRole("button", { name: "Database" })).not.toHaveAttribute(
+      "title",
+    );
+    expect(
+      JSON.parse(localStorage.getItem("apex-pilot.profile-layout.profile-1") ?? "{}")
+        .activityRailLabels,
+    ).toBe("icons-labels");
+  });
+
+  it("Auto Activity Rail labels follow the 1100px shell breakpoint", async () => {
+    vi.stubGlobal("__APEX_PILOT__", {
+      baseUrl: "http://127.0.0.1:8000",
+      bearerToken: "test-token",
+    });
+    localStorage.setItem(
+      "apex-pilot.profile-layout.profile-1",
+      JSON.stringify({ activityRailLabels: "auto" }),
+    );
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+    vi.stubGlobal("fetch", workspaceFetch());
+
+    render(<App />);
+
+    const contextBar = await screen.findByRole("region", { name: "Context Bar" });
+    expect(contextBar.closest(".ide-workspace")).toHaveAttribute("data-rail-labels", "off");
+    expect(screen.getByRole("navigation", { name: "Activity Rail" })).toHaveAttribute(
+      "data-labels",
+      "off",
+    );
+  });
+
   it("flags reduced-motion mode on the workspace shell", async () => {
     vi.stubGlobal("__APEX_PILOT__", {
       baseUrl: "http://127.0.0.1:8000",

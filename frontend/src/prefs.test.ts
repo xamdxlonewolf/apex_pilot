@@ -2,6 +2,7 @@ import {
   defaultProfileLayout,
   loadProfileLayout,
   loadProjectTabs,
+  resolveActivityRailShowLabels,
   saveProfileLayout,
   saveProjectTabs,
 } from "./prefs";
@@ -16,6 +17,7 @@ describe("prefs persistence", () => {
     const prefs = {
       ...defaultProfileLayout(),
       density: "comfortable" as const,
+      activityRailLabels: "icons-labels" as const,
       leftWidth: 320,
       rightWidth: 400,
       databaseWidth: 340,
@@ -32,6 +34,7 @@ describe("prefs persistence", () => {
     const restored = loadProfileLayout(profileId);
 
     expect(restored.density).toBe("comfortable");
+    expect(restored.activityRailLabels).toBe("icons-labels");
     expect(restored.leftWidth).toBe(320);
     expect(restored.rightWidth).toBe(400);
     expect(restored.databaseWidth).toBe(340);
@@ -42,6 +45,31 @@ describe("prefs persistence", () => {
     expect(restored.showConsole).toBe(true);
     expect(restored.showJunkFiles).toBe(true);
     expect(restored.skipDestructiveSqlPrompt).toBe(true);
+  });
+
+  it("defaults activityRailLabels to auto and sanitizes unknown values", () => {
+    expect(defaultProfileLayout().activityRailLabels).toBe("auto");
+    saveProfileLayout("profile-1", {
+      ...defaultProfileLayout(),
+      activityRailLabels: "icons",
+    });
+    localStorage.setItem(
+      "apex-pilot.profile-layout.profile-bad",
+      JSON.stringify({
+        ...defaultProfileLayout(),
+        activityRailLabels: "stacked",
+      }),
+    );
+
+    expect(loadProfileLayout("profile-1").activityRailLabels).toBe("icons");
+    expect(loadProfileLayout("profile-bad").activityRailLabels).toBe("auto");
+  });
+
+  it("resolves Activity Rail label visibility from preference + breakpoint", () => {
+    expect(resolveActivityRailShowLabels("auto", true)).toBe(true);
+    expect(resolveActivityRailShowLabels("auto", false)).toBe(false);
+    expect(resolveActivityRailShowLabels("icons", true)).toBe(false);
+    expect(resolveActivityRailShowLabels("icons-labels", false)).toBe(true);
   });
 
   it("scopes layout prefs per profile id and ignores legacy show* panel flags", () => {

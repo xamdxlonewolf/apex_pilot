@@ -15,6 +15,7 @@ import {
   clampInspectorWidth,
 } from "./panelLayout";
 import {
+  type ActivityRailLabelsMode,
   type DensityMode,
   type ProfileLayoutPrefs,
   defaultProfileLayout,
@@ -38,6 +39,14 @@ const densityOptions: ReadonlyArray<Readonly<{ value: DensityMode; label: string
   { value: "compact", label: "Compact" },
   { value: "default", label: "Default" },
   { value: "comfortable", label: "Comfortable" },
+];
+
+const activityRailLabelsOptions: ReadonlyArray<
+  Readonly<{ value: ActivityRailLabelsMode; label: string }>
+> = [
+  { value: "auto", label: "Auto (by window width)" },
+  { value: "icons", label: "Icons only" },
+  { value: "icons-labels", label: "Icons + labels" },
 ];
 
 export const AppSettings = ({
@@ -221,6 +230,25 @@ export const AppSettings = ({
             disabled={!activeProfileId}
           >
             {densityOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Activity Rail labels
+          <select
+            value={layout.activityRailLabels}
+            onChange={(event) =>
+              persistLayout({
+                ...layout,
+                activityRailLabels: event.target.value as ActivityRailLabelsMode,
+              })
+            }
+            disabled={!activeProfileId}
+          >
+            {activityRailLabelsOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

@@ -49,6 +49,9 @@ import {
   clampInspectorWidth,
 } from "./panelLayout";
 import {
+  activityRailAutoQuery,
+  activityRailWidthPx,
+  resolveActivityRailShowLabels,
   type ProfileLayoutPrefs,
   loadProjectDefaults,
   loadProjectTabs,
@@ -331,6 +334,12 @@ export const IdeWorkspace = ({
   const [projectSchemaOverride, setProjectSchemaOverride] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(prefersReducedMotion);
+  const [railViewportWide, setRailViewportWide] = useState(() => {
+    if (typeof window.matchMedia !== "function") {
+      return true;
+    }
+    return window.matchMedia(activityRailAutoQuery).matches;
+  });
   const [handledEditorRequest, setHandledEditorRequest] = useState(0);
   const [schemaObjects, setSchemaObjects] = useState<QuickOpenItem[]>([]);
   const [explorerFocusSection, setExplorerFocusSection] = useState<ExplorerSectionId | null>(
@@ -464,6 +473,23 @@ export const IdeWorkspace = ({
       setReduceMotion(event.matches);
     };
     setReduceMotion(media.matches);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    }
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+    const media = window.matchMedia(activityRailAutoQuery);
+    const onChange = (event: MediaQueryListEvent) => {
+      setRailViewportWide(event.matches);
+    };
+    setRailViewportWide(media.matches);
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", onChange);
       return () => media.removeEventListener("change", onChange);
@@ -796,7 +822,13 @@ export const IdeWorkspace = ({
             ? "Enter SQL to run."
             : "Run the SQL Editor buffer.";
 
-  const bodyColumnParts: string[] = ["44px"];
+  const showRailLabels = resolveActivityRailShowLabels(
+    layout.activityRailLabels,
+    railViewportWide,
+  );
+  const railWidth = activityRailWidthPx(showRailLabels);
+
+  const bodyColumnParts: string[] = [`${railWidth}px`];
   const explorerSide = explorerPeer ? "left" : layout.explorerDrawerSide;
   const explorerDockOpen = explorerPeer || explorerDrawer;
   if (explorerDockOpen && explorerSide === "left") {
@@ -996,10 +1028,12 @@ export const IdeWorkspace = ({
       data-density={layout.density}
       data-motion={reduceMotion ? "reduced" : "standard"}
       data-focus-mode={focusMode}
+      data-rail-labels={showRailLabels ? "on" : "off"}
       style={{
         ["--left-width" as string]: `${layout.leftWidth}px`,
         ["--right-width" as string]: `${layout.rightWidth}px`,
         ["--console-height" as string]: `${consoleHeight}px`,
+        ["--rail-width" as string]: `${railWidth}px`,
       }}
     >
       <ProductHeader
@@ -1114,7 +1148,11 @@ export const IdeWorkspace = ({
         style={{ gridTemplateColumns: bodyColumns || "minmax(0, 1fr)" }}
       >
         <section className="ide-region ide-region--rail">
-          <ActivityRail active={activityRail} onSelect={onActivityRailSelect} />
+          <ActivityRail
+            active={activityRail}
+            showLabels={showRailLabels}
+            onSelect={onActivityRailSelect}
+          />
         </section>
 
         {renderExplorerDock("left")}

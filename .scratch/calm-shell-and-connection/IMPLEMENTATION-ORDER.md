@@ -34,7 +34,7 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 | A0 | 1 | [Grilling: Calm shell visual direction](https://github.com/xamdxlonewolf/apex_pilot/issues/114) | grilling | — | ☑ |
 | A1 | 2 | [Grilling: Focus Mode hide/show + slide-out ownership](https://github.com/xamdxlonewolf/apex_pilot/issues/115) | grilling | — | ☑ |
 | A2 | 3 | [Grilling: Activity Rail density + labels preference](https://github.com/xamdxlonewolf/apex_pilot/issues/116) | grilling | — | ☑ |
-| A3 | 4 | [Task: Activity Rail ~1.5x + icons/labels mode](https://github.com/xamdxlonewolf/apex_pilot/issues/117) | task | A0 + A2 | ☐ |
+| A3 | 4 | [Task: Activity Rail ~1.5x + icons/labels mode](https://github.com/xamdxlonewolf/apex_pilot/issues/117) | task | A0 + A2 | ☑ |
 | A4 | 5 | [Task: File tree explorer + type icons](https://github.com/xamdxlonewolf/apex_pilot/issues/118) | task | A0 | ☐ |
 | A5 | 6 | [Task: Uniform splitters for visible peers](https://github.com/xamdxlonewolf/apex_pilot/issues/119) | task | A0 | ☐ |
 | A6 | 7 | [Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120) | task | A0 + A1 | ☑ |
@@ -58,7 +58,7 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 
 - [x] Files Focus: Mission not stealing unusable space (hidden or equivalent)
 - [x] Secondary tools slide out and dismiss
-- [ ] Activity Rail ~1.5× and labels mode (+ user preference)
+- [x] Activity Rail ~1.5× and labels mode (+ user preference)
 - [ ] File tree left-aligned with folder/file-type icons
 - [ ] Visible peers share consistent drag-resize
 - [x] Visual direction decided and AFK tasks respect it
