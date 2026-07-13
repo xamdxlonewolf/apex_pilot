@@ -738,22 +738,18 @@ button:disabled {
 @keyframes shell-drawer-in-left {
   from {
     transform: translateX(-12px);
-    opacity: 0.72;
   }
   to {
     transform: translateX(0);
-    opacity: 1;
   }
 }
 
 @keyframes shell-drawer-in-right {
   from {
     transform: translateX(12px);
-    opacity: 0.72;
   }
   to {
     transform: translateX(0);
-    opacity: 1;
   }
 }
 
