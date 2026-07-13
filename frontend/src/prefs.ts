@@ -18,6 +18,8 @@ export type ProfileLayoutPrefs = Readonly<{
   databaseWidth: number;
   consoleHeight: number;
   density: DensityMode;
+  /** Activity Rail label mode — independent of Density. */
+  activityRailLabels: ActivityRailLabelsMode;
   /** Profile-persisted drawer side preferences. */
   explorerDrawerSide: DrawerSide;
   inspectorDrawerSide: DrawerSide;
@@ -30,6 +32,31 @@ export type ProfileLayoutPrefs = Readonly<{
 }>;
 
 export type DensityMode = "compact" | "default" | "comfortable";
+
+/** Auto follows the 1100px shell breakpoint; icons / icons-labels force either mode. */
+export type ActivityRailLabelsMode = "auto" | "icons" | "icons-labels";
+
+export const ACTIVITY_RAIL_AUTO_BREAKPOINT_PX = 1100;
+export const ACTIVITY_RAIL_ICONS_WIDTH_PX = 66;
+export const ACTIVITY_RAIL_LABELS_WIDTH_PX = 126;
+
+export const activityRailAutoQuery = `(min-width: ${ACTIVITY_RAIL_AUTO_BREAKPOINT_PX}px)`;
+
+export const resolveActivityRailShowLabels = (
+  mode: ActivityRailLabelsMode,
+  viewportAtLeastBreakpoint: boolean,
+): boolean => {
+  if (mode === "icons-labels") {
+    return true;
+  }
+  if (mode === "icons") {
+    return false;
+  }
+  return viewportAtLeastBreakpoint;
+};
+
+export const activityRailWidthPx = (showLabels: boolean): number =>
+  showLabels ? ACTIVITY_RAIL_LABELS_WIDTH_PX : ACTIVITY_RAIL_ICONS_WIDTH_PX;
 
 const DRAWER_SIDES: readonly DrawerSide[] = ["left", "right"];
 
@@ -83,11 +110,22 @@ const PROFILE_KEY = "apex-pilot.profile-layout";
 const projectKey = (projectId: string) => `apex-pilot.project-tabs.${projectId}`;
 const projectDefaultsKey = (projectId: string) => `apex-pilot.project-defaults.${projectId}`;
 const densityModes: readonly DensityMode[] = ["compact", "default", "comfortable"];
+const activityRailLabelsModes: readonly ActivityRailLabelsMode[] = [
+  "auto",
+  "icons",
+  "icons-labels",
+];
 
 const sanitizeDensity = (value: unknown): DensityMode =>
   typeof value === "string" && densityModes.includes(value as DensityMode)
     ? (value as DensityMode)
     : "default";
+
+const sanitizeActivityRailLabels = (value: unknown): ActivityRailLabelsMode =>
+  typeof value === "string" &&
+  activityRailLabelsModes.includes(value as ActivityRailLabelsMode)
+    ? (value as ActivityRailLabelsMode)
+    : "auto";
 
 export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   leftWidth: EXPLORER_DEFAULT_WIDTH,
@@ -95,6 +133,7 @@ export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   databaseWidth: DATABASE_DEFAULT_WIDTH,
   consoleHeight: CONSOLE_DEFAULT_HEIGHT,
   density: "default",
+  activityRailLabels: "auto",
   explorerDrawerSide: "left",
   inspectorDrawerSide: "right",
   databaseDrawerSide: "right",
@@ -131,6 +170,7 @@ export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs 
       databaseWidth: clampDatabaseWidth(merged.databaseWidth ?? defaults.databaseWidth),
       consoleHeight: clampConsoleHeight(merged.consoleHeight),
       density: sanitizeDensity(merged.density),
+      activityRailLabels: sanitizeActivityRailLabels(merged.activityRailLabels),
       explorerDrawerSide: sanitizeDrawerSide(merged.explorerDrawerSide, defaults.explorerDrawerSide),
       inspectorDrawerSide: sanitizeDrawerSide(
         merged.inspectorDrawerSide,
