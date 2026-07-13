@@ -1113,6 +1113,9 @@ button:disabled {
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  /* Spec §240 720px threshold — query Mission panel width, not viewport. */
+  container-type: inline-size;
+  container-name: mission;
 }
 
 .mission-layout {
@@ -1143,26 +1146,9 @@ button:disabled {
   gap: 8px;
 }
 
-.mission-history-buckets {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.mission-history-empty {
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.mission-history-buckets li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--chrome-border);
-}
-
-.mission-history-bucket {
   font-size: 0.82rem;
-  font-weight: 600;
 }
 
 .mission-workspace {
@@ -1240,7 +1226,8 @@ button:disabled {
   font-size: 0.85rem;
 }
 
-@media (max-width: 720px) {
+/* Stack history above body when Mission peer is narrower than Spec 720px. */
+@container mission (max-width: 720px) {
   .mission-layout {
     grid-template-columns: 1fr;
   }
@@ -1248,7 +1235,7 @@ button:disabled {
   .mission-history {
     border-right: 0;
     border-bottom: 1px solid var(--chrome-border);
-    max-height: 160px;
+    max-height: none;
   }
 
   .mission-card-fields {

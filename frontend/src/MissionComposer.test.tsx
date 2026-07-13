@@ -4,11 +4,12 @@ import { describe, expect, it } from "vitest";
 import { MissionComposer } from "./MissionComposer";
 import { STUB_ACTION_CLASS, STUB_BADGE, STUB_PRIMARY_COPY } from "./stubConvention";
 
-describe("Mission timeline and stage chrome (#33)", () => {
+describe("Mission timeline and empty-state collapse (#33 / #97)", () => {
   it("exposes timeline, mission card, plan/SQL/review/exec stages, and history layout", () => {
     render(<MissionComposer projectName="demo" />);
 
     const surface = screen.getByTestId("mission-surface");
+    expect(surface).toHaveClass("mission-surface");
     expect(within(surface).getByLabelText("Mission timeline")).toBeInTheDocument();
     expect(within(surface).getByLabelText("Mission card")).toBeInTheDocument();
     expect(within(surface).getByLabelText("Mission history")).toBeInTheDocument();
@@ -19,6 +20,18 @@ describe("Mission timeline and stage chrome (#33)", () => {
     }
 
     expect(within(surface).getByLabelText("Mission composer")).toBeInTheDocument();
+  });
+
+  it("collapses history to one empty line until Agent Core (H5)", () => {
+    render(<MissionComposer projectName="demo" />);
+
+    const history = screen.getByLabelText("Mission history");
+    expect(within(history).getByTestId("stub-badge")).toHaveTextContent(STUB_BADGE);
+    expect(within(history).getByText("No missions yet")).toBeInTheDocument();
+    expect(within(history).queryAllByText("No missions yet")).toHaveLength(1);
+    for (const bucket of ["Recent", "Today", "Yesterday", "Earlier"]) {
+      expect(within(history).queryByText(bucket)).not.toBeInTheDocument();
+    }
   });
 
   it("uses Stub honesty for unfinished Mission chrome without fake success timelines", () => {
@@ -40,12 +53,5 @@ describe("Mission timeline and stage chrome (#33)", () => {
     expect(send).toBeDisabled();
     expect(send).toHaveClass(STUB_ACTION_CLASS);
     expect(send).toHaveAttribute("title", STUB_PRIMARY_COPY);
-
-    const history = within(surface).getByLabelText("Mission history");
-    expect(within(history).getByTestId("stub-badge")).toHaveTextContent(STUB_BADGE);
-    expect(within(history).getByText(STUB_PRIMARY_COPY)).toBeInTheDocument();
-    for (const bucket of ["Recent", "Today", "Yesterday", "Earlier"]) {
-      expect(within(history).getByText(bucket)).toBeInTheDocument();
-    }
   });
 });
