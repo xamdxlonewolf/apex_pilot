@@ -567,6 +567,15 @@ describe("App", () => {
     expect(send).toBeDisabled();
     expect(send).toHaveAttribute("title", "Not implemented yet");
 
+    // Layout chrome toggles: Mission / Inspector / Database on the toolbar.
+    expect(within(toolbar).getByRole("button", { name: "Mission" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Inspector" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Database" })).toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Inspector" }));
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole("button", { name: "Inspector" }));
+    expect(screen.queryByRole("region", { name: "Inspector" })).not.toBeInTheDocument();
+
     // Activity Rail + dual-primary Workspace (Shell IA).
     expect(screen.getByRole("region", { name: "Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Editors" })).toBeInTheDocument();

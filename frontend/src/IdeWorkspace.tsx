@@ -1084,6 +1084,19 @@ export const IdeWorkspace = ({
         <button
           type="button"
           className="chrome-button"
+          aria-pressed={shellSession.inspectorOpen}
+          title={shellSession.inspectorOpen ? "Hide Inspector" : "Show Inspector"}
+          onClick={() =>
+            onShellSessionChange((current) =>
+              withDrawerOpen(current, layout, "inspector", !current.inspectorOpen),
+            )
+          }
+        >
+          Inspector
+        </button>
+        <button
+          type="button"
+          className="chrome-button"
           aria-pressed={shellSession.databaseOpen}
           title={shellSession.databaseOpen ? "Hide Database" : "Show Database"}
           onClick={() =>

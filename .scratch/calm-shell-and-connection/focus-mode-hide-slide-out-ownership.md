@@ -67,7 +67,7 @@ and follow-up
 | Explorer peer (Files) | Activity Rail → Files | Layout Chrome → Explorer |
 | Explorer dock (Agent/SQL/Review) | Activity Rail → Agent / Review / Code / APEX | Layout Chrome → Explorer |
 | Database drawer | Activity Rail → Database | Layout Chrome → Database |
-| Inspector | Layout Chrome → Inspector | Optional compact header/toolbar control only if it already fits — do not invent a second rail |
+| Inspector | Layout Chrome → Inspector (toolbar + View menu) | Optional compact header control only if it already fits — do not invent a second rail |
 | Mission (when hidden) | Layout Chrome / Focus controls (“Show Mission”) | |
 | Developer Console | Layout Chrome / `Ctrl+\`` / Console close control | MCP Activity / View MCP **toggles** open↔closed (opens to MCP tab) |
 
