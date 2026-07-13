@@ -14,8 +14,6 @@ const MISSION_STAGES = [
   { id: "exec", label: "Exec" },
 ] as const;
 
-const HISTORY_BUCKETS = ["Recent", "Today", "Yesterday", "Earlier"] as const;
-
 export const MissionComposer = ({ projectName }: MissionComposerProps) => {
   const [draft, setDraft] = useState("");
   const secondary = projectName
@@ -31,15 +29,8 @@ export const MissionComposer = ({ projectName }: MissionComposerProps) => {
             <strong>History</strong>
             <StubBadge />
           </div>
-          <StubMessage secondary="Mission history arrives with Agent Core persistence." />
-          <ul className="mission-history-buckets">
-            {HISTORY_BUCKETS.map((bucket) => (
-              <li key={bucket}>
-                <span className="mission-history-bucket">{bucket}</span>
-                <span className="pane-muted">No missions yet</span>
-              </li>
-            ))}
-          </ul>
+          {/* Until Agent Core: one empty line — no Spec bucket chrome noise. */}
+          <p className="mission-history-empty pane-muted">No missions yet</p>
         </aside>
 
         <div className="mission-workspace">
