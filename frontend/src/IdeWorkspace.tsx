@@ -344,6 +344,8 @@ export const IdeWorkspace = ({
     canRun: false,
   });
   const schemaAutofillKey = useRef<string | null>(null);
+  /** When true, the next focusMode effect must not clobber rail (rail-driven select). */
+  const skipFocusRailSync = useRef(false);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -366,17 +368,19 @@ export const IdeWorkspace = ({
 
   const onActivityRailSelect = (rail: ActivityRailId) => {
     const next = applyRailSelection(rail, focusMode);
+    // When Focus changes (e.g. Review→Agent for Code/APEX), skip the Focus→rail
+    // sync so the selected explorer-only rail is not rewritten to Agent.
+    if (next.focusMode !== focusMode) {
+      skipFocusRailSync.current = true;
+    }
     onFocusModeChange(next.focusMode);
     setActivityRail(next.rail);
     if (rail === "database") {
       onShellSessionChange((current) => withDrawerOpen(current, layout, "database", true));
       return;
     }
-    // Files → Focus + Explorer peer; Code / APEX → Explorer dock posture.
-    // Agent / Review → Focus only (applyFocusTransition owns Explorer closed).
-    if (rail === "files" || rail === "code" || rail === "apex") {
-      onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", true));
-    }
+    // Files / Agent / Review / Code / APEX all open Explorer (peer in Files, dock elsewhere).
+    onShellSessionChange((current) => withDrawerOpen(current, layout, "explorer", true));
   };
 
   const activateEditorTab = (tabId: string, kindHint?: WorkspaceTabKind) => {
@@ -414,7 +418,12 @@ export const IdeWorkspace = ({
   }, [explorerFocusSection, focusMode, onFocusModeChange]);
 
   // Keep rail in sync when Focus Mode is set from App menu / palette (SQL leaves rail).
+  // Skip when the rail itself drove the Focus change (preserves Code / APEX / Database).
   useEffect(() => {
+    if (skipFocusRailSync.current) {
+      skipFocusRailSync.current = false;
+      return;
+    }
     const paired = railForFocusMode(focusMode);
     if (paired) {
       setActivityRail(paired);

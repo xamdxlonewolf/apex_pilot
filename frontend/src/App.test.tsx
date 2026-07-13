@@ -605,14 +605,26 @@ describe("App", () => {
     expect(within(stubSurface).queryByText(/sample row|EMPLOYEE|mock timeline/i)).not.toBeInTheDocument();
     expect(explorer).toBeInTheDocument();
 
-    // Agent / Review switch Focus only — do not auto-open Explorer.
+    // Agent / Review open Explorer dock to their posture (not Focus-only).
     fireEvent.click(within(activityRail).getByRole("button", { name: "Agent" }));
-    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
+    const explorerAgent = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerAgent).getByTestId("stub-surface")).toHaveTextContent("Agent");
+    expect(within(explorerAgent).getByRole("button", { name: "Close Explorer" })).toBeInTheDocument();
+    // APEX must keep APEX posture — Focus→rail sync must not rewrite it to Agent.
+    fireEvent.click(within(activityRail).getByRole("button", { name: "APEX" }));
+    const explorerApex = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerApex).getByLabelText("APEX browser")).toBeInTheDocument();
+    expect(within(activityRail).getByRole("button", { name: "APEX" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     fireEvent.click(within(activityRail).getByRole("button", { name: "Review" }));
-    expect(screen.queryByRole("region", { name: "Explorer" })).not.toBeInTheDocument();
-    // Code / APEX open the Explorer dock (same column UI as Files peer).
+    const explorerReview = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerReview).getByTestId("stub-surface")).toHaveTextContent("Review");
+    // Code opens Explorer dock (same column UI as Files peer / Agent).
     fireEvent.click(within(activityRail).getByRole("button", { name: "Code" }));
     const explorerDock = screen.getByRole("region", { name: "Explorer" });
+    expect(within(explorerDock).getByTestId("stub-surface")).toHaveTextContent("Code");
     expect(within(explorerDock).getByRole("button", { name: "Close Explorer" })).toBeInTheDocument();
     expect(explorerDock.closest('[aria-label="Workspace"]')).toBeNull();
   });

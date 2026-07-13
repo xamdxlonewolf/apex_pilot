@@ -112,8 +112,9 @@ layout:
      are profile-persisted; open/closed is session-only. Dismiss via close
      control, Escape, or toggle — not click-outside. MCP Activity / View MCP
      toggles Developer Console (with an explicit console close control).
-     Activity Rail: Files opens Explorer peer; Agent/Review switch Focus only;
-     Code/APEX open Explorer dock; Database opens Database dock.
+     Activity Rail: Files opens Explorer peer; Agent/Review switch Focus and open
+     Explorer dock; Code/APEX open Explorer dock (rail highlight preserved);
+     Database opens Database dock.
 4. **Center — dual-primary Workspace:** Mission and editors (SQL Editor, File
    Editor, and related viewers) share primacy as peers. Neither is demoted to
    secondary chrome.

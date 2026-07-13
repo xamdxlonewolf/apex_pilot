@@ -65,7 +65,7 @@ and follow-up
 | Surface | Primary open | Also |
 | --- | --- | --- |
 | Explorer peer (Files) | Activity Rail → Files | Layout Chrome → Explorer |
-| Explorer dock (Agent/SQL/Review) | Activity Rail → Code / APEX | Layout Chrome → Explorer |
+| Explorer dock (Agent/SQL/Review) | Activity Rail → Agent / Review / Code / APEX | Layout Chrome → Explorer |
 | Database drawer | Activity Rail → Database | Layout Chrome → Database |
 | Inspector | Layout Chrome → Inspector | Optional compact header/toolbar control only if it already fits — do not invent a second rail |
 | Mission (when hidden) | Layout Chrome / Focus controls (“Show Mission”) | |
@@ -76,11 +76,11 @@ and follow-up
 | Rail | Effect |
 | --- | --- |
 | Files | Files Focus + Explorer open (peer) |
-| Agent / Review | Switch Focus only — do **not** auto-open Explorer |
-| Code / APEX | Open Explorer dock to that posture (Explorer-only; no Focus change unless leaving Review) |
+| Agent / Review | Switch Focus + open Explorer dock to that posture |
+| Code / APEX | Open Explorer dock to that posture (Explorer-only; no Focus change unless leaving Review). Rail highlight stays on Code/APEX — Focus→rail sync must not rewrite it to Agent. |
 | Database | Open Database dock |
 
-**Focus transition:** Leaving Files (Explorer peer) for Agent / SQL / Review turns Explorer into a **closed** dock. User re-opens via Code/APEX rail / Layout Chrome.
+**Focus transition:** Leaving Files (Explorer peer) for Agent / SQL / Review applies Focus defaults (Explorer **closed** for Agent/SQL/Review). Rail selection that targets Explorer re-opens it to the chosen posture.
 
 ## Dismiss affordances
 
