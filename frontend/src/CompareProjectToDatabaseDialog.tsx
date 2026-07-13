@@ -20,19 +20,12 @@ export const CompareProjectToDatabaseDialog = ({
 
   return (
     <div className="shell-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onClose();
-          }
-        }}
-      >
+      <div onClick={(event) => event.stopPropagation()}>
         <DialogChrome
           title="Compare project to database"
           description="Find where the database differs from project files."
           aria-label="Compare project to database"
+          onClose={onClose}
           banner={
             <div className="shell-dialog-banner" data-testid="stub-chrome">
               <StubBadge />

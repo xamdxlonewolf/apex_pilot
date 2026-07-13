@@ -116,6 +116,7 @@ export const AppSettings = ({
       title="Settings"
       description="Profile and app preferences for this machine. Environment → SQLcl / APEX mappings stay with the open project. Preferences are not a wizard."
       aria-label="Settings"
+      onClose={onClose}
       primaryAction={
         <button type="button" onClick={onClose}>
           Done

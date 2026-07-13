@@ -1,9 +1,16 @@
-import { useId, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import {
   filterCommandActions,
   type CommandPaletteAction,
 } from "./commandPaletteModel";
+import { useDialogFocusTrap } from "./dialogFocus";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -16,10 +23,18 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
   const [activeIndex, setActiveIndex] = useState(0);
   const listId = useId();
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => filterCommandActions(actions, query), [actions, query]);
   const safeIndex =
     filtered.length === 0 ? 0 : Math.min(Math.max(activeIndex, 0), filtered.length - 1);
+
+  useDialogFocusTrap(dialogRef, {
+    active: open,
+    onClose,
+    initialFocusRef: inputRef,
+  });
 
   if (!open) {
     return null;
@@ -34,12 +49,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
   };
 
   const onDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-      return;
-    }
+    // Escape is handled by useDialogFocusTrap (capture).
     if (event.key === "ArrowDown") {
       event.preventDefault();
       if (filtered.length === 0) {
@@ -76,6 +86,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
       }}
     >
       <div
+        ref={dialogRef}
         className="command-palette"
         role="dialog"
         aria-modal="true"
@@ -87,6 +98,7 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
           Command Palette
         </h2>
         <input
+          ref={inputRef}
           className="command-palette-input"
           type="search"
           role="combobox"
@@ -98,7 +110,6 @@ export const CommandPalette = ({ open, actions, onClose }: CommandPaletteProps) 
           }
           placeholder="Type a command…"
           value={query}
-          autoFocus
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);

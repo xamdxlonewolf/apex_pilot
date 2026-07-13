@@ -17,19 +17,12 @@ export const UpdatesDialog = ({ open, onClose }: UpdatesDialogProps) => {
 
   return (
     <div className="shell-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onClose();
-          }
-        }}
-      >
+      <div onClick={(event) => event.stopPropagation()}>
         <DialogChrome
           title="Updates"
           description="Check for updates across Apex Pilot components."
           aria-label="Updates"
+          onClose={onClose}
           banner={
             <div className="shell-dialog-banner" data-testid="stub-chrome">
               <StubBadge />
@@ -69,19 +62,12 @@ export const AboutDialog = ({ open, onClose }: AboutDialogProps) => {
 
   return (
     <div className="shell-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            onClose();
-          }
-        }}
-      >
+      <div onClick={(event) => event.stopPropagation()}>
         <DialogChrome
           title="About Apex Pilot"
           description="Local-first Oracle development automation."
           aria-label="About Apex Pilot"
+          onClose={onClose}
           primaryAction={
             <button type="button" className="chrome-button" onClick={onClose}>
               Close

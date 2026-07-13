@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
-import { useId } from "react";
+import type { ReactNode, RefObject } from "react";
+import { useId, useRef } from "react";
+
+import { useDialogFocusTrap } from "./dialogFocus";
 
 type DialogChromeProps = Readonly<{
   title: string;
@@ -11,6 +13,13 @@ type DialogChromeProps = Readonly<{
   banner?: ReactNode;
   className?: string;
   "aria-label"?: string;
+  /**
+   * When set, enables modal focus management: move focus in, Tab trap,
+   * Escape closes via onClose, restore focus to the invoker on unmount.
+   */
+  onClose?: () => void;
+  /** Prefer this control for initial focus when onClose is set. */
+  initialFocusRef?: RefObject<HTMLElement | null>;
 }>;
 
 /** Spec dialog layout: title → description → content → secondary/primary footer. */
@@ -23,12 +32,22 @@ export const DialogChrome = ({
   banner,
   className,
   "aria-label": ariaLabel,
+  onClose,
+  initialFocusRef,
 }: DialogChromeProps) => {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useDialogFocusTrap(dialogRef, {
+    active: Boolean(onClose),
+    onClose: onClose ?? (() => undefined),
+    initialFocusRef,
+  });
 
   return (
     <div
+      ref={dialogRef}
       className={["dialog-chrome", "funnel-screen", className].filter(Boolean).join(" ")}
       role="dialog"
       aria-modal="true"
