@@ -20,19 +20,31 @@ Command Palette, Layout Chrome, Focus Mode).
 
 | Home | Owns |
 | --- | --- |
-| **App Menu → File** | New / Open / Recent / Close Project; Settings |
+| **App Menu → File** | New / Open / Recent / Close Project (no Settings — header gear only) |
 | **App Menu → Edit** | Undo / Redo / Cut / Copy / Paste / Select All (focused Workspace editor) |
 | **App Menu → View** | Focus Modes (Agent / SQL / Files / Review); Layout Chrome toggles (Explorer, Inspector, Developer Console; Mission as power-user layout only); Focus MCP Activity in Developer Console |
 | **App Menu → Help** | About; docs / repo link; Keyboard Shortcuts (or Show Command Palette); **Check for updates…**; **Compare project to database…** (Stub entry on-map; live compare later) |
-| **Product Header** | Single top band: brand, project, Environment, health, Context Bar pickers + Connect/reconnect, Settings gear |
-| **Toolbar** | New SQL, Run (progressive enablement); optional MCP console-focus shortcut |
+| **Product Header** | Single top band: brand, project, Environment, Backend health pill, Context Bar pickers + Connect/reconnect, Settings gear. No connection-name or MCP health pills (see connection-density asset) |
+| **Toolbar** | New SQL, Run (progressive enablement); optional MCP console-focus shortcut; no Settings |
 | **Command Palette** | Lists all shell actions that already have a chrome or App Menu home |
-| **Removed** | Permanent in-app Project / View menu button groups |
+| **Removed** | Permanent in-app Project / View menu button groups; App Menu File → Settings (moved to header-only) |
 
 ## Context Bar
 
 **Context Bar** is a *role* (connection, Working Schema, Environment pickers),
 hosted **inside** the Product Header — not a second stacked chrome strip.
+
+## Connection / Settings / MCP density
+
+Locked by
+[Grilling: Product Header connection density](https://github.com/xamdxlonewolf/apex_pilot/issues/92)
+(UX review H1 + M4). Full cue table:
+`.scratch/ui-overhaul/product-header-connection-density.md`.
+
+Summary: Context Bar select + Connect is the only connection-name control;
+drop header connection and MCP health pills; status bar keeps short `DB:`;
+Settings is Product Header only; MCP lives in Console with Toolbar + View
+focus shortcuts.
 
 ## Check for updates
 

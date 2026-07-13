@@ -80,26 +80,31 @@ second top strip that duplicates Product Header density
 
 **Product Header**:
 The single dense top identity/status band toward the figure_1 north star —
-brand, project, Environment, health, Context Bar pickers, and a small set of
-utilities (for example Settings) — not a classic Project/View menu strip as the
-primary way to navigate the shell. Replaces the interim in-app menubar once the
-native App Menu ships.
+brand, project, Environment, Backend health, Context Bar pickers, and Settings —
+not a classic Project/View menu strip as the primary way to navigate the shell.
+Replaces the interim in-app menubar once the native App Menu ships. Connection
+identity lives only in the Context Bar role (select + Connect); Settings lives
+only here (not in the App Menu).
 _Avoid_: VIEW menu as show/hide-only navigation; VS Code–style menu-as-IA;
-permanent in-app Project/View menu button groups beside the header
+permanent in-app Project/View menu button groups beside the header; restating
+the connection name or MCP status as header health pills
 
 **App Menu**:
 The native desktop application menu (File, Edit, View, Help, and related) hosted
 by the Tauri shell. Owns discoverable OS-standard and project-lifecycle actions
 so in-app chrome can stay a Product Header + Toolbar. View holds Focus Mode
 entries and Layout Chrome (panel show/hide); panel toggles are never primary IA.
+Settings is not an App Menu item — Product Header gear is its home.
 _Avoid_: Duplicating every App Menu action as permanent in-app menu buttons;
-treating View show/hide as the main navigation model
+treating View show/hide as the main navigation model; File → Settings when the
+header already owns Settings
 
 **Toolbar**:
 The always-on action chrome for frequent workflow verbs (New SQL, Run), with
-progressive enablement. Not for project lifecycle, Settings, or identity pickers.
+progressive enablement, plus an optional MCP Activity console-focus shortcut.
+Not for project lifecycle, Settings, or identity pickers.
 _Avoid_: Parked Connect / Settings / project Open as permanent Toolbar buttons
-when those belong in Product Header, Context Bar role, or App Menu
+when those belong in Product Header or Context Bar role
 
 **Command Palette**:
 The power-user index (Ctrl+Shift+P) that discovers and runs shell actions which
