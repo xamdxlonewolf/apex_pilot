@@ -8,21 +8,25 @@ even before implementation code exists.
 
 - Do not touch Oracle APEX export folders.
 - Do not touch root-level `f*.sql` APEX export files.
-- Do not add direct database access paths. SQL execution must go through SQLcl
-  MCP.
+- Agent and skill database execution must go through SQLcl MCP.
+- Human-initiated interactive database access may use only the narrow guarded
+  backend `python-oracledb` facades authorized by ADR-0008. Do not expose raw
+  connections, pools, or cursors to the frontend, agents, or skills.
 - Do not expose raw MCP clients to PydanticAI tools. Expose only guarded
   application facades.
 - Do not design skills that connect directly to Oracle. Skills may inspect,
   transform, validate, and generate; application services own execution.
-- Do not persist Oracle passwords. Use SQLcl saved connection names, OS keyring,
-  or environment variables for secrets.
+- Do not persist Oracle passwords outside a SQLcl wallet or an allowlisted
+  native OS keyring. Never store them in project files, SQLite, generic
+  encrypted files, logs, or events.
 
 ## Architecture Direction
 
 - Frontend: Tauri, React, TypeScript.
 - Backend: FastAPI with Python package `apex_pilot`.
 - Agent: PydanticAI with LiteLLM model profile support.
-- Execution: Oracle SQLcl MCP only.
+- Execution: SQLcl MCP for agents/skills; guarded `python-oracledb` facades for
+  human-initiated interactive database work.
 - Persistence: local SQLite metadata, not SQL result rows by default.
 - System skills: sparse checkout of `apex/` and `db/` from
   `https://github.com/oracle/skills.git`.
@@ -39,7 +43,7 @@ Planned backend modules are `api`, `agent`, `mcp`, `skills`, `safety`, `schema`,
 - Prompt or block destructive and security-sensitive SQL based on risk.
 - Make every database-changing action explainable through SQL text,
   classification, approval state, selected connection, model profile, and MCP
-  tool log.
+  or guarded-driver execution log.
 
 ## Documentation Expectations
 

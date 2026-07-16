@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[ADR-0008](0008-dual-path-oracle-access-and-credential-ownership.md)
 
 ## Date
 
@@ -103,3 +104,4 @@ explicit primary MCP session.
 
 - [ADR-0001](0001-local-first-desktop-architecture.md)
 - [ADR-0003](0003-guarded-agent-and-skill-boundaries.md)
+- [ADR-0008](0008-dual-path-oracle-access-and-credential-ownership.md)
