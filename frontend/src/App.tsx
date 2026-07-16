@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -20,9 +21,12 @@ import {
 } from "./centerEditors";
 import { McpActivityWindow, openMcpActivityWindow } from "./McpActivityWindow";
 import {
+  DEFAULT_ACTIVITY_RAIL,
   DEFAULT_FOCUS_MODE,
   FOCUS_MODES,
   focusModeLabel,
+  railForFocusMode,
+  type ActivityRailId,
   type FocusMode,
 } from "./focusMode";
 import { IdeWorkspace } from "./IdeWorkspace";
@@ -105,9 +109,9 @@ export const App = () => {
   const [mcpFocusRequest, setMcpFocusRequest] = useState(0);
   const [openedProject, setOpenedProject] = useState<OpenedProject | null>(null);
   const [wizardMode, setWizardMode] = useState<WizardMode | null>(null);
-  const [requestClose, setRequestClose] = useState(false);
   const [sqlDirty, setSqlDirty] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const profileIdRef = useRef(profileId);
   const [shellPhase, setShellPhase] = useState("booting");
   const [layoutProfileId, setLayoutProfileId] = useState<string | null>(null);
   const [layout, setLayout] = useState<ProfileLayoutPrefs>(() => loadProfileLayout(null));
@@ -117,6 +121,7 @@ export const App = () => {
   );
   const [openCenterEditorRequest, setOpenCenterEditorRequest] = useState(0);
   const [focusMode, setFocusMode] = useState<FocusMode>(DEFAULT_FOCUS_MODE);
+  const [activityRail, setActivityRail] = useState<ActivityRailId>(DEFAULT_ACTIVITY_RAIL);
   const [focusModeProjectId, setFocusModeProjectId] = useState<string | null>(null);
   const [shellSession, setShellSession] = useState<ShellSessionState>(() =>
     initialShellSession(DEFAULT_FOCUS_MODE),
@@ -129,6 +134,7 @@ export const App = () => {
   if (openedProjectId !== focusModeProjectId) {
     setFocusModeProjectId(openedProjectId);
     setFocusMode(DEFAULT_FOCUS_MODE);
+    setActivityRail(DEFAULT_ACTIVITY_RAIL);
     setShellSession(initialShellSession(DEFAULT_FOCUS_MODE));
   }
 
@@ -233,52 +239,40 @@ export const App = () => {
   }, [connectedConnection, isBackendOnline, refreshActivity]);
 
   useEffect(() => {
+    profileIdRef.current = profileId;
+  }, [profileId]);
+
+  useEffect(() => {
     if (!profileId) {
       return;
     }
     saveProfileLayout(profileId, layout);
   }, [layout, profileId]);
 
-  useEffect(() => {
-    if (wizardMode !== null || !profileId) {
-      return;
-    }
-    setLayout(loadProfileLayout(profileId));
-  }, [profileId, wizardMode]);
-
-  useEffect(() => {
-    if (!requestClose) {
-      return;
-    }
+  const closeProject = useCallback(async () => {
     if (!openedProject) {
-      setRequestClose(false);
       return;
     }
-    void (async () => {
-      if (sqlDirty) {
-        const proceed = window.confirm("You have unsaved work. Close the project anyway?");
-        if (!proceed) {
-          setRequestClose(false);
-          return;
-        }
+    if (sqlDirty) {
+      const proceed = window.confirm("You have unsaved work. Close the project anyway?");
+      if (!proceed) {
+        return;
       }
-      try {
-        await closeCurrentProject(backendConfig);
-        setOpenedProject(null);
-        setSqlDirty(false);
-        setWizardMode(null);
-        setOpenCenterEditorKind(null);
-        setOpenCenterEditorRequest(0);
-        setConnectionMessage("Project closed.");
-      } catch (error) {
-        setConnectionMessage(
-          error instanceof Error ? error.message : "Could not close project.",
-        );
-      } finally {
-        setRequestClose(false);
-      }
-    })();
-  }, [backendConfig, openedProject, requestClose, sqlDirty]);
+    }
+    try {
+      await closeCurrentProject(backendConfig);
+      setOpenedProject(null);
+      setSqlDirty(false);
+      setWizardMode(null);
+      setOpenCenterEditorKind(null);
+      setOpenCenterEditorRequest(0);
+      setConnectionMessage("Project closed.");
+    } catch (error) {
+      setConnectionMessage(
+        error instanceof Error ? error.message : "Could not close project.",
+      );
+    }
+  }, [backendConfig, openedProject, sqlDirty]);
 
   const connectSelectedConnection = useCallback(
     async (connectionName?: string) => {
@@ -335,8 +329,19 @@ export const App = () => {
     setMcpFocusRequest(0);
   }, []);
 
+  const handleWizardModeChange = useCallback((mode: WizardMode | null) => {
+    if (mode === null && profileIdRef.current) {
+      setLayout(loadProfileLayout(profileIdRef.current));
+    }
+    setWizardMode(mode);
+  }, []);
+
   const handleFocusModeChange = useCallback((mode: FocusMode) => {
     setFocusMode(mode);
+    const pairedRail = railForFocusMode(mode);
+    if (pairedRail) {
+      setActivityRail(pairedRail);
+    }
     setShellSession((current) => applyFocusTransition(current, mode));
   }, []);
 
@@ -428,7 +433,7 @@ export const App = () => {
         enabled: canUseProjectMenus,
         run: () => {
           if (openedProject) {
-            setRequestClose(true);
+            void closeProject();
             return;
           }
           setWizardMode(null);
@@ -438,7 +443,9 @@ export const App = () => {
         id: "file-close",
         label: "File: Close Project",
         enabled: canCloseProject,
-        run: () => setRequestClose(true),
+        run: () => {
+          void closeProject();
+        },
       },
       {
         id: "file-settings",
@@ -490,10 +497,10 @@ export const App = () => {
     canCompareProjectToDatabase,
     openedProject,
     projectOpen,
-    setupLocked,
     togglePanel,
     handleFocusModeChange,
     openMcp,
+    closeProject,
   ]);
 
   useEffect(() => {
@@ -545,12 +552,14 @@ export const App = () => {
     onOpenProject: () => setWizardMode("open"),
     onRecentProjects: () => {
       if (openedProject) {
-        setRequestClose(true);
+        void closeProject();
         return;
       }
       setWizardMode(null);
     },
-    onCloseProject: () => setRequestClose(true),
+    onCloseProject: () => {
+      void closeProject();
+    },
     onOpenMcp: () => {
       void openMcp();
     },
@@ -606,7 +615,6 @@ export const App = () => {
             isBackendOnline={isBackendOnline}
             connections={connections}
             openedProject={openedProject}
-            onOpenedProjectChange={setOpenedProject}
             connectedConnection={connectedConnection}
             selectedConnection={selectedConnection}
             onSelectedConnectionChange={setSelectedConnection}
@@ -628,6 +636,8 @@ export const App = () => {
             openCenterEditorRequest={openCenterEditorRequest}
             focusMode={focusMode}
             onFocusModeChange={handleFocusModeChange}
+            activityRail={activityRail}
+            onActivityRailChange={setActivityRail}
             shellSession={shellSession}
             onShellSessionChange={setShellSession}
           />
@@ -646,7 +656,7 @@ export const App = () => {
             onPhaseChange={setShellPhase}
             onProfilesChange={(_profiles, selected) => setProfileId(selected || null)}
             wizardMode={wizardMode}
-            onWizardModeChange={setWizardMode}
+            onWizardModeChange={handleWizardModeChange}
           />
         )}
       </main>

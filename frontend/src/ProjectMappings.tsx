@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   type BackendConfig,
@@ -16,6 +16,17 @@ type ProjectMappingsProps = Readonly<{
   onOpenedProjectChange: (project: OpenedProject | null) => void;
 }>;
 
+const environmentConnectionDrafts = (openedProject: OpenedProject): Record<string, string> => {
+  const drafts: Record<string, string> = {};
+  for (const mapping of openedProject.environment_mappings) {
+    drafts[mapping.environment_name] = mapping.sqlcl_connection_name;
+  }
+  for (const envName of openedProject.unmapped_environments) {
+    drafts[envName] = drafts[envName] ?? "";
+  }
+  return drafts;
+};
+
 /** Env → SQLcl / APEX workspace mappings for the open project (preferences UX). */
 export const ProjectMappings = ({
   backendConfig,
@@ -23,22 +34,19 @@ export const ProjectMappings = ({
   openedProject,
   onOpenedProjectChange,
 }: ProjectMappingsProps) => {
-  const [envConnectionDrafts, setEnvConnectionDrafts] = useState<Record<string, string>>({});
+  const [draftSource, setDraftSource] = useState(openedProject);
+  const [envConnectionDrafts, setEnvConnectionDrafts] = useState<Record<string, string>>(() =>
+    environmentConnectionDrafts(openedProject),
+  );
   const [apexWorkspaceDraft, setApexWorkspaceDraft] = useState("");
   const [apexConnectionDraft, setApexConnectionDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    const drafts: Record<string, string> = {};
-    for (const mapping of openedProject.environment_mappings) {
-      drafts[mapping.environment_name] = mapping.sqlcl_connection_name;
-    }
-    for (const envName of openedProject.unmapped_environments) {
-      drafts[envName] = drafts[envName] ?? "";
-    }
-    setEnvConnectionDrafts(drafts);
-  }, [openedProject]);
+  if (openedProject !== draftSource) {
+    setDraftSource(openedProject);
+    setEnvConnectionDrafts(environmentConnectionDrafts(openedProject));
+  }
 
   const environmentNames = [
     ...new Set([

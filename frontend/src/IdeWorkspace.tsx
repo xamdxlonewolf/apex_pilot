@@ -32,12 +32,10 @@ import {
   getSessionContextOnce,
 } from "./backend";
 import {
-  DEFAULT_ACTIVITY_RAIL,
   applyFocusModeSelection,
   applyRailSelection,
   editorPeerKindFromTab,
   focusModeFromWork,
-  railForFocusMode,
   workspaceVisualPrimacy,
   type ActivityRailId,
   type FocusMode,
@@ -158,7 +156,6 @@ type IdeWorkspaceProps = Readonly<{
   isBackendOnline: boolean;
   connections: SavedConnection[];
   openedProject: OpenedProject;
-  onOpenedProjectChange: (project: OpenedProject | null) => void;
   connectedConnection: string | null;
   selectedConnection: string;
   onSelectedConnectionChange: (name: string) => void;
@@ -182,6 +179,8 @@ type IdeWorkspaceProps = Readonly<{
   openCenterEditorRequest?: number;
   focusMode: FocusMode;
   onFocusModeChange: (mode: FocusMode) => void;
+  activityRail: ActivityRailId;
+  onActivityRailChange: (rail: ActivityRailId) => void;
   shellSession: ShellSessionState;
   onShellSessionChange: (
     next: ShellSessionState | ((current: ShellSessionState) => ShellSessionState),
@@ -304,7 +303,6 @@ export const IdeWorkspace = ({
   isBackendOnline,
   connections,
   openedProject,
-  onOpenedProjectChange,
   connectedConnection,
   selectedConnection,
   onSelectedConnectionChange,
@@ -326,6 +324,8 @@ export const IdeWorkspace = ({
   openCenterEditorRequest = 0,
   focusMode,
   onFocusModeChange,
+  activityRail,
+  onActivityRailChange,
   shellSession,
   onShellSessionChange,
 }: IdeWorkspaceProps) => {
@@ -345,19 +345,13 @@ export const IdeWorkspace = ({
   });
   const [handledEditorRequest, setHandledEditorRequest] = useState(0);
   const [schemaObjects, setSchemaObjects] = useState<QuickOpenItem[]>([]);
-  const [explorerFocusSection, setExplorerFocusSection] = useState<ExplorerSectionId | null>(
-    null,
-  );
   const [focusedObjectName, setFocusedObjectName] = useState<string | null>(null);
-  const [activityRail, setActivityRail] = useState<ActivityRailId>(DEFAULT_ACTIVITY_RAIL);
   const [sqlRunState, setSqlRunState] = useState<SqlRunState>({
     busy: false,
     hasSql: false,
     canRun: false,
   });
   const schemaAutofillKey = useRef<string | null>(null);
-  /** When true, the next focusMode effect must not clobber rail (rail-driven select). */
-  const skipFocusRailSync = useRef(false);
   const workspacePeersRef = useRef<HTMLDivElement | null>(null);
 
   if (projectId !== tabsProjectId) {
@@ -374,20 +368,12 @@ export const IdeWorkspace = ({
     setHandledEditorRequest(0);
     setSchemaObjects([]);
     setFocusedObjectName(null);
-    setExplorerFocusSection(null);
-    setActivityRail(DEFAULT_ACTIVITY_RAIL);
-    schemaAutofillKey.current = null;
   }
 
   const onActivityRailSelect = (rail: ActivityRailId) => {
     const next = applyRailSelection(rail, focusMode);
-    // When Focus changes (e.g. Review→Agent for Code/APEX), skip the Focus→rail
-    // sync so the selected explorer-only rail is not rewritten to Agent.
-    if (next.focusMode !== focusMode) {
-      skipFocusRailSync.current = true;
-    }
     onFocusModeChange(next.focusMode);
-    setActivityRail(next.rail);
+    onActivityRailChange(next.rail);
     if (rail === "database") {
       onShellSessionChange((current) => withDrawerOpen(current, layout, "database", true));
       return;
@@ -407,7 +393,7 @@ export const IdeWorkspace = ({
     if (nextMode !== focusMode) {
       const next = applyFocusModeSelection(nextMode, activityRail);
       onFocusModeChange(next.focusMode);
-      setActivityRail(next.rail);
+      onActivityRailChange(next.rail);
     }
   };
 
@@ -416,32 +402,9 @@ export const IdeWorkspace = ({
     if (nextMode !== focusMode) {
       const next = applyFocusModeSelection(nextMode, activityRail);
       onFocusModeChange(next.focusMode);
-      setActivityRail(next.rail);
+      onActivityRailChange(next.rail);
     }
   };
-
-  useEffect(() => {
-    if (!explorerFocusSection) {
-      return;
-    }
-    const next = applyRailSelection(explorerFocusSection, focusMode);
-    onFocusModeChange(next.focusMode);
-    setActivityRail(next.rail);
-    setExplorerFocusSection(null);
-  }, [explorerFocusSection, focusMode, onFocusModeChange]);
-
-  // Keep rail in sync when Focus Mode is set from App menu / palette (SQL leaves rail).
-  // Skip when the rail itself drove the Focus change (preserves Code / APEX / Database).
-  useEffect(() => {
-    if (skipFocusRailSync.current) {
-      skipFocusRailSync.current = false;
-      return;
-    }
-    const paired = railForFocusMode(focusMode);
-    if (paired) {
-      setActivityRail(paired);
-    }
-  }, [focusMode]);
 
   useEffect(() => {
     const defaults = loadProjectDefaults(openedProject.project.project_id);
@@ -460,13 +423,33 @@ export const IdeWorkspace = ({
     ) {
       return;
     }
-    const tab = stubCenterEditorTab(openCenterEditorKind);
-    setTabs((current) =>
-      current.some((item) => item.id === tab.id) ? current : [...current, tab],
-    );
-    activateEditorTab(tab.id, tab.kind);
-    setHandledEditorRequest(openCenterEditorRequest);
-  }, [handledEditorRequest, openCenterEditorKind, openCenterEditorRequest]);
+    const timer = window.setTimeout(() => {
+      const tab = stubCenterEditorTab(openCenterEditorKind);
+      setTabs((current) =>
+        current.some((item) => item.id === tab.id) ? current : [...current, tab],
+      );
+      setActiveCenterTabId(tab.id);
+      const peer = editorPeerKindFromTab(tab.kind);
+      if (peer !== "mission" && peer !== null) {
+        const nextMode = focusModeFromWork(focusMode, { type: "editor-focus", peer });
+        if (nextMode !== focusMode) {
+          const next = applyFocusModeSelection(nextMode, activityRail);
+          onFocusModeChange(next.focusMode);
+          onActivityRailChange(next.rail);
+        }
+      }
+      setHandledEditorRequest(openCenterEditorRequest);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [
+    activityRail,
+    focusMode,
+    handledEditorRequest,
+    onActivityRailChange,
+    onFocusModeChange,
+    openCenterEditorKind,
+    openCenterEditorRequest,
+  ]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") {
@@ -476,7 +459,6 @@ export const IdeWorkspace = ({
     const onChange = (event: MediaQueryListEvent) => {
       setReduceMotion(event.matches);
     };
-    setReduceMotion(media.matches);
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", onChange);
       return () => media.removeEventListener("change", onChange);
@@ -493,7 +475,6 @@ export const IdeWorkspace = ({
     const onChange = (event: MediaQueryListEvent) => {
       setRailViewportWide(event.matches);
     };
-    setRailViewportWide(media.matches);
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", onChange);
       return () => media.removeEventListener("change", onChange);
@@ -584,7 +565,6 @@ export const IdeWorkspace = ({
     }
 
     if (override) {
-      setWorkingSchema(override);
       schemaAutofillKey.current = key;
       return;
     }
@@ -809,7 +789,7 @@ export const IdeWorkspace = ({
     // Explicit SQL Focus Mode overrides sticky Agent (ADR-0007 / Focus Mode grilling).
     const next = applyFocusModeSelection("sql", activityRail);
     onFocusModeChange(next.focusMode);
-    setActivityRail(next.rail);
+    onActivityRailChange(next.rail);
   };
 
   const toolbarRunEnabled =
@@ -885,8 +865,6 @@ export const IdeWorkspace = ({
       })),
     onOpenFile,
     activePosture: explorerPosture,
-    focusSection: explorerFocusSection,
-    onFocusSectionHandled: () => setExplorerFocusSection(null),
     apexMappings: openedProject.apex_workspace_mappings,
     onOpenApex,
     onClose: explorerDrawer ? closeExplorer : undefined,

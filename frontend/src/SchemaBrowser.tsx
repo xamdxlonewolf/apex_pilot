@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   type BackendConfig,
@@ -67,28 +67,46 @@ export const SchemaBrowser = ({
   const [message, setMessage] = useState(() =>
     connectedConnection
       ? `Connected to ${connectedConnection}. Load a schema to browse objects.`
-      : "Connect, then load a schema.",
+      : "Not connected. Use Connect in the Product Header.",
   );
   const [busy, setBusy] = useState(false);
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
+  const [draftWorkingSchema, setDraftWorkingSchema] = useState(workingSchema);
+  const [stateConnection, setStateConnection] = useState(connectedConnection);
   const autoLoadKey = useRef<string | null>(null);
+  const onSummaryChangeRef = useRef(onSummaryChange);
 
-  const publishSummary = (next: SchemaSummary | null) => {
-    setSummary(next);
-    onSummaryChange?.(next);
-  };
+  if (workingSchema !== draftWorkingSchema) {
+    setDraftWorkingSchema(workingSchema);
+    setDraftSchema(workingSchema);
+  }
+
+  if (connectedConnection !== stateConnection) {
+    setStateConnection(connectedConnection);
+    if (!connectedConnection) {
+      setSummary(null);
+      setActiveSchema(null);
+      setBusy(false);
+      setMessage("Not connected. Use Connect in the Product Header.");
+    }
+  }
+
+  const publishSummary = useCallback(
+    (next: SchemaSummary | null) => {
+      setSummary(next);
+      onSummaryChange?.(next);
+    },
+    [onSummaryChange],
+  );
 
   useEffect(() => {
-    setDraftSchema(workingSchema);
-  }, [workingSchema]);
+    onSummaryChangeRef.current = onSummaryChange;
+  }, [onSummaryChange]);
 
   useEffect(() => {
     if (!connectedConnection) {
       autoLoadKey.current = null;
-      publishSummary(null);
-      setActiveSchema(null);
-      setBusy(false);
-      setMessage("Not connected. Use Connect in the Product Header.");
+      onSummaryChangeRef.current?.(null);
     }
   }, [connectedConnection]);
 

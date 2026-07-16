@@ -76,6 +76,7 @@ export const StartupFunnel = ({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [projectStepIndex, setProjectStepIndex] = useState(0);
+  const [projectStepWizardMode, setProjectStepWizardMode] = useState(wizardMode);
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -91,6 +92,13 @@ export const StartupFunnel = ({
   const [apexAppId, setApexAppId] = useState("");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [cloneParent, setCloneParent] = useState("");
+
+  if (wizardMode !== projectStepWizardMode) {
+    setProjectStepWizardMode(wizardMode);
+    if (wizardMode === "new") {
+      setProjectStepIndex(0);
+    }
+  }
 
   const goPhase = (next: FunnelPhase | "workspace") => {
     if (next !== "workspace") {
@@ -119,11 +127,11 @@ export const StartupFunnel = ({
 
   useEffect(() => {
     if (!isBackendOnline) {
-      goPhase("booting");
+      onPhaseChange?.("booting");
       return;
     }
     if (openedProject && !wizardMode) {
-      goPhase("workspace");
+      onPhaseChange?.("workspace");
       return;
     }
 
@@ -161,12 +169,6 @@ export const StartupFunnel = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backendConfig, isBackendOnline, openedProject?.project.project_id, wizardMode]);
-
-  useEffect(() => {
-    if (wizardMode === "new") {
-      setProjectStepIndex(0);
-    }
-  }, [wizardMode]);
 
   const ensureProfile = async (): Promise<string> => {
     if (selectedProfileId) {
@@ -375,7 +377,9 @@ export const StartupFunnel = ({
     );
   }
 
-  if (phase === "booting" && !wizardMode) {
+  const visiblePhase = !isBackendOnline && !wizardMode ? "booting" : phase;
+
+  if (visiblePhase === "booting" && !wizardMode) {
     return (
       <div className="funnel-screen" aria-label="Starting">
         <p className="pane-muted">Checking backend health…</p>
@@ -383,7 +387,7 @@ export const StartupFunnel = ({
     );
   }
 
-  if (phase === "preflight" && !wizardMode) {
+  if (visiblePhase === "preflight" && !wizardMode) {
     const ready = Boolean(preflight?.ready);
     return (
       <DialogChrome
@@ -477,7 +481,7 @@ export const StartupFunnel = ({
     return <ConnectionWizard onCancel={() => onWizardModeChange(null)} />;
   }
 
-  if (phase === "profile") {
+  if (visiblePhase === "profile") {
     return (
       <DialogChrome
         title="Create a local profile"

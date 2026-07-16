@@ -68,7 +68,16 @@ export const DeveloperConsole = ({
   onMcpFocusHandled,
   onClose,
 }: DeveloperConsoleProps) => {
-  const [activeTabId, setActiveTabId] = useState<ConsoleTabId>(CONSOLE_TABS[0].id);
+  const [activeTabId, setActiveTabId] = useState<ConsoleTabId>(() =>
+    mcpFocusRequest > 0 ? "mcp-activity" : CONSOLE_TABS[0].id,
+  );
+  const [handledMcpFocusRequest, setHandledMcpFocusRequest] = useState(0);
+  if (mcpFocusRequest !== handledMcpFocusRequest) {
+    setHandledMcpFocusRequest(mcpFocusRequest);
+    if (mcpFocusRequest > 0) {
+      setActiveTabId("mcp-activity");
+    }
+  }
   const activeTab = CONSOLE_TABS.find((tab) => tab.id === activeTabId) ?? CONSOLE_TABS[0];
   const activeTabButtonId = `developer-console-tab-${activeTab.id}`;
   const activePanelId = `developer-console-panel-${activeTab.id}`;
@@ -77,7 +86,6 @@ export const DeveloperConsole = ({
     if (mcpFocusRequest <= 0) {
       return;
     }
-    setActiveTabId("mcp-activity");
     onMcpFocusHandled?.();
   }, [mcpFocusRequest, onMcpFocusHandled]);
 

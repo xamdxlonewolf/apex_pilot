@@ -9,6 +9,7 @@ import {
   type AppMenuHandlers,
   type AppMenuState,
 } from "./appMenuModel";
+import { panelIsVisible } from "./shellSession";
 
 type UseNativeAppMenuArgs = Readonly<{
   enabled: boolean;
@@ -48,6 +49,18 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
   const handlersRef = useRef(handlers);
   const stateRef = useRef(state);
   const handlesRef = useRef<NativeMenuHandles | null>(null);
+  const {
+    canCloseProject,
+    canCompareProjectToDatabase,
+    canOpenMcp,
+    canTogglePanels,
+    canUseProjectMenus,
+    focusMode,
+    mcpActivityCount,
+    projectOpen,
+    shellSession,
+  } = state;
+  const showConsole = state.layout.showConsole;
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -249,24 +262,26 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
     const sync = async (): Promise<void> => {
       await Promise.all([
         ...FOCUS_MODE_MENU_ITEMS.map((item, index) =>
-          handles.focusItems[index]?.setChecked(state.focusMode === item.mode),
+          handles.focusItems[index]?.setChecked(focusMode === item.mode),
         ),
         ...LAYOUT_MENU_ITEMS.map((item, index) =>
-          handles.layoutItems[index]?.setChecked(layoutPanelChecked(state, item.panel)),
+          handles.layoutItems[index]?.setChecked(
+            panelIsVisible(shellSession, focusMode, item.panel, showConsole),
+          ),
         ),
         handles.mcpItem.setText(
-          state.mcpActivityCount > 0
-            ? `MCP Activity (${state.mcpActivityCount})`
+          mcpActivityCount > 0
+            ? `MCP Activity (${mcpActivityCount})`
             : "MCP Activity",
         ),
-        handles.mcpItem.setEnabled(state.canOpenMcp),
-        handles.fileItems.newProject.setEnabled(state.canUseProjectMenus),
-        handles.fileItems.openProject.setEnabled(state.canUseProjectMenus),
-        handles.fileItems.recent.setEnabled(state.canUseProjectMenus),
-        handles.fileItems.closeProject.setEnabled(state.canCloseProject),
-        handles.helpCompare.setEnabled(state.canCompareProjectToDatabase),
-        ...handles.focusItems.map((item) => item.setEnabled(state.projectOpen)),
-        ...handles.layoutItems.map((item) => item.setEnabled(state.canTogglePanels)),
+        handles.mcpItem.setEnabled(canOpenMcp),
+        handles.fileItems.newProject.setEnabled(canUseProjectMenus),
+        handles.fileItems.openProject.setEnabled(canUseProjectMenus),
+        handles.fileItems.recent.setEnabled(canUseProjectMenus),
+        handles.fileItems.closeProject.setEnabled(canCloseProject),
+        handles.helpCompare.setEnabled(canCompareProjectToDatabase),
+        ...handles.focusItems.map((item) => item.setEnabled(projectOpen)),
+        ...handles.layoutItems.map((item) => item.setEnabled(canTogglePanels)),
       ]);
     };
 
@@ -274,15 +289,15 @@ export const useNativeAppMenu = ({ enabled, state, handlers }: UseNativeAppMenuA
       console.error("Failed to sync native App Menu state", error);
     });
   }, [
-    state.focusMode,
-    state.shellSession,
-    state.layout.showConsole,
-    state.mcpActivityCount,
-    state.canOpenMcp,
-    state.canUseProjectMenus,
-    state.canCloseProject,
-    state.canCompareProjectToDatabase,
-    state.projectOpen,
-    state.canTogglePanels,
+    canCloseProject,
+    canCompareProjectToDatabase,
+    canOpenMcp,
+    canTogglePanels,
+    canUseProjectMenus,
+    focusMode,
+    mcpActivityCount,
+    projectOpen,
+    shellSession,
+    showConsole,
   ]);
 };

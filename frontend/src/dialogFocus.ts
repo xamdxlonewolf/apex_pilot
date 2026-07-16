@@ -43,8 +43,11 @@ export const useDialogFocusTrap = (
   { active, onClose, initialFocusRef }: UseDialogFocusTrapOptions,
 ): void => {
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!active) {
