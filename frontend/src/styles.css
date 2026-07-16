@@ -1728,15 +1728,15 @@ button:disabled {
 
 .file-tree {
   margin: 0;
-  padding: 0;
+  padding: 0 2px 0 0;
   list-style: none;
   font-size: 0.82rem;
 }
 
 .file-tree .file-tree {
-  margin-left: 10px;
-  border-left: 1px solid color-mix(in srgb, var(--chrome-border) 70%, transparent);
-  padding-left: 6px;
+  margin-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--chrome-border) 55%, transparent);
+  padding-left: 4px;
 }
 
 .file-tree-item {
@@ -1745,13 +1745,14 @@ button:disabled {
 
 .file-tree-button {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   align-items: center;
+  justify-content: flex-start;
   width: 100%;
   min-height: var(--tree-row-height, 22px);
   padding: var(--tree-row-padding, 1px 4px);
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-weight: 400;
   text-align: left;
@@ -1765,19 +1766,70 @@ button:disabled {
 
 .file-tree-twist {
   display: inline-flex;
-  width: 0.9rem;
+  width: 0.75rem;
+  height: 0.75rem;
   flex-shrink: 0;
+  align-items: center;
   justify-content: center;
   color: var(--muted);
-  font-size: 0.7rem;
+}
+
+.file-tree-twist::before {
+  content: "";
+  width: 0.34rem;
+  height: 0.34rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion-expand) var(--motion-ease-standard);
+}
+
+.file-tree-twist--open::before {
+  transform: rotate(45deg);
 }
 
 .file-tree-twist--file {
-  opacity: 0.55;
+  visibility: hidden;
+}
+
+.file-tree-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.file-tree-icon-svg {
+  display: block;
+}
+
+.file-tree-icon--folder,
+.file-tree-icon--folder-open {
+  color: color-mix(in srgb, var(--info) 72%, var(--muted));
+}
+
+.file-tree-icon--sql {
+  color: color-mix(in srgb, var(--accent) 78%, var(--muted));
+}
+
+.file-tree-icon--package {
+  color: color-mix(in srgb, var(--warn) 70%, var(--muted));
+}
+
+.file-tree-icon--code {
+  color: color-mix(in srgb, var(--ok) 55%, var(--muted));
+}
+
+.file-tree-icon--generic {
+  color: var(--muted);
 }
 
 .file-tree-label {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1787,10 +1839,15 @@ button:disabled {
   color: var(--warn);
 }
 
+.file-tree-item--protected .file-tree-icon {
+  color: color-mix(in srgb, var(--warn) 80%, var(--muted));
+}
+
 .file-tree-button em {
   color: var(--muted);
   font-size: 0.68rem;
   font-style: normal;
+  flex-shrink: 0;
 }
 
 .chat-transcript {
