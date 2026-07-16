@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { FileTreeIcon, resolveFileTreeIconKind } from "./fileTreeIcons";
 import { type FileTreeNode, listDirectory } from "./projectFs";
 
 type FileTreeProps = Readonly<{
@@ -59,60 +60,72 @@ const TreeBranch = ({ path, depth, showJunk, onOpenFile }: TreeBranchProps) => {
 
   return (
     <ul className="file-tree" aria-label={depth === 0 ? "Project files" : undefined}>
-      {nodes.map((node) => (
-        <li
-          key={node.path}
-          className={
-            node.protected ? "file-tree-item file-tree-item--protected" : "file-tree-item"
-          }
-        >
-          {node.kind === "dir" ? (
-            <>
+      {nodes.map((node) => {
+        const isExpanded = Boolean(expanded[node.path]);
+        const iconKind = resolveFileTreeIconKind(node.name, node.kind, isExpanded);
+        return (
+          <li
+            key={node.path}
+            className={
+              node.protected ? "file-tree-item file-tree-item--protected" : "file-tree-item"
+            }
+          >
+            {node.kind === "dir" ? (
+              <>
+                <button
+                  type="button"
+                  className="file-tree-button"
+                  aria-expanded={isExpanded}
+                  onClick={() =>
+                    setExpanded((current) => ({
+                      ...current,
+                      [node.path]: !current[node.path],
+                    }))
+                  }
+                >
+                  <span
+                    className={
+                      isExpanded
+                        ? "file-tree-twist file-tree-twist--open"
+                        : "file-tree-twist"
+                    }
+                    aria-hidden="true"
+                  />
+                  <FileTreeIcon kind={iconKind} />
+                  <span className="file-tree-label">{node.name}</span>
+                  {node.protected ? <em>APEX export</em> : null}
+                  {node.protected ? <ProtectedMarkers /> : null}
+                  {node.junk ? <em>junk</em> : null}
+                </button>
+                {isExpanded ? (
+                  <TreeBranch
+                    path={node.path}
+                    depth={depth + 1}
+                    showJunk={showJunk}
+                    onOpenFile={onOpenFile}
+                  />
+                ) : null}
+              </>
+            ) : (
               <button
                 type="button"
                 className="file-tree-button"
-                aria-expanded={Boolean(expanded[node.path])}
-                onClick={() =>
-                  setExpanded((current) => ({ ...current, [node.path]: !current[node.path] }))
+                onClick={() => onOpenFile(node)}
+                title={
+                  node.protected
+                    ? "Protected APEX export artifact — read-only preview."
+                    : node.path
                 }
               >
-                <span className="file-tree-twist" aria-hidden="true">
-                  {expanded[node.path] ? "▾" : "▸"}
-                </span>
+                <span className="file-tree-twist file-tree-twist--file" aria-hidden="true" />
+                <FileTreeIcon kind={iconKind} />
                 <span className="file-tree-label">{node.name}</span>
-                {node.protected ? <em>APEX export</em> : null}
                 {node.protected ? <ProtectedMarkers /> : null}
-                {node.junk ? <em>junk</em> : null}
               </button>
-              {expanded[node.path] ? (
-                <TreeBranch
-                  path={node.path}
-                  depth={depth + 1}
-                  showJunk={showJunk}
-                  onOpenFile={onOpenFile}
-                />
-              ) : null}
-            </>
-          ) : (
-            <button
-              type="button"
-              className="file-tree-button"
-              onClick={() => onOpenFile(node)}
-              title={
-                node.protected
-                  ? "Protected APEX export artifact — read-only preview."
-                  : node.path
-              }
-            >
-              <span className="file-tree-twist file-tree-twist--file" aria-hidden="true">
-                ·
-              </span>
-              <span className="file-tree-label">{node.name}</span>
-              {node.protected ? <ProtectedMarkers /> : null}
-            </button>
-          )}
-        </li>
-      ))}
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 };

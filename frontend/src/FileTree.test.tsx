@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FileTree } from "./FileTree";
+import { resolveFileTreeIconKind } from "./fileTreeIcons";
 import {
   browserFsFromTree,
   installBrowserProjectFs,
@@ -59,6 +60,19 @@ describe("projectFs Explorer helpers", () => {
   });
 });
 
+describe("fileTreeIcons", () => {
+  it("maps folder and common Oracle/code extensions to calm icon kinds", () => {
+    expect(resolveFileTreeIconKind("src", "dir")).toBe("folder");
+    expect(resolveFileTreeIconKind("src", "dir", true)).toBe("folder-open");
+    expect(resolveFileTreeIconKind("schema.sql", "file")).toBe("sql");
+    expect(resolveFileTreeIconKind("app_pkg.pks", "file")).toBe("package");
+    expect(resolveFileTreeIconKind("app_pkg.pkb", "file")).toBe("package");
+    expect(resolveFileTreeIconKind("main.ts", "file")).toBe("code");
+    expect(resolveFileTreeIconKind("README.md", "file")).toBe("code");
+    expect(resolveFileTreeIconKind("notes.txt", "file")).toBe("generic");
+  });
+});
+
 describe("FileTree browser fallback", () => {
   afterEach(() => {
     resetBrowserProjectFsForTests();
@@ -74,7 +88,10 @@ describe("FileTree browser fallback", () => {
           { name: ".env", kind: "file" },
           { name: "node_modules", kind: "dir" },
         ],
-        "C:/tmp/demo/src": [{ name: "main.ts", kind: "file" }],
+        "C:/tmp/demo/src": [
+          { name: "main.ts", kind: "file" },
+          { name: "app_pkg.pks", kind: "file" },
+        ],
       }),
     );
 
@@ -99,8 +116,16 @@ describe("FileTree browser fallback", () => {
     expect(screen.queryByText("node_modules")).not.toBeInTheDocument();
     expect(screen.queryByText(".env")).not.toBeInTheDocument();
 
+    // Type icons: folder / SQL at root; nested package + code after expand.
+    expect(document.querySelectorAll(".file-tree-icon--folder").length).toBeGreaterThan(0);
+    expect(document.querySelector(".file-tree-icon--sql")).toBeTruthy();
+
     fireEvent.click(screen.getByText("src"));
     expect(await screen.findByText("main.ts")).toBeInTheDocument();
+    expect(screen.getByText("app_pkg.pks")).toBeInTheDocument();
+    expect(document.querySelector(".file-tree-icon--folder-open")).toBeTruthy();
+    expect(document.querySelector(".file-tree-icon--code")).toBeTruthy();
+    expect(document.querySelector(".file-tree-icon--package")).toBeTruthy();
 
     fireEvent.click(screen.getByText("f42.sql"));
     expect(onOpenFile).toHaveBeenCalledWith(
@@ -120,6 +145,7 @@ describe("FileTree browser fallback", () => {
       browserFsFromTree({
         "/proj": [
           { name: "README.md", kind: "file" },
+          { name: "notes.txt", kind: "file" },
           { name: ".env", kind: "file" },
           { name: "node_modules", kind: "dir" },
         ],
@@ -138,6 +164,7 @@ describe("FileTree browser fallback", () => {
     expect(await screen.findByText("README.md")).toBeInTheDocument();
     expect(screen.queryByText("node_modules")).not.toBeInTheDocument();
     expect(screen.queryByText(".env")).not.toBeInTheDocument();
+    expect(document.querySelector(".file-tree-icon--generic")).toBeTruthy();
 
     rerender(
       <FileTree
