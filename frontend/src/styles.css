@@ -470,6 +470,7 @@ button:disabled {
   --tree-row-padding: 1px 4px;
   --list-row-height: 24px;
   --list-row-padding: 4px 6px;
+  --panel-splitter-size: 4px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
@@ -897,7 +898,7 @@ button:disabled {
 
 .workspace-peers {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   height: 100%;
   overflow: hidden;
@@ -905,18 +906,6 @@ button:disabled {
 
 .workspace-peers[data-mission-visible="false"] {
   grid-template-columns: minmax(0, 1fr);
-}
-
-.ide-workspace[data-focus-mode="agent"] .workspace-peers[data-mission-visible="true"],
-.ide-workspace[data-focus-mode="review"] .workspace-peers[data-mission-visible="true"] {
-  /* Mild Mission-forward — shared Agent / Review ratio */
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-}
-
-.ide-workspace[data-focus-mode="sql"] .workspace-peers[data-mission-visible="true"],
-.ide-workspace[data-focus-mode="files"] .workspace-peers[data-mission-visible="true"] {
-  /* Slightly stronger editor-forward than the prior 0.75 / 1.35 mild delta */
-  grid-template-columns: minmax(0, 0.65fr) minmax(0, 1.45fr);
 }
 
 .workspace-peer {
@@ -932,7 +921,7 @@ button:disabled {
 }
 
 .workspace-peer--mission {
-  border-right: 1px solid var(--chrome-border);
+  border-right: 0;
 }
 
 .workspace-peer--primary {
@@ -986,7 +975,7 @@ button:disabled {
 
 .ide-console-dock {
   display: grid;
-  grid-template-rows: 4px var(--console-height, 220px);
+  grid-template-rows: var(--panel-splitter-size, 4px) var(--console-height, 220px);
   min-height: 0;
   transition:
     opacity var(--motion-expand) var(--motion-ease-standard),
@@ -1040,38 +1029,38 @@ button:disabled {
   padding: 0.5rem 0.75rem;
 }
 
+/* Uniform in-flow splitters for every visible peer edge (dock + Mission + console). */
 .panel-splitter {
   z-index: 2;
   margin: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  flex: 0 0 var(--panel-splitter-size, 4px);
+  background: var(--chrome-border);
 }
 
 .panel-splitter--vertical {
-  position: absolute;
-  top: 0;
-  right: -3px;
-  width: 6px;
-  height: 100%;
+  position: relative;
+  align-self: stretch;
+  width: var(--panel-splitter-size, 4px);
+  min-width: var(--panel-splitter-size, 4px);
+  height: auto;
+  min-height: 100%;
   cursor: col-resize;
-}
-
-.ide-region--inspector > .panel-splitter--vertical {
-  right: auto;
-  left: -3px;
 }
 
 .panel-splitter--horizontal {
   width: 100%;
-  height: 4px;
+  height: var(--panel-splitter-size, 4px);
+  min-height: var(--panel-splitter-size, 4px);
   cursor: row-resize;
 }
 
 .panel-splitter:hover,
-.panel-splitter:focus {
-  background: rgb(79 140 255 / 35%);
+.panel-splitter:focus-visible {
+  background: color-mix(in srgb, var(--accent) 40%, var(--chrome-border));
+  outline: none;
 }
 
 .activity-tree-item,

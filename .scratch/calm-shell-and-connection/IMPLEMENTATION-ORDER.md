@@ -36,7 +36,7 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 | A2 | 3 | [Grilling: Activity Rail density + labels preference](https://github.com/xamdxlonewolf/apex_pilot/issues/116) | grilling | — | ☑ |
 | A3 | 4 | [Task: Activity Rail ~1.5x + icons/labels mode](https://github.com/xamdxlonewolf/apex_pilot/issues/117) | task | A0 + A2 | ☑ |
 | A4 | 5 | [Task: File tree explorer + type icons](https://github.com/xamdxlonewolf/apex_pilot/issues/118) | task | A0 | ☑ |
-| A5 | 6 | [Task: Uniform splitters for visible peers](https://github.com/xamdxlonewolf/apex_pilot/issues/119) | task | A0 | ☐ |
+| A5 | 6 | [Task: Uniform splitters for visible peers](https://github.com/xamdxlonewolf/apex_pilot/issues/119) | task | A0 | ☑ |
 | A6 | 7 | [Task: Wire Focus hide + slide-out drawers](https://github.com/xamdxlonewolf/apex_pilot/issues/120) | task | A0 + A1 | ☑ |
 | A6b | 7b | [Task: Dock drawers + console dismiss + rail open semantics](https://github.com/xamdxlonewolf/apex_pilot/issues/129) | task | A6 | ☑ |
 
@@ -60,7 +60,7 @@ Ship a calm Focus shell: primary work surface + hideable/slide-out secondary too
 - [x] Secondary tools slide out and dismiss
 - [x] Activity Rail ~1.5× and labels mode (+ user preference)
 - [x] File tree left-aligned with folder/file-type icons
-- [ ] Visible peers share consistent drag-resize
+- [x] Visible peers share consistent drag-resize
 - [x] Visual direction decided and AFK tasks respect it
 
 ---
@@ -118,10 +118,10 @@ Make the project’s chosen Oracle connection durable for the app session: app-o
 - [x] A0 visual direction
 - [x] A1 focus/drawers
 - [x] A6b dock/console/rail fix
-- [ ] A2 rail preference
-- [ ] A3 rail task
-- [ ] A4 file tree
-- [ ] A5 splitters
+- [x] A2 rail preference
+- [x] A3 rail task
+- [x] A4 file tree
+- [x] A5 splitters
 - [x] A6 drawers wire
 
 **Map B cook**
