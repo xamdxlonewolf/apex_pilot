@@ -75,22 +75,28 @@ Make the project’s chosen Oracle connection durable for the app session: app-o
 
 | # | Run order | Ticket (name + link) | Type | Blocked by | Status |
 | --- | --- | --- | --- | --- | --- |
-| B1 | 1 | [Grilling: Durable dual-path project connection session](https://github.com/xamdxlonewolf/apex_pilot/issues/122) | grilling | — | ☐ |
-| B2 | 2 | [Research: Oracle idle lifetime + saved connections + keyring](https://github.com/xamdxlonewolf/apex_pilot/issues/123) | research | — | ☐ |
-| B4 | 3 | [Grilling: ADR supersede ADR-0002 + secrets policy](https://github.com/xamdxlonewolf/apex_pilot/issues/124) | grilling | **B1** | ☐ |
-| B3 | 4 | [Task: App-owned oracledb pool + stop remount thrash](https://github.com/xamdxlonewolf/apex_pilot/issues/125) | task | **B1 + B4** | ☐ |
-| B5 | 5 | [Task: Wire SQL/PLSQL + DB browse to pool sessions](https://github.com/xamdxlonewolf/apex_pilot/issues/126) | task | **B3** | ☐ |
-| B6 | 6 | [Task: Idle timer + reconnect prompt UX](https://github.com/xamdxlonewolf/apex_pilot/issues/127) | task | **B2 + B3** | ☐ |
+| B1 | 1 | [Grilling: Durable dual-path project connection session](https://github.com/xamdxlonewolf/apex_pilot/issues/122) | grilling | — | ☑ |
+| B1b | 2 | [Grilling: Database object editor save and compile lifecycle](https://github.com/xamdxlonewolf/apex_pilot/issues/135) | grilling | **B1** | ☑ |
+| B2 | 3 | [Research: Oracle idle lifetime + saved connections + keyring](https://github.com/xamdxlonewolf/apex_pilot/issues/123) | research | — | ☐ |
+| B4 | 4 | [Grilling: ADR supersede ADR-0002 + secrets policy](https://github.com/xamdxlonewolf/apex_pilot/issues/124) | grilling | **B1** | ☐ |
+| B3 | 5 | [Task: App-owned oracledb pool + stop remount thrash](https://github.com/xamdxlonewolf/apex_pilot/issues/125) | task | **B1 + B4** | ☐ |
+| B5 | 6 | [Task: Wire SQL/PLSQL + DB browse to pool sessions](https://github.com/xamdxlonewolf/apex_pilot/issues/126) | task | **B3** | ☐ |
+| B7 | 7 | [Task: Guarded Oracle source and compile backend](https://github.com/xamdxlonewolf/apex_pilot/issues/136) | task | **B3** | ☐ |
+| B8 | 8 | [Task: Database Source Document editor lifecycle](https://github.com/xamdxlonewolf/apex_pilot/issues/137) | task | **B5 + B7** | ☐ |
+| B6 | 9 | [Task: Idle timer + reconnect prompt UX](https://github.com/xamdxlonewolf/apex_pilot/issues/127) | task | **B2 + B3** | ☐ |
 
 ### Suggested `/wayfinder` invocations (Map B)
 
 ```text
 /wayfinder on Wayfinder: Durable dual-path Oracle connection — take first frontier
 /wayfinder on Grilling: Durable dual-path project connection session
+/wayfinder on Grilling: Database object editor save and compile lifecycle
 /wayfinder on Research: Oracle idle lifetime + saved connections + keyring   # can parallel after B1 starts / separate chat
 /wayfinder on Grilling: ADR supersede ADR-0002 + secrets policy
 /wayfinder on Task: App-owned oracledb pool + stop remount thrash
 /wayfinder on Task: Wire SQL/PLSQL + DB browse to pool sessions
+/wayfinder on Task: Guarded Oracle source and compile backend
+/wayfinder on Task: Database Source Document editor lifecycle
 /wayfinder on Task: Idle timer + reconnect prompt UX
 ```
 
@@ -126,11 +132,14 @@ Make the project’s chosen Oracle connection durable for the app session: app-o
 
 **Map B cook**
 
-- [ ] B1
+- [x] B1
+- [x] B1b source save/compile lifecycle
 - [ ] B2
 - [ ] B4 ADR
 - [ ] B3 pool
 - [ ] B5 wire
+- [ ] B7 guarded compile backend
+- [ ] B8 Database Source Document editor
 - [ ] B6 idle UX
 
 ---

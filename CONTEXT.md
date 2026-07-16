@@ -81,6 +81,13 @@ Workspace editors.
 _Avoid_: SQL Sheet (legacy interim name), hosting SQL edit in the Inspector;
 textarea-as-editor as the finished product
 
+**Database Source Document**:
+A compile-capable SQL Editor document for editable source of an Oracle schema
+object. It may originate from a local project file or a live database object;
+its local saved state and database compilation state are distinct.
+_Avoid_: Separate Object Editor or Package Editor products; treating Save as
+Compile; automatic compilation
+
 **File Editor**:
 A Workspace editor for non-SQL project files (for example JavaScript, TypeScript,
 Python, CSS, and related sources) opened from the project. Same real code-editor
@@ -177,6 +184,21 @@ signal only, marked in Roadmap / PR notes until an owner exists.
 _Avoid_: Showing Gap as product UI chrome; conflating Gap with Stub
 
 ### Workflow & connection
+
+**Connection Profile**:
+The stable logical identity for one Oracle target. It may bind an interactive
+application connection and a separate SQLcl saved connection for agent work;
+each binding reports availability independently. An Environment selects a
+Connection Profile.
+_Avoid_: Treating a SQLcl saved connection name as the whole profile; making a
+temporary UI surface own the connection lifetime
+
+**Unconnected**:
+A Database Source Document state with no live attached Connection Profile and
+Working Schema target. Local save remains available; database actions require an
+explicit attachment.
+_Avoid_: Silently borrowing the current global connection or schema; disabling
+local save because the database is unavailable
 
 **Mission Control**:
 The product framing for the dense IDE shell — Explorer, Workspace (Mission +
