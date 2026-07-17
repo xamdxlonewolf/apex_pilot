@@ -92,11 +92,9 @@ explicit primary MCP session.
 - Parse SQLcl MCP result payloads defensively. Live `sql_run` responses may
   return CSV text content instead of structured JSON rows, so schema
   intelligence must normalize those payloads before building contract responses.
-- Classify SQL deterministically where practical.
-- Allow `SELECT`.
-- Allow `INSERT`, `UPDATE`, and constructive DDL.
-- Require prompt and preview for `DELETE`.
-- Prompt or block destructive and security-sensitive SQL based on risk.
+- Classify SQL deterministically where practical. The Interactive SQL Run
+  approval matrix and shared classifier behavior are defined in
+  [ADR-0009](0009-interactive-sql-run-approval-matrix.md).
 - Control SQLcl-specific `run-sqlcl` commands through an allowlist.
 - Gate live Oracle/SQLcl tests behind explicit environment variables.
 

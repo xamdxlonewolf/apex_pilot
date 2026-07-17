@@ -16,6 +16,7 @@ persistence, trust, security posture, or long-term maintenance.
 | [0006](0006-project-initialization-wizard-and-preflight.md) | Project Initialization Wizard and Preflight | Accepted | 2026-07-09 |
 | [0007](0007-desktop-shell-and-workspace-ux.md) | Desktop Shell and Workspace UX | Accepted | 2026-07-11 |
 | [0008](0008-dual-path-oracle-access-and-credential-ownership.md) | Dual-Path Oracle Access and Credential Ownership | Accepted | 2026-07-16 |
+| [0009](0009-interactive-sql-run-approval-matrix.md) | Interactive SQL Run Approval Matrix | Accepted | 2026-07-16 |
 
 ## Creating a New ADR
 

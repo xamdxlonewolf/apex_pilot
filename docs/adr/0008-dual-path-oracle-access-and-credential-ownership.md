@@ -112,10 +112,11 @@ Apex Pilot will use **guarded dual-path Oracle access**.
   target-identity, confirmation, and diagnostic policy. Normal compile of an
   attached, non-stale target is the user's explicit action; create, retarget,
   stale force, and dropped-target recreation require separate confirmation.
-- The guarded driver architecture is authorized, but arbitrary interactive SQL
-  Run must not ship until a separate decision defines its classification and
-  approval matrix. Read-only browsing and Database Source Compile may proceed
-  under their already-defined policies.
+- The guarded driver architecture is authorized. Arbitrary interactive SQL Run
+  follows the classification and approval matrix in
+  [ADR-0009](0009-interactive-sql-run-approval-matrix.md) and must not ship
+  until that matrix is implemented and tested. Read-only browsing and Database
+  Source Compile may proceed under their already-defined policies.
 - A failed connection establishment may be retried once before an operation is
   sent. Apex Pilot never automatically replays a database-changing statement
   when Oracle may already have received it.
@@ -231,8 +232,9 @@ Apex Pilot will use **guarded dual-path Oracle access**.
   general utility import available to frontend, agent, or skill modules.
 - Preserve sticky per-document profile/schema targets and the isolated compile
   lease defined for Database Source Documents.
-- Add an explicit decision and tests for arbitrary interactive SQL Run before
-  enabling that capability.
+- Implement and test Interactive SQL Run against
+  [ADR-0009](0009-interactive-sql-run-approval-matrix.md) before enabling that
+  capability.
 - Keep SQL result rows session-scoped and do not persist them by default.
 - Test keyring backend identity and canary behavior on packaged Windows, macOS,
   and supported Linux desktop environments.
@@ -244,3 +246,4 @@ Apex Pilot will use **guarded dual-path Oracle access**.
 - [ADR-0003](0003-guarded-agent-and-skill-boundaries.md)
 - [ADR-0005](0005-local-project-manifest-and-sqlite-storage.md)
 - [ADR-0007](0007-desktop-shell-and-workspace-ux.md)
+- [ADR-0009](0009-interactive-sql-run-approval-matrix.md)
