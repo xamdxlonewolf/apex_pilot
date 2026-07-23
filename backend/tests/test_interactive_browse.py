@@ -93,7 +93,9 @@ class FakeOracleDriver:
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> FakeDriverPool:
+        _ = timeout
         pool = FakeDriverPool(min=min, max=max, user=user, dsn=dsn, password=password)
         pool.lease_scripts = self.lease_scripts
         self.pools.append(pool)
