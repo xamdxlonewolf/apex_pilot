@@ -88,6 +88,16 @@ class ConnectResponse(BaseModel):
     connection_name: str
 
 
+class DescribeConnectionResponse(BaseModel):
+    """Non-secret SQLcl saved-connection metadata for Interactive Connect autofill."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    username: str | None = None
+    connect_string: str | None = None
+
+
 class InteractiveConnectBody(BaseModel):
     """Session-only interactive driver connect request (password never persisted here)."""
 
@@ -99,6 +109,11 @@ class InteractiveConnectBody(BaseModel):
     dsn: str = Field(min_length=1)
     password: str = Field(min_length=1)
     working_schema: str | None = None
+    # Non-secret path to extracted wallet dir (tnsnames.ora + ewallet.pem).
+    wallet_location: str | None = None
+    config_dir: str | None = None
+    # Optional PEM wallet password from OCI wallet download — session memory only.
+    wallet_password: str | None = None
 
 
 class InteractiveWorkingSchemaBody(BaseModel):
@@ -628,6 +643,29 @@ async def connect_saved_connection(connection_name: str, request: Request) -> Co
 
 
 @router.get(
+    "/connections/{connection_name}/describe",
+    response_model=DescribeConnectionResponse,
+    tags=["connections"],
+    dependencies=[Depends(require_bearer_token)],
+)
+async def describe_saved_connection(
+    connection_name: str,
+    request: Request,
+) -> DescribeConnectionResponse:
+    """Describe a SQLcl saved connection via local `CONNMGR SHOW` (no password)."""
+    runtime = _runtime_from_request(request)
+    try:
+        details = await runtime.describe_saved_connection(connection_name)
+    except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
+        raise _mcp_http_error(error) from error
+    return DescribeConnectionResponse(
+        name=details.name,
+        username=details.username,
+        connect_string=details.connect_string,
+    )
+
+
+@router.get(
     "/interactive/status",
     response_model=InteractivePoolStatusResponse,
     tags=["interactive"],
@@ -652,6 +690,8 @@ def connect_interactive_pool(
 ) -> InteractivePoolStatusResponse:
     """Open or keep the interactive pool for a Connection Profile (session-only password)."""
     runtime = _runtime_from_request(request)
+    wallet_location = body.wallet_location.strip() if body.wallet_location else None
+    config_dir = body.config_dir.strip() if body.config_dir else None
     try:
         status_snapshot = runtime.open_interactive_pool(
             InteractiveDriverBinding(
@@ -659,9 +699,13 @@ def connect_interactive_pool(
                 display_name=body.display_name.strip(),
                 username=body.username.strip(),
                 dsn=body.dsn.strip(),
+                config_dir=config_dir,
+                wallet_location=wallet_location,
             ),
             password=body.password,
             working_schema=body.working_schema,
+            # Preserve "" so Thin mode never falls back to an interactive PEM prompt.
+            wallet_password=body.wallet_password if body.wallet_password is not None else None,
         )
     except InteractivePoolError as error:
         raise HTTPException(
@@ -671,7 +715,7 @@ def connect_interactive_pool(
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Interactive Oracle pool failed to open.",
+            detail=str(error) or "Interactive Oracle pool failed to open.",
         ) from error
     return _interactive_status_response(status_snapshot, runtime)
 

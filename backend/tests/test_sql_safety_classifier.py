@@ -144,6 +144,9 @@ def test_classifier_prompts_for_plsql_and_unknown_syntax(sql: str, category: Saf
         "show user",
         "desc employees",
         "ddl employees",
+        "CONNMGR SHOW MyConnection",
+        'CONNMGR SHOW "MyConnection"',
+        "connmgr show dev",
     ],
 )
 def test_classifier_allows_safe_sqlcl_commands(command: str) -> None:
@@ -164,6 +167,9 @@ def test_classifier_allows_safe_sqlcl_commands(command: str) -> None:
         "script ./inventory.js",
         "@dangerous-script.sql",
         "mystery command",
+        "CONNMGR LIST",
+        "CONNMGR TEST MyConnection",
+        "CONNMGR CLONE -original a b",
     ],
 )
 def test_classifier_prompts_for_risky_or_unknown_sqlcl_commands(command: str) -> None:
@@ -181,6 +187,9 @@ def test_classifier_prompts_for_risky_or_unknown_sqlcl_commands(command: str) ->
         "host dir",
         "!pwd",
         "connect scott/tiger@orcl",
+        "CONNMGR SHOW scott/tiger@orclpdb",
+        "CONNMGR SHOW host:1521/ORCL",
+        "CONNMGR SHOW MyConnection extra",
     ],
 )
 def test_classifier_blocks_host_or_credential_sqlcl_commands(command: str) -> None:

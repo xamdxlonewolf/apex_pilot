@@ -136,6 +136,11 @@ _RISKY_SQLCL_COMMANDS = frozenset(
     },
 )
 _BLOCKED_SQLCL_COMMANDS = frozenset({"!", "$", "CONN", "CONNECT", "HOST", "PASSWORD"})
+_CONNECT_STRING_MARKERS = frozenset({"/", "@", ":", "(", ")", ";"})
+_CONNMGR_SHOW_PATTERN = re.compile(
+    r'^\s*CONNMGR\s+SHOW\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))\s*$',
+    re.IGNORECASE,
+)
 
 
 def classify_mcp_request(tool_name: str, arguments: Mapping[str, object]) -> SqlSafetyClassification:
@@ -191,6 +196,9 @@ def classify_sqlcl_command(command: str) -> SqlSafetyClassification:
             reasons=(f"SQLcl command `{command_name}` can expose credentials or host access.",),
         )
 
+    if command_name == "CONNMGR":
+        return _classify_connmgr_command(command, tokens)
+
     if command_name == "SET" and len(tokens) > 1 and tokens[1] in _SAFE_SQLCL_SET_OPTIONS:
         return _single_result(
             decision=SafetyDecision.ALLOW,
@@ -225,6 +233,59 @@ def classify_sqlcl_command(command: str) -> SqlSafetyClassification:
         operation=SqlOperation.RUN_SQLCL,
         reasons=("Unknown SQLcl command requires explicit review before execution.",),
     )
+
+
+def _classify_connmgr_command(
+    command: str,
+    tokens: tuple[str, ...],
+) -> SqlSafetyClassification:
+    """Allow only `CONNMGR SHOW <saved-connection-name>` (optionally quoted)."""
+    match = _CONNMGR_SHOW_PATTERN.match(command)
+    if match is not None:
+        name = next(group for group in match.groups() if group is not None)
+        if _is_safe_saved_connection_name(name):
+            return _single_result(
+                decision=SafetyDecision.ALLOW,
+                access=SqlRequestAccess.READ_ONLY,
+                category=SafetyCategory.SQLCL_SAFE,
+                operation=SqlOperation.RUN_SQLCL,
+                reasons=("SQLcl `CONNMGR SHOW` is allowlisted for saved-connection metadata.",),
+            )
+        return _single_result(
+            decision=SafetyDecision.BLOCK,
+            access=SqlRequestAccess.DATA_CHANGE,
+            category=SafetyCategory.SECURITY_SENSITIVE,
+            operation=SqlOperation.RUN_SQLCL,
+            reasons=(
+                "SQLcl `CONNMGR SHOW` requires a saved connection name, not a connect string.",
+            ),
+        )
+
+    if len(tokens) >= 2 and tokens[1] == "SHOW":
+        return _single_result(
+            decision=SafetyDecision.BLOCK,
+            access=SqlRequestAccess.DATA_CHANGE,
+            category=SafetyCategory.SECURITY_SENSITIVE,
+            operation=SqlOperation.RUN_SQLCL,
+            reasons=("SQLcl `CONNMGR SHOW` accepts exactly one saved connection name.",),
+        )
+
+    subcommand = tokens[1] if len(tokens) > 1 else "(missing)"
+    return _single_result(
+        decision=SafetyDecision.PROMPT,
+        access=SqlRequestAccess.DATA_CHANGE,
+        category=SafetyCategory.SQLCL_RISKY,
+        operation=SqlOperation.RUN_SQLCL,
+        reasons=(f"SQLcl `CONNMGR {subcommand}` requires explicit review before execution.",),
+    )
+
+
+def _is_safe_saved_connection_name(name: str) -> bool:
+    """Mirror normalize_saved_connection_name rules without importing MCP layer."""
+    normalized = name.strip()
+    if not normalized:
+        return False
+    return not any(marker in normalized for marker in _CONNECT_STRING_MARKERS)
 
 
 def _classify_sql_statement(statement: str) -> SqlStatementClassification:

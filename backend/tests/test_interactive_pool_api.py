@@ -59,8 +59,11 @@ class FakeOracleDriver:
         min: int,
         max: int,
         timeout: int = 300,
+        config_dir: str | None = None,
+        wallet_location: str | None = None,
+        wallet_password: str | None = None,
     ) -> FakeDriverPool:
-        _ = timeout
+        _ = (timeout, config_dir, wallet_location, wallet_password)
         pool = FakeDriverPool(min=min, max=max, user=user, dsn=dsn, password=password)
         self.pools.append(pool)
         return pool

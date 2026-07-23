@@ -47,6 +47,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "mcp" },
     { name = "oracledb" },
+    { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -63,6 +64,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.116.0" },
     { name = "mcp", specifier = ">=1.28.0" },
     { name = "oracledb", specifier = ">=4.0.2" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.35.0" },
 ]
 

@@ -129,6 +129,18 @@ describe("DatabaseSourceSheet", () => {
     expect(screen.getByText("Connection Profile: Unconnected")).toBeInTheDocument();
   });
 
+  it("offers Close to back out of an unconnected document", () => {
+    const onCloseDocument = vi.fn();
+    renderSheet({
+      attachmentState: "unconnected",
+      connectionProfileLabel: null,
+      target: { ...target, connectionProfileId: null },
+      onCloseDocument,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onCloseDocument).toHaveBeenCalled();
+  });
+
   it("shows confirmation, compare panes, and reload after stale conflicts", async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
       if (url.endsWith("/interactive/source/parse")) {

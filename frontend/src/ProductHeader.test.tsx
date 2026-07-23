@@ -175,4 +175,33 @@ describe("ProductHeader", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
     expect(onOpenSettings).toHaveBeenCalled();
   });
+
+  it("offers Connect interactive when the pool has no session password", () => {
+    const onInteractiveConnect = vi.fn();
+    render(
+      <ProductHeader
+        openedProject={openedProject()}
+        backendStatus={{
+          kind: "online",
+          baseUrl: "http://127.0.0.1:8000",
+          health: { status: "ok", service: "apex-pilot-backend", version: "0.1.0" },
+        }}
+        isBackendOnline
+        connections={[{ name: "dev", display_name: "Development" }]}
+        selectedConnection="dev"
+        onSelectedConnectionChange={vi.fn()}
+        connectedConnection="dev"
+        onConnect={vi.fn()}
+        isConnecting={false}
+        workingSchema="HR"
+        onWorkingSchemaChange={vi.fn()}
+        interactiveStatus={DISCONNECTED_INTERACTIVE_STATUS}
+        onOpenSettings={vi.fn()}
+        onInteractiveConnect={onInteractiveConnect}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /connect interactive/i }));
+    expect(onInteractiveConnect).toHaveBeenCalled();
+  });
 });

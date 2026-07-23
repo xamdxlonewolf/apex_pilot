@@ -30,6 +30,8 @@ from apex_pilot.interactive.source import (
     SourceFingerprint,
 )
 from apex_pilot.mcp import (
+    RUN_SQLCL_TOOL,
+    SqlclConnectionDetails,
     SqlclConnectionManager,
     SqlclMcpConfig,
     SqlclMcpError,
@@ -37,7 +39,11 @@ from apex_pilot.mcp import (
     SqlclMcpToolClient,
     SqlclSavedConnection,
     ToolActivityMcpClient,
+    build_connmgr_show_command,
+    connection_details_from_mcp_payload,
 )
+from apex_pilot.mcp.connmgr import assert_connmgr_show_allowed, connmgr_show_access
+from apex_pilot.mcp.connections import normalize_saved_connection_name
 from apex_pilot.projects import OpenedProject, ProjectService
 from apex_pilot.safety import SqlSafetyClassification
 from apex_pilot.schema import (
@@ -185,6 +191,7 @@ class ApexPilotRuntime:
         *,
         password: str,
         working_schema: str | None = None,
+        wallet_password: str | None = None,
     ) -> InteractivePoolStatus:
         """Open or keep the interactive pool for the selected Connection Profile."""
         prior = self._interactive_pool.status()
@@ -192,7 +199,11 @@ class ApexPilotRuntime:
             self._interactive_browse.clear_cache()
         if working_schema is not None:
             self._interactive_pool.set_working_schema(working_schema)
-        self._interactive_pool.open(binding, password=password)
+        self._interactive_pool.open(
+            binding,
+            password=password,
+            wallet_password=wallet_password,
+        )
         return self._interactive_pool.status()
 
     def reconnect_interactive_pool(self) -> InteractivePoolStatus:
@@ -311,6 +322,22 @@ class ApexPilotRuntime:
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
         return await self._with_mcp_recovery(self._connection_manager.list_saved_connections)
+
+    async def describe_saved_connection(self, connection_name: str) -> SqlclConnectionDetails:
+        """Return username/DSN metadata from local SQLcl `CONNMGR SHOW` (no password)."""
+        normalized = normalize_saved_connection_name(connection_name)
+        command = build_connmgr_show_command(normalized)
+        assert_connmgr_show_allowed(command)
+
+        async def _describe() -> SqlclConnectionDetails:
+            payload = await self._connection_manager.primary_session.call_tool(
+                RUN_SQLCL_TOOL,
+                {"command": command},
+                access=connmgr_show_access(),
+            )
+            return connection_details_from_mcp_payload(normalized, payload)
+
+        return await self._with_mcp_recovery(_describe)
 
     async def connect(self, connection_name: str) -> str:
         """Connect the primary MCP session by saved connection name."""

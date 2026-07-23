@@ -83,7 +83,11 @@ class FakeOracleDriver:
         min: int,
         max: int,
         timeout: int = READONLY_POOL_MEMBER_TIMEOUT_SECONDS,
+        config_dir: str | None = None,
+        wallet_location: str | None = None,
+        wallet_password: str | None = None,
     ) -> FakeDriverPool:
+        _ = (config_dir, wallet_location, wallet_password)
         pool = FakeDriverPool(
             min=min,
             max=max,

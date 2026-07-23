@@ -170,6 +170,22 @@ export const connectSavedConnection = async (
     config,
   );
 
+export type DescribeSavedConnectionResponse = Readonly<{
+  name: string;
+  username: string | null;
+  connect_string: string | null;
+}>;
+
+export const describeSavedConnection = async (
+  connectionName: string,
+  config: BackendConfig = getBackendConfig(),
+): Promise<DescribeSavedConnectionResponse> =>
+  apiFetch(
+    `/connections/${encodeURIComponent(connectionName)}/describe`,
+    {},
+    config,
+  );
+
 export type InteractivePoolState =
   | "disconnected"
   | "connecting"
@@ -218,6 +234,32 @@ export const DISCONNECTED_INTERACTIVE_STATUS: InteractivePoolStatus = {
 export const getInteractiveStatus = async (
   config: BackendConfig = getBackendConfig(),
 ): Promise<InteractivePoolStatus> => apiFetch("/interactive/status", {}, config);
+
+export type InteractiveConnectRequest = Readonly<{
+  profile_id: string;
+  display_name: string;
+  username: string;
+  dsn: string;
+  password: string;
+  working_schema?: string | null;
+  wallet_location?: string | null;
+  config_dir?: string | null;
+  wallet_password?: string | null;
+}>;
+
+export const connectInteractivePool = async (
+  body: InteractiveConnectRequest,
+  config: BackendConfig = getBackendConfig(),
+): Promise<InteractivePoolStatus> =>
+  apiFetch(
+    "/interactive/connect",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
 
 export const reconnectInteractivePool = async (
   config: BackendConfig = getBackendConfig(),

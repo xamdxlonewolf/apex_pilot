@@ -51,6 +51,9 @@ class InteractiveDriverBinding:
     display_name: str
     username: str
     dsn: str
+    # Autonomous / TCPS: directory with tnsnames.ora (+ ewallet.pem for Thin mTLS).
+    config_dir: str | None = None
+    wallet_location: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +114,9 @@ class OraclePoolDriver(Protocol):
         min: int,
         max: int,
         timeout: int = 300,
+        config_dir: str | None = None,
+        wallet_location: str | None = None,
+        wallet_password: str | None = None,
     ) -> OracleDriverPool:
         """Create a backend-owned Oracle connection pool."""
         ...
@@ -128,17 +134,36 @@ class OracledbPoolDriver:
         min: int,
         max: int,
         timeout: int = 300,
+        config_dir: str | None = None,
+        wallet_location: str | None = None,
+        wallet_password: str | None = None,
     ) -> Any:
         import oracledb
 
-        return oracledb.create_pool(
-            user=user,
-            password=password,
-            dsn=dsn,
-            min=min,
-            max=max,
-            timeout=timeout,
-        )
+        kwargs: dict[str, Any] = {
+            "user": user,
+            "password": password,
+            "dsn": dsn,
+            "min": min,
+            "max": max,
+            "timeout": timeout,
+            # Fail fast instead of waiting out Autonomous retry_count loops.
+            "tcp_connect_timeout": 20,
+        }
+        if config_dir:
+            kwargs["config_dir"] = config_dir
+        if wallet_location:
+            kwargs["wallet_location"] = wallet_location
+            # Always pass wallet_password when a wallet is used. Omitting it lets
+            # OpenSSL prompt "Enter PEM pass phrase:" on the server stdin, which
+            # hangs uvicorn. Empty string means "no passphrase" non-interactively.
+            kwargs["wallet_password"] = wallet_password if wallet_password is not None else ""
+        try:
+            return oracledb.create_pool(**kwargs)
+        except TypeError:
+            # Older oracledb builds may not accept tcp_connect_timeout on pools.
+            kwargs.pop("tcp_connect_timeout", None)
+            return oracledb.create_pool(**kwargs)
 
 
 DEFAULT_POOL_MIN = 1
@@ -198,6 +223,7 @@ class InteractiveOraclePool:
         self._state = InteractivePoolState.DISCONNECTED
         self._binding: InteractiveDriverBinding | None = None
         self._password: str | None = None
+        self._wallet_password: str | None = None
         self._pool: OracleDriverPool | None = None
         self._dedicated: dict[str, DedicatedSessionHandle] = {}
         self._last_activity_at = self._clock()
@@ -252,7 +278,13 @@ class InteractiveOraclePool:
         """Return the active non-secret profile binding, if connected."""
         return self._binding
 
-    def open(self, binding: InteractiveDriverBinding, *, password: str) -> None:
+    def open(
+        self,
+        binding: InteractiveDriverBinding,
+        *,
+        password: str,
+        wallet_password: str | None = None,
+    ) -> None:
         """Open or keep the pool for the given profile binding.
 
         Re-opening the same profile while connected is a no-op so UI remounts
@@ -261,6 +293,7 @@ class InteractiveOraclePool:
         if not password:
             msg = "Interactive driver password cannot be empty."
             raise InteractivePoolError(msg)
+        binding = _normalize_binding(binding)
 
         if (
             self._state is InteractivePoolState.CONNECTED
@@ -273,23 +306,35 @@ class InteractiveOraclePool:
         if self._pool is not None:
             self._teardown_pool_keep_credentials(None)
             self._password = None
+            self._wallet_password = None
             self._binding = None
 
         self._state = InteractivePoolState.CONNECTING
         self._binding = binding
         self._password = password
+        # Keep "" (no passphrase) distinct from None (wallet not used).
+        self._wallet_password = wallet_password
         self._disconnect_reason = None
         self._reconnect_prompt_dismissed = False
         try:
-            self._pool = self._create_driver_pool(binding, password)
+            self._pool = self._create_driver_pool(binding, password, self._wallet_password)
             self._apply_working_schema_on_pool()
-        except Exception:
+        except InteractivePoolError:
             self._binding = None
             self._password = None
+            self._wallet_password = None
             self._pool = None
             self._state = InteractivePoolState.DEAD
             self._disconnect_reason = DisconnectReason.VALIDATION_FAILED
             raise
+        except Exception as error:
+            self._binding = None
+            self._password = None
+            self._wallet_password = None
+            self._pool = None
+            self._state = InteractivePoolState.DEAD
+            self._disconnect_reason = DisconnectReason.VALIDATION_FAILED
+            raise InteractivePoolError(_oracle_error_message(error)) from error
 
         self._state = InteractivePoolState.CONNECTED
         self.touch_activity()
@@ -312,13 +357,18 @@ class InteractiveOraclePool:
             self._teardown_pool_keep_credentials(None)
 
         try:
-            self._pool = self._create_driver_pool(binding, password)
+            self._pool = self._create_driver_pool(binding, password, self._wallet_password)
             self._apply_working_schema_on_pool()
-        except Exception:
+        except InteractivePoolError:
             self._pool = None
             self._state = InteractivePoolState.DEAD
             self._disconnect_reason = DisconnectReason.VALIDATION_FAILED
             raise
+        except Exception as error:
+            self._pool = None
+            self._state = InteractivePoolState.DEAD
+            self._disconnect_reason = DisconnectReason.VALIDATION_FAILED
+            raise InteractivePoolError(_oracle_error_message(error)) from error
 
         self._state = InteractivePoolState.CONNECTED
         self.touch_activity()
@@ -437,6 +487,7 @@ class InteractiveOraclePool:
         """Close the pool and clear session-only credentials."""
         self._teardown_pool_keep_credentials(DisconnectReason.USER)
         self._password = None
+        self._wallet_password = None
         self._binding = None
         self._working_schema = None
         self._disconnect_reason = DisconnectReason.USER
@@ -444,7 +495,12 @@ class InteractiveOraclePool:
         self._reconnect_prompt_dismissed = False
         self._transaction_uncertain = False
 
-    def _create_driver_pool(self, binding: InteractiveDriverBinding, password: str) -> OracleDriverPool:
+    def _create_driver_pool(
+        self,
+        binding: InteractiveDriverBinding,
+        password: str,
+        wallet_password: str | None = None,
+    ) -> OracleDriverPool:
         return self._driver.create_pool(
             user=binding.username,
             password=password,
@@ -452,6 +508,9 @@ class InteractiveOraclePool:
             min=self._pool_min,
             max=self._pool_max,
             timeout=self._readonly_member_timeout_seconds,
+            config_dir=binding.config_dir,
+            wallet_location=binding.wallet_location,
+            wallet_password=wallet_password,
         )
 
     def _apply_working_schema_on_pool(self) -> None:
@@ -487,3 +546,51 @@ class InteractiveOraclePool:
             msg = "Interactive Oracle pool is not connected."
             raise PoolNotOpenError(msg)
         return self._pool
+
+
+def _normalize_binding(binding: InteractiveDriverBinding) -> InteractiveDriverBinding:
+    """Trim binding fields and collapse whitespace inside Easy Connect descriptors."""
+    config_dir = binding.config_dir.strip() if binding.config_dir else None
+    wallet_location = binding.wallet_location.strip() if binding.wallet_location else None
+    # When only one wallet path is supplied, use it for both Thin-mode knobs.
+    if wallet_location and not config_dir:
+        config_dir = wallet_location
+    if config_dir and not wallet_location:
+        wallet_location = config_dir
+    return InteractiveDriverBinding(
+        profile_id=binding.profile_id.strip(),
+        display_name=binding.display_name.strip(),
+        username=_normalize_oracle_username(binding.username),
+        dsn=" ".join(binding.dsn.split()),
+        config_dir=config_dir or None,
+        wallet_location=wallet_location or None,
+    )
+
+
+def _normalize_oracle_username(username: str) -> str:
+    """Normalize unquoted Oracle usernames; keep proxy form USER[SCHEMA] uppercase."""
+    trimmed = username.strip()
+    if not trimmed:
+        return trimmed
+    # Quoted identifiers are left alone.
+    if trimmed.startswith('"') and trimmed.endswith('"') and len(trimmed) >= 2:
+        return trimmed
+    if "[" in trimmed and trimmed.endswith("]"):
+        proxy, _, schema = trimmed[:-1].partition("[")
+        return f"{proxy.strip().upper()}[{schema.strip().upper()}]"
+    return trimmed.upper()
+
+
+def _oracle_error_message(error: BaseException) -> str:
+    """Surface driver errors honestly without inventing a generic failure label."""
+    text = str(error).strip()
+    if not text:
+        args = getattr(error, "args", None)
+        if args:
+            text = "; ".join(str(item) for item in args if str(item).strip())
+    if not text:
+        text = error.__class__.__name__
+    # Prefer the driver text as-is when it already names Oracle/python-oracledb codes.
+    if "DPY-" in text or "ORA-" in text or "TNS-" in text:
+        return text
+    return f"Interactive Oracle pool failed to open: {text}"

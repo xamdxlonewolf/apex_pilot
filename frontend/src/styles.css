@@ -920,6 +920,12 @@ button:disabled {
     background-color var(--motion-expand) var(--motion-ease-standard);
 }
 
+.workspace-peer > .ide-pane {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
 .workspace-peer--mission {
   border-right: 0;
 }
@@ -1873,26 +1879,90 @@ button:disabled {
   flex: 1;
 }
 
-.sql-editor .code-editor,
-.file-editor .code-editor {
+.code-editor .monaco-editor {
+  outline: none;
+}
+
+.pane-body--editors {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-tab-host {
+  display: flex;
+  flex-direction: column;
   flex: 1;
-  min-height: 180px;
+  min-height: 0;
+  height: 100%;
+}
+
+.tool-panel.sql-sheet,
+.tool-panel.database-source-sheet {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.sql-sheet .sql-editor {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sql-sheet .schema-status,
+.sql-sheet .tool-toolbar,
+.sql-sheet .confirm-banner,
+.database-source-sheet .schema-status,
+.database-source-sheet .tool-toolbar,
+.database-source-sheet .confirm-banner,
+.file-editor-meta {
+  flex: 0 0 auto;
+}
+
+.sql-sheet .sql-editor .code-editor,
+.database-source-sheet .code-editor,
+.file-editor .code-editor {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 120px;
   border: 1px solid var(--chrome-border);
   border-radius: var(--radius-control);
   overflow: hidden;
   background: var(--window);
 }
 
-.code-editor .monaco-editor {
-  outline: none;
+.sql-sheet .sql-editor .code-editor > div,
+.database-source-sheet .code-editor > div,
+.file-editor .code-editor > div {
+  position: absolute !important;
+  inset: 0;
+  height: auto !important;
+  width: auto !important;
+}
+
+.sql-sheet .sql-result,
+.sql-sheet .sql-log {
+  flex: 0 1 auto;
+  max-height: 28%;
+  min-height: 0;
+  overflow: auto;
 }
 
 .file-editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  flex: 1;
   min-height: 0;
   height: 100%;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .file-editor-meta {
@@ -1900,6 +1970,26 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.editor-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.tab--new {
+  min-width: 28px;
+  padding-inline: 8px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tab--new:hover {
+  color: var(--text);
+  background: var(--panel-2);
 }
 
 .file-editor-meta .pane-muted {
@@ -1988,10 +2078,8 @@ button:disabled {
   color: var(--ok);
 }
 
-.tool-panel,
-.sql-sheet,
-.schema-view,
-.file-editor {
+.tool-panel:not(.sql-sheet):not(.database-source-sheet),
+.schema-view {
   display: grid;
   gap: 10px;
   min-height: 0;

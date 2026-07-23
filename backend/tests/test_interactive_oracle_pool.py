@@ -73,9 +73,15 @@ class FakeOracleDriver:
         min: int,
         max: int,
         timeout: int = 300,
+        config_dir: str | None = None,
+        wallet_location: str | None = None,
+        wallet_password: str | None = None,
     ) -> FakeDriverPool:
-        _ = timeout
+        _ = (timeout, config_dir, wallet_location, wallet_password)
         pool = FakeDriverPool(min=min, max=max, user=user, dsn=dsn, password=password)
+        pool.config_dir = config_dir
+        pool.wallet_location = wallet_location
+        pool.wallet_password = wallet_password
         self.pools.append(pool)
         return pool
 
@@ -110,6 +116,27 @@ def test_pool_opens_and_reports_connected() -> None:
     assert driver.pools[0].dsn == "localhost:1521/FREEPDB1"
     assert driver.pools[0].min == 1
     assert driver.pools[0].max == 6
+
+
+def test_wallet_binding_is_passed_to_driver() -> None:
+    """Autonomous TCPS bindings supply config_dir / wallet_location to oracledb."""
+    driver = FakeOracleDriver()
+    pool = InteractiveOraclePool(driver=driver)
+    binding = InteractiveDriverBinding(
+        profile_id="adb",
+        display_name="ADB",
+        username="ADMIN[apex_pilot]",
+        dsn="mcobbtestdb_high",
+        wallet_location=r"C:\Users\mikec\Documents\Wallet_mcobbtestdb",
+    )
+
+    pool.open(binding, password="db-secret", wallet_password="wallet-secret")
+
+    assert len(driver.pools) == 1
+    assert driver.pools[0].dsn == "mcobbtestdb_high"
+    assert driver.pools[0].config_dir == r"C:\Users\mikec\Documents\Wallet_mcobbtestdb"
+    assert driver.pools[0].wallet_location == r"C:\Users\mikec\Documents\Wallet_mcobbtestdb"
+    assert driver.pools[0].wallet_password == "wallet-secret"
 
 
 def test_ui_remount_does_not_recreate_pool() -> None:

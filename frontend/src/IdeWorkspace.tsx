@@ -146,7 +146,11 @@ const isCloseableEditorTab = (tab: WorkspaceTab, tabs: readonly WorkspaceTab[]):
   if (tab.kind !== "sql") {
     return true;
   }
-  return tabs.filter((item) => item.kind === "sql").length > 1;
+  // Database Source tabs are always closeable so users can back out of attach.
+  if (tab.databaseSource) {
+    return true;
+  }
+  return tabs.filter((item) => item.kind === "sql" && !item.databaseSource).length > 1;
 };
 
 const defaultEditorTabs = (): WorkspaceTab[] => [
@@ -193,12 +197,12 @@ const restoreWorkspaceTabs = (
               id: tab.id,
               kind: tab.kind,
               title:
-                tab.kind === "sql" && !databaseSource
+                tab.title ||
+                (tab.kind === "sql" && !databaseSource
                   ? "SQL Editor"
-                  : tab.title ||
-                    (isCenterEditorStubKind(tab.kind)
-                      ? CENTER_EDITOR_STUB_META[tab.kind].title
-                      : tab.title),
+                  : isCenterEditorStubKind(tab.kind)
+                    ? CENTER_EDITOR_STUB_META[tab.kind].title
+                    : tab.title),
               path: tab.path,
               content: databaseSource ? (tab.content ?? "") : tab.content,
               databaseSource,
@@ -207,7 +211,7 @@ const restoreWorkspaceTabs = (
       : defaultEditorTabs();
 
   let tabs = restored;
-  if (!tabs.some((tab) => tab.kind === "sql")) {
+  if (!tabs.some((tab) => tab.kind === "sql" && !tab.databaseSource)) {
     tabs = [...tabs, ...defaultEditorTabs()];
   }
 
@@ -239,6 +243,7 @@ type IdeWorkspaceProps = Readonly<{
   isConnecting: boolean;
   interactiveStatus: InteractivePoolStatus;
   onInteractiveReconnect?: () => void;
+  onInteractiveConnect?: () => void;
   interactiveReconnectBusy?: boolean;
   onInteractiveStatusRefresh?: () => Promise<void>;
   layout: ProfileLayoutPrefs;
@@ -390,6 +395,7 @@ export const IdeWorkspace = ({
   isConnecting,
   interactiveStatus,
   onInteractiveReconnect,
+  onInteractiveConnect,
   interactiveReconnectBusy = false,
   onInteractiveStatusRefresh,
   layout,
@@ -771,7 +777,7 @@ export const IdeWorkspace = ({
     }
   };
 
-  const attachAsDatabaseSource = (tabId: string, sourceText: string, path?: string) => {
+  const attachAsDatabaseSource = (sourceText: string, path?: string) => {
     const baseName = (path?.replace(/\\/g, "/").split("/").pop() ?? "database-source").replace(
       /\.[^.]+$/,
       "",
@@ -784,21 +790,20 @@ export const IdeWorkspace = ({
       objectTypes: [],
       name: baseName.toUpperCase(),
     };
-    setTabs((current) =>
-      current.map((tab) =>
-        tab.id === tabId
-          ? {
-              ...tab,
-              kind: "sql",
-              content: sourceText,
-              path: path ?? tab.path,
-              // Local attach starts Unconnected until Attach & Compile confirms the sticky target.
-              databaseSource: { target, attachmentState: "unconnected" },
-            }
-          : tab,
-      ),
-    );
-    setActiveCenterTabId(tabId);
+    // Path-based id reuses the same Database Source tab for a given file.
+    // Buffer attaches get a unique id so repeat attaches do not collide.
+    const id = path
+      ? `database-source:file:${path}`
+      : `database-source:buffer:${Date.now()}`;
+    // Always open a new Database Source tab — never convert the SQL Editor in place.
+    openOrFocus({
+      id,
+      kind: "sql",
+      title: baseName,
+      content: sourceText,
+      path,
+      databaseSource: { target, attachmentState: "unconnected" },
+    });
   };
 
   const openDatabaseSourceUnit = (
@@ -872,26 +877,29 @@ export const IdeWorkspace = ({
   };
 
   const closeTabNow = (tabId: string) => {
+    let closing: WorkspaceTab | undefined;
+    let next: WorkspaceTab[] = [];
     setTabs((current) => {
-      const closing = current.find((tab) => tab.id === tabId);
-      const next = current.filter((tab) => tab.id !== tabId);
+      closing = current.find((tab) => tab.id === tabId);
+      next = current.filter((tab) => tab.id !== tabId);
       if (closing?.kind === "sql") {
         // Release only on explicit close — Settings remounts must not unpin.
         void releaseDedicatedSession(closing.id, backendConfig)
           .then(() => onInteractiveStatusRefresh?.())
           .catch(() => undefined);
       }
-      if (closing && isEditorTab(closing) && activeCenterTabId === tabId) {
-        const fallback = next.find(isEditorTab) ?? null;
-        if (fallback) {
-          // Defer so we don't nest focus-mode updates inside the tabs updater.
-          queueMicrotask(() => activateEditorTab(fallback.id, fallback.kind));
-        } else {
-          setActiveCenterTabId(null);
-        }
-      }
       return next;
     });
+    if (closing && isEditorTab(closing) && activeCenterTabId === tabId) {
+      const fallback = next.find(isEditorTab) ?? null;
+      if (fallback) {
+        // Set id immediately so pane does not flash empty state.
+        setActiveCenterTabId(fallback.id);
+        queueMicrotask(() => activateEditorTab(fallback.id, fallback.kind));
+      } else {
+        setActiveCenterTabId(null);
+      }
+    }
   };
 
   const closeTab = (tabId: string) => {
@@ -1060,7 +1068,7 @@ export const IdeWorkspace = ({
   const explorerPosture = explorerPostureFromRail(activityRail);
 
   const handleNewSql = () => {
-    const sqlCount = tabs.filter((tab) => tab.kind === "sql").length;
+    const sqlCount = tabs.filter((tab) => tab.kind === "sql" && !tab.databaseSource).length;
     const tab =
       sqlCount === 0
         ? { id: "sql", kind: "sql" as const, title: "SQL Editor" }
@@ -1321,6 +1329,7 @@ export const IdeWorkspace = ({
         interactiveStatus={interactiveStatus}
         onOpenSettings={onOpenSettings}
         onInteractiveReconnect={onInteractiveReconnect}
+        onInteractiveConnect={onInteractiveConnect}
         interactiveReconnectBusy={interactiveReconnectBusy}
       />
 
@@ -1533,14 +1542,24 @@ export const IdeWorkspace = ({
                         ) : null}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      className="tab tab--new"
+                      onClick={handleNewSql}
+                      title="New SQL Editor"
+                      aria-label="New SQL Editor"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
-                <div className="pane-body">
+                <div className="pane-body pane-body--editors">
                   {editorTabs
                     .filter((tab) => tab.kind === "sql" && !tab.databaseSource)
                     .map((tab) => (
                       <div
                         key={tab.id}
+                        className="editor-tab-host"
                         style={{ display: tab.id === activeCenterTabId ? undefined : "none" }}
                         aria-hidden={tab.id !== activeCenterTabId}
                       >
@@ -1561,7 +1580,7 @@ export const IdeWorkspace = ({
                             tab.id === activeCenterTabId ? setSqlRunState : undefined
                           }
                           onAttachAsDatabaseSource={(text) =>
-                            attachAsDatabaseSource(tab.id, text, tab.path)
+                            attachAsDatabaseSource(text, tab.path)
                           }
                         />
                       </div>
@@ -1571,6 +1590,7 @@ export const IdeWorkspace = ({
                     .map((tab) => (
                       <div
                         key={tab.id}
+                        className="editor-tab-host"
                         style={{ display: tab.id === activeCenterTabId ? undefined : "none" }}
                         aria-hidden={tab.id !== activeCenterTabId}
                       >
@@ -1601,9 +1621,26 @@ export const IdeWorkspace = ({
                           }
                           interactiveConnected={interactiveStatus.state === "connected"}
                           onSave={(text) => saveDatabaseSource(tab, text)}
+                          onCloseDocument={() => closeTab(tab.id)}
                           onRunAsSqlScript={(text) => {
-                            const nextId = nextSqlDocumentId(tabs);
-                            openOrFocus({ id: nextId, kind: "sql", title: "SQL Editor", content: text });
+                            const sqlCount = tabs.filter(
+                              (item) => item.kind === "sql" && !item.databaseSource,
+                            ).length;
+                            const tab =
+                              sqlCount === 0
+                                ? {
+                                    id: "sql",
+                                    kind: "sql" as const,
+                                    title: "SQL Editor",
+                                    content: text,
+                                  }
+                                : {
+                                    id: nextSqlDocumentId(tabs),
+                                    kind: "sql" as const,
+                                    title: `SQL Editor ${sqlCount + 1}`,
+                                    content: text,
+                                  };
+                            openOrFocus(tab);
                           }}
                           onOpenSeparateUnit={(unitType) =>
                             openDatabaseSourceUnit(
@@ -1655,7 +1692,7 @@ export const IdeWorkspace = ({
                   ) : null}
                   {activeCenterTab?.kind === "file" && activeCenterTab.content !== undefined ? (
                     <div
-                      className="file-editor"
+                      className="editor-tab-host file-editor"
                       aria-label={activeCenterTab.readOnly ? "File preview" : "File editor"}
                       onKeyDown={(event) => {
                         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -1689,7 +1726,6 @@ export const IdeWorkspace = ({
                             className="chrome-button"
                             onClick={() =>
                               attachAsDatabaseSource(
-                                activeCenterTab.id,
                                 activeCenterTab.content ?? "",
                                 activeCenterTab.path,
                               )
@@ -1714,7 +1750,12 @@ export const IdeWorkspace = ({
                     </div>
                   ) : null}
                   {!activeCenterTab ? (
-                    <p className="pane-muted">Open an editor tab.</p>
+                    <div className="editor-empty-state">
+                      <p className="pane-muted">No editor tab is active.</p>
+                      <button type="button" className="chrome-button" onClick={handleNewSql}>
+                        New SQL
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               </div>

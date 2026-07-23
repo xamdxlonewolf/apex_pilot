@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.116.0",
     "mcp>=1.28.0",
     "oracledb>=4.0.2",
+    "python-dotenv>=1.2.2",
     "uvicorn[standard]>=0.35.0",
 ]
 

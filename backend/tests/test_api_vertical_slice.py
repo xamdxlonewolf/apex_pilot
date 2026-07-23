@@ -82,6 +82,36 @@ def test_connections_can_be_listed_and_selected_through_mcp() -> None:
     ]
 
 
+def test_describe_connection_uses_connmgr_show_without_raw_text() -> None:
+    """Describe route runs CONNMGR SHOW and returns username/DSN only."""
+    fake = FakeToolClient(
+        [
+            {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Name: dev\nUser: HR\nURL: localhost:1521/FREEPDB1\n",
+                    },
+                ],
+            },
+        ],
+    )
+    client = make_client(fake)
+
+    response = client.get("/connections/dev/describe", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "name": "dev",
+        "username": "HR",
+        "connect_string": "localhost:1521/FREEPDB1",
+    }
+    assert "raw_text" not in response.json()
+    assert fake.calls == [
+        ToolCall(tool_name="run-sqlcl", arguments={"command": "CONNMGR SHOW dev"}),
+    ]
+
+
 def test_schema_summary_route_returns_structured_payload_and_activity() -> None:
     """Schema route returns structured JSON and records MCP run-sql activity."""
     fake = FakeToolClient(

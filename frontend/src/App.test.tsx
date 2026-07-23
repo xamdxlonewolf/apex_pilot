@@ -41,6 +41,15 @@ const openAppMenu = (label: "File" | "Edit" | "View" | "Help") => {
   fireEvent.click(screen.getByRole("menuitem", { name: label }));
 };
 
+/** SQLcl Connect may open the interactive pool dialog; dismiss so tests can continue. */
+const dismissInteractiveConnectDialog = () => {
+  const dialog = screen.queryByRole("dialog", { name: /connect interactive/i });
+  if (!dialog) {
+    return;
+  }
+  fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
+};
+
 const workspaceFetch = (opened = openedProjectFixture) =>
   vi.fn((url: string, init?: RequestInit) => {
     if (url.includes("/preflight")) {
@@ -94,6 +103,24 @@ const workspaceFetch = (opened = openedProjectFixture) =>
             dedicated_limit: 5,
             pool_min: 1,
             pool_max: 6,
+          }),
+        ),
+      );
+    }
+    if (url.endsWith("/session/context")) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            connection_name: "dev",
+            database_context: {
+              current_user: "HR",
+              current_schema: "HR",
+              db_name: null,
+              container_name: null,
+              cdb_name: null,
+              host: null,
+            },
+            suggested_schema: "HR",
           }),
         ),
       );
@@ -780,6 +807,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
     });
+    dismissInteractiveConnectDialog();
 
     const toolbarRun = within(toolbar).getByRole("button", { name: "Run" });
     await waitFor(() => {
@@ -1747,6 +1775,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
     });
+    dismissInteractiveConnectDialog();
   });
 
   it("connects from the workspace connection strip", async () => {
@@ -1849,6 +1878,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
     });
+    dismissInteractiveConnectDialog();
     expect(screen.getByLabelText("Status bar")).toHaveTextContent(/sqlcl: dev/i);
     expect(screen.getByLabelText("Status bar")).toHaveTextContent(/interactive: disconnected/i);
   });
@@ -1976,6 +2006,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeInTheDocument();
     });
+    dismissInteractiveConnectDialog();
 
     // M3: Working Schema autofills from session context without opening Database Explorer.
     await waitFor(() => {

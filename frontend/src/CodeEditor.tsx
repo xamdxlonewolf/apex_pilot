@@ -64,6 +64,21 @@ export const CodeEditor = ({
     );
   }, [markers, mountedEditor, mountedMonaco]);
 
+  useEffect(() => {
+    if (!mountedEditor) {
+      return;
+    }
+    const el = mountedEditor.getContainerDomNode()?.parentElement;
+    if (!el || typeof ResizeObserver === "undefined") {
+      mountedEditor.layout();
+      return;
+    }
+    const ro = new ResizeObserver(() => mountedEditor.layout());
+    ro.observe(el);
+    mountedEditor.layout();
+    return () => ro.disconnect();
+  }, [mountedEditor]);
+
   return (
     <div className={`code-editor${className ? ` ${className}` : ""}`} data-language={language}>
       <Editor
@@ -71,6 +86,7 @@ export const CodeEditor = ({
         language={language}
         value={value}
         theme="vs-dark"
+        height="100%"
         loading={<p className="pane-muted">Loading editor…</p>}
         onMount={(editor, monaco) => {
           setMountedEditor(editor);

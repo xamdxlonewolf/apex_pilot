@@ -69,6 +69,8 @@ type DatabaseSourceSheetProps = Readonly<{
   connectionProfileLabel?: string | null;
   interactiveConnected?: boolean;
   onSave: (text: string) => Promise<boolean>;
+  /** Back out of an Unconnected Database Source document without attaching. */
+  onCloseDocument?: () => void;
   onRunAsSqlScript?: (text: string) => void;
   onOpenSeparateUnit?: (unitType: "PACKAGE" | "PACKAGE BODY" | "TYPE" | "TYPE BODY") => void;
   onDiagnostics?: (problems: DatabaseSourceProblem[], oracleMessages: string[], hasErrors: boolean) => void;
@@ -160,6 +162,7 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
       connectionProfileLabel = null,
       interactiveConnected = false,
       onSave,
+      onCloseDocument,
       onRunAsSqlScript,
       onOpenSeparateUnit,
       onDiagnostics,
@@ -812,6 +815,11 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
         />
         {!readOnly ? (
           <div className="tool-toolbar">
+            {state.attachmentState === "unconnected" && onCloseDocument ? (
+              <button type="button" className="chrome-button" onClick={onCloseDocument} disabled={busy}>
+                Close
+              </button>
+            ) : null}
             <button type="button" onClick={() => void act("save")} disabled={busy}>
               Save
             </button>

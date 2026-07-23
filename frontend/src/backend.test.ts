@@ -2,8 +2,10 @@ import {
   checkBackendHealth,
   compareDatabaseSource,
   compileDatabaseSource,
+  connectInteractivePool,
   connectSavedConnection,
   createProject,
+  describeSavedConnection,
   fetchDatabaseSource,
   getPreflight,
   getSchemaSummary,
@@ -75,6 +77,17 @@ describe("backend API helpers", () => {
       if (url.endsWith("/connections/dev/connect")) {
         return Promise.resolve(new Response(JSON.stringify({ connection_name: "dev" })));
       }
+      if (url.endsWith("/connections/dev/describe")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: "dev",
+              username: "HR",
+              connect_string: "localhost:1521/FREEPDB1",
+            }),
+          ),
+        );
+      }
       if (url.includes("/schema/summary")) {
         return Promise.resolve(
           new Response(
@@ -109,6 +122,11 @@ describe("backend API helpers", () => {
     });
     await expect(connectSavedConnection("dev", config)).resolves.toEqual({
       connection_name: "dev",
+    });
+    await expect(describeSavedConnection("dev", config)).resolves.toEqual({
+      name: "dev",
+      username: "HR",
+      connect_string: "localhost:1521/FREEPDB1",
     });
     await expect(getSchemaSummary("APP", { refresh: true, config })).resolves.toMatchObject({
       schema_name: "APP",
@@ -191,6 +209,58 @@ describe("backend API helpers", () => {
         config,
       ),
     ).resolves.toMatchObject({ project: { name: "Demo" } });
+  });
+
+  it("posts interactive pool connect body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          state: "connected",
+          profile_id: "dev",
+          display_name: "Development",
+          dedicated_pinned: 0,
+          dedicated_limit: 5,
+          pool_min: 1,
+          pool_max: 6,
+          has_session_password: true,
+          working_schema: "HR",
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const config = { baseUrl: "http://127.0.0.1:8000/", bearerToken: "test-token" };
+    await expect(
+      connectInteractivePool(
+        {
+          profile_id: "dev",
+          display_name: "Development",
+          username: "hr",
+          dsn: "localhost:1521/FREEPDB1",
+          password: "secret",
+          working_schema: "HR",
+        },
+        config,
+      ),
+    ).resolves.toMatchObject({
+      state: "connected",
+      profile_id: "dev",
+      has_session_password: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8000/interactive/connect",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      profile_id: "dev",
+      display_name: "Development",
+      username: "hr",
+      dsn: "localhost:1521/FREEPDB1",
+      password: "secret",
+      working_schema: "HR",
+    });
   });
 });
 

@@ -12,6 +12,11 @@ import { CommandPalette } from "./CommandPalette";
 import { CompareProjectToDatabaseDialog } from "./CompareProjectToDatabaseDialog";
 import { IdleReconnectDialog } from "./IdleReconnectDialog";
 import {
+  InteractiveConnectDialog,
+  readStoredInteractiveBinding,
+  type InteractiveConnectValues,
+} from "./InteractiveConnectDialog";
+import {
   matchCommandPaletteShortcut,
   type CommandPaletteAction,
 } from "./commandPaletteModel";
@@ -59,11 +64,14 @@ import {
   DISCONNECTED_INTERACTIVE_STATUS,
   checkBackendHealth,
   closeCurrentProject,
+  connectInteractivePool,
   connectSavedConnection,
+  describeSavedConnection,
   dismissInteractiveIdle,
   getBackendConfig,
   getCurrentProject,
   getInteractiveStatus,
+  getSessionContextOnce,
   listActivity,
   listSavedConnections,
   reconnectInteractivePool,
@@ -145,6 +153,13 @@ export const App = () => {
     "warning",
   );
   const [interactiveReconnectBusy, setInteractiveReconnectBusy] = useState(false);
+  const [interactiveConnectOpen, setInteractiveConnectOpen] = useState(false);
+  const [interactiveConnectBusy, setInteractiveConnectBusy] = useState(false);
+  const [interactiveConnectError, setInteractiveConnectError] = useState<string | null>(null);
+  const [interactiveConnectUsername, setInteractiveConnectUsername] = useState("");
+  const [interactiveConnectDsn, setInteractiveConnectDsn] = useState("");
+  const [interactiveConnectWorkingSchema, setInteractiveConnectWorkingSchema] = useState("");
+  const [interactiveConnectWalletLocation, setInteractiveConnectWalletLocation] = useState("");
   const autoReconnectHandledRef = useRef(false);
 
   const openedProjectId = openedProject?.project.project_id ?? null;
@@ -433,6 +448,44 @@ export const App = () => {
     }
   }, [backendConfig, openedProject, sqlDirty]);
 
+  const prepareInteractiveConnectDefaults = useCallback(
+    async (profileId: string) => {
+      const binding = readStoredInteractiveBinding(profileId);
+      let username = binding?.username?.trim() ?? "";
+      let dsn = binding?.dsn?.trim() ?? "";
+      let walletLocation = binding?.wallet_location?.trim() ?? "";
+      let workingSchema = "";
+      try {
+        const context = await getSessionContextOnce(backendConfig);
+        const sessionUser = context.database_context.current_user?.trim() ?? "";
+        if (sessionUser) {
+          username = sessionUser;
+        }
+        workingSchema = context.suggested_schema?.trim() ?? "";
+      } catch {
+        // Dialog still opens with binding / empty fields when session context is unavailable.
+      }
+      try {
+        const described = await describeSavedConnection(profileId, backendConfig);
+        const describedUser = described.username?.trim() ?? "";
+        const describedDsn = described.connect_string?.trim() ?? "";
+        if (describedUser) {
+          username = describedUser;
+        }
+        if (describedDsn) {
+          dsn = describedDsn;
+        }
+      } catch {
+        // Prefer SQLcl metadata when available; fall back to session/localStorage on failure.
+      }
+      setInteractiveConnectUsername(username);
+      setInteractiveConnectDsn(dsn);
+      setInteractiveConnectWorkingSchema(workingSchema);
+      setInteractiveConnectWalletLocation(walletLocation);
+    },
+    [backendConfig],
+  );
+
   const connectSelectedConnection = useCallback(
     async (connectionName?: string) => {
       const target = (connectionName ?? selectedConnection).trim();
@@ -453,6 +506,16 @@ export const App = () => {
         setConnectedConnection(response.connection_name);
         setConnectionMessage("");
         await refreshActivity();
+        // SQLcl connect succeeded independently. Offer interactive pool bind when
+        // there is no session password yet (cancel leaves SQLcl connected).
+        if (
+          interactiveStatus.state !== "connected" &&
+          !interactiveStatus.has_session_password
+        ) {
+          await prepareInteractiveConnectDefaults(target);
+          setInteractiveConnectError(null);
+          setInteractiveConnectOpen(true);
+        }
       } catch (error) {
         setConnectedConnection(null);
         setConnectionMessage(error instanceof Error ? error.message : "Could not connect.");
@@ -462,7 +525,84 @@ export const App = () => {
         setIsConnecting(false);
       }
     },
-    [backendConfig, refreshActivity, selectedConnection],
+    [
+      backendConfig,
+      interactiveStatus.has_session_password,
+      interactiveStatus.state,
+      prepareInteractiveConnectDefaults,
+      refreshActivity,
+      selectedConnection,
+    ],
+  );
+
+  const handleOpenInteractiveConnect = useCallback(() => {
+    const profileId = selectedConnection.trim();
+    if (!profileId) {
+      setConnectionMessage("Select a SQLcl saved connection first.");
+      return;
+    }
+    void prepareInteractiveConnectDefaults(profileId).then(() => {
+      setInteractiveConnectError(null);
+      setInteractiveConnectOpen(true);
+    });
+  }, [prepareInteractiveConnectDefaults, selectedConnection]);
+
+  const handleInteractiveConnectSubmit = useCallback(
+    async (values: InteractiveConnectValues) => {
+      const profileId = selectedConnection.trim();
+      if (!profileId) {
+        setInteractiveConnectError("Select a SQLcl saved connection first.");
+        return;
+      }
+      const connection = connections.find((item) => item.name === profileId);
+      const displayName = connection?.display_name?.trim() || connection?.name || profileId;
+      setInteractiveConnectBusy(true);
+      setInteractiveConnectError(null);
+      try {
+        // On-prem: omit wallet knobs entirely. Autonomous: pass extracted wallet folder.
+        const walletLocation =
+          values.use_wallet && values.wallet_location.trim()
+            ? values.wallet_location.trim()
+            : null;
+        const result = await connectInteractivePool(
+          {
+            profile_id: profileId,
+            display_name: displayName,
+            username: values.username,
+            dsn: values.dsn,
+            password: values.password,
+            working_schema: values.working_schema || null,
+            wallet_location: walletLocation,
+            config_dir: walletLocation,
+            // When wallet mode is on, always send wallet_password (possibly "").
+            // Omitting it makes python-oracledb prompt for a PEM passphrase in the
+            // backend terminal and hang the connect request.
+            wallet_password: values.use_wallet ? values.wallet_password : null,
+          },
+          backendConfig,
+        );
+        setInteractiveStatus(result);
+        setInteractiveConnectOpen(false);
+      } catch (error) {
+        const detail =
+          error && typeof error === "object" && "detail" in error
+            ? (error as { detail?: unknown }).detail
+            : undefined;
+        const fromDetail =
+          typeof detail === "string"
+            ? detail
+            : detail && typeof detail === "object" && detail !== null && "message" in detail
+              ? String((detail as { message?: unknown }).message ?? "")
+              : "";
+        setInteractiveConnectError(
+          fromDetail ||
+            (error instanceof Error ? error.message : "Could not connect interactive pool."),
+        );
+      } finally {
+        setInteractiveConnectBusy(false);
+      }
+    },
+    [backendConfig, connections, selectedConnection],
   );
 
   const openMcp = useCallback(async () => {
@@ -789,7 +929,8 @@ export const App = () => {
               isConnecting={isConnecting}
               interactiveStatus={interactiveStatus}
               onInteractiveReconnect={() => void handleInteractiveReconnect()}
-              interactiveReconnectBusy={interactiveReconnectBusy}
+              onInteractiveConnect={handleOpenInteractiveConnect}
+              interactiveReconnectBusy={interactiveReconnectBusy || interactiveConnectBusy}
               onInteractiveStatusRefresh={refreshInteractiveStatus}
               layout={layout}
               onLayoutChange={setLayout}
@@ -881,6 +1022,25 @@ export const App = () => {
         onKeepConnected={() => void handleIdleKeepConnected()}
         onReconnect={() => void handleInteractiveReconnect()}
         onDismiss={() => void handleIdleDismiss()}
+      />
+      <InteractiveConnectDialog
+        open={interactiveConnectOpen && projectOpen}
+        profileId={selectedConnection}
+        displayName={
+          connections.find((item) => item.name === selectedConnection)?.display_name?.trim() ||
+          selectedConnection
+        }
+        initialUsername={interactiveConnectUsername}
+        initialDsn={interactiveConnectDsn}
+        initialWorkingSchema={interactiveConnectWorkingSchema}
+        initialWalletLocation={interactiveConnectWalletLocation}
+        busy={interactiveConnectBusy}
+        error={interactiveConnectError}
+        onCancel={() => {
+          setInteractiveConnectOpen(false);
+          setInteractiveConnectError(null);
+        }}
+        onSubmit={(values) => void handleInteractiveConnectSubmit(values)}
       />
     </div>
   );
