@@ -22,6 +22,8 @@ type ProductHeaderProps = Readonly<{
   onWorkingSchemaChange: (schema: string) => void;
   interactiveStatus: InteractivePoolStatus;
   onOpenSettings: () => void;
+  onInteractiveReconnect?: () => void;
+  interactiveReconnectBusy?: boolean;
 }>;
 
 /**
@@ -44,10 +46,16 @@ export const ProductHeader = ({
   onWorkingSchemaChange,
   interactiveStatus,
   onOpenSettings,
+  onInteractiveReconnect,
+  interactiveReconnectBusy = false,
 }: ProductHeaderProps) => {
   const environment = environmentIdentity(openedProject.manifest);
   const backendHealth = backendHealthLabel(backendStatus);
   const interactiveHealth = interactiveHealthLabel(interactiveStatus);
+  const canManualInteractiveReconnect =
+    Boolean(onInteractiveReconnect) &&
+    Boolean(interactiveStatus.has_session_password) &&
+    (interactiveStatus.state === "disconnected" || interactiveStatus.state === "dead");
 
   const onContextKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
@@ -117,6 +125,17 @@ export const ProductHeader = ({
                 ? "Switch connection"
                 : "Connect"}
         </button>
+        {canManualInteractiveReconnect ? (
+          <button
+            type="button"
+            className="chrome-button"
+            onClick={() => onInteractiveReconnect?.()}
+            disabled={!isBackendOnline || interactiveReconnectBusy}
+            aria-busy={interactiveReconnectBusy}
+          >
+            {interactiveReconnectBusy ? "Reconnecting…" : "Reconnect interactive"}
+          </button>
+        ) : null}
         <label className="context-field" htmlFor="workspace-working-schema">
           <span className="context-label">Working Schema</span>
           <input

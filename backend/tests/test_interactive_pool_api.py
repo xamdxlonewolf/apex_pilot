@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from fastapi.testclient import TestClient
@@ -57,14 +58,16 @@ class FakeOracleDriver:
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> FakeDriverPool:
+        _ = timeout
         pool = FakeDriverPool(min=min, max=max, user=user, dsn=dsn, password=password)
         self.pools.append(pool)
         return pool
 
 
 class FakeToolClient:
-    async def call_tool(self, tool_name: str, arguments: dict[str, object]) -> object:
+    async def call_tool(self, tool_name: str, arguments: Mapping[str, object]) -> object:
         if tool_name == LIST_CONNECTIONS_TOOL:
             return {"connections": [{"name": "dev", "displayName": "Development"}]}
         if tool_name == CONNECT_TOOL:

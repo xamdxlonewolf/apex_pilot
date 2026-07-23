@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from enum import StrEnum
@@ -31,6 +32,17 @@ class InteractivePoolState(StrEnum):
     DEAD = "dead"
 
 
+class DisconnectReason(StrEnum):
+    """Why the interactive binding left Connected (independent of SQLcl/backend)."""
+
+    USER = "user"
+    APP_IDLE = "app_idle"
+    ORACLE_POLICY = "oracle_policy"
+    NETWORK_TRANSPORT = "network_transport"
+    VALIDATION_FAILED = "validation_failed"
+    CREDENTIAL_UNAVAILABLE = "credential_unavailable"
+
+
 @dataclass(frozen=True)
 class InteractiveDriverBinding:
     """Non-secret interactive driver binding for a Connection Profile."""
@@ -52,6 +64,14 @@ class InteractivePoolStatus:
     dedicated_limit: int
     pool_min: int
     pool_max: int
+    disconnect_reason: DisconnectReason | None = None
+    idle_warning: bool = False
+    seconds_until_idle_disconnect: float | None = None
+    idle_timeout_seconds: int = 900
+    warning_lead_seconds: int = 60
+    has_session_password: bool = False
+    working_schema: str | None = None
+    reconnect_prompt_dismissed: bool = False
 
 
 @dataclass(frozen=True)
@@ -90,6 +110,7 @@ class OraclePoolDriver(Protocol):
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> OracleDriverPool:
         """Create a backend-owned Oracle connection pool."""
         ...
@@ -106,6 +127,7 @@ class OracledbPoolDriver:
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> Any:
         import oracledb
 
@@ -115,12 +137,23 @@ class OracledbPoolDriver:
             dsn=dsn,
             min=min,
             max=max,
+            timeout=timeout,
         )
 
 
 DEFAULT_POOL_MIN = 1
 DEFAULT_POOL_MAX = 6
 DEFAULT_DEDICATED_LIMIT = 5
+DEFAULT_IDLE_TIMEOUT_SECONDS = 15 * 60
+DEFAULT_WARNING_LEAD_SECONDS = 60
+MIN_IDLE_TIMEOUT_SECONDS = 10 * 60
+MAX_IDLE_TIMEOUT_SECONDS = 30 * 60
+READONLY_POOL_MEMBER_TIMEOUT_SECONDS = 5 * 60
+
+
+def clamp_idle_timeout_seconds(value: int) -> int:
+    """Clamp idle timeout into the ADR product range (10–30 minutes)."""
+    return max(MIN_IDLE_TIMEOUT_SECONDS, min(MAX_IDLE_TIMEOUT_SECONDS, int(value)))
 
 
 class InteractiveOraclePool:
@@ -128,7 +161,8 @@ class InteractiveOraclePool:
 
     React remounts, Settings, drawers, and Focus changes do not own this pool.
     It closes only on project close, confirmed profile change, explicit
-    disconnect, or app exit.
+    disconnect, or app exit. Application idle disconnect keeps the session-only
+    password so lazy reconnect can reuse it.
     """
 
     def __init__(
@@ -138,6 +172,10 @@ class InteractiveOraclePool:
         pool_min: int = DEFAULT_POOL_MIN,
         pool_max: int = DEFAULT_POOL_MAX,
         dedicated_limit: int = DEFAULT_DEDICATED_LIMIT,
+        idle_timeout_seconds: int = DEFAULT_IDLE_TIMEOUT_SECONDS,
+        warning_lead_seconds: int = DEFAULT_WARNING_LEAD_SECONDS,
+        readonly_member_timeout_seconds: int = READONLY_POOL_MEMBER_TIMEOUT_SECONDS,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         if pool_min < 0 or pool_max < 1 or pool_min > pool_max:
             msg = "Invalid interactive pool size bounds."
@@ -145,20 +183,40 @@ class InteractiveOraclePool:
         if dedicated_limit < 1 or dedicated_limit >= pool_max:
             msg = "Dedicated editor limit must leave at least one pool slot free."
             raise InteractivePoolError(msg)
+        if warning_lead_seconds < 1:
+            msg = "Warning lead time must be at least one second."
+            raise InteractivePoolError(msg)
 
         self._driver = driver or OracledbPoolDriver()
         self._pool_min = pool_min
         self._pool_max = pool_max
         self._dedicated_limit = dedicated_limit
+        self._idle_timeout_seconds = clamp_idle_timeout_seconds(idle_timeout_seconds)
+        self._warning_lead_seconds = min(warning_lead_seconds, self._idle_timeout_seconds)
+        self._readonly_member_timeout_seconds = max(1, int(readonly_member_timeout_seconds))
+        self._clock = clock or time.monotonic
         self._state = InteractivePoolState.DISCONNECTED
         self._binding: InteractiveDriverBinding | None = None
         self._password: str | None = None
         self._pool: OracleDriverPool | None = None
         self._dedicated: dict[str, DedicatedSessionHandle] = {}
+        self._last_activity_at = self._clock()
+        self._in_flight = 0
+        self._transaction_uncertain = False
+        self._disconnect_reason: DisconnectReason | None = None
+        self._working_schema: str | None = None
+        self._reconnect_prompt_dismissed = False
 
     def status(self) -> InteractivePoolStatus:
         """Return a non-secret status snapshot for UI cues."""
         binding = self._binding
+        idle_warning = False
+        seconds_until: float | None = None
+        if self._state is InteractivePoolState.CONNECTED and self._in_flight == 0 and not self._transaction_uncertain:
+            remaining = self._idle_timeout_seconds - (self._clock() - self._last_activity_at)
+            seconds_until = max(0.0, remaining)
+            idle_warning = 0 < remaining <= self._warning_lead_seconds
+
         return InteractivePoolStatus(
             state=self._state,
             profile_id=binding.profile_id if binding else None,
@@ -167,7 +225,27 @@ class InteractiveOraclePool:
             dedicated_limit=self._dedicated_limit,
             pool_min=self._pool_min,
             pool_max=self._pool_max,
+            disconnect_reason=self._disconnect_reason,
+            idle_warning=idle_warning,
+            seconds_until_idle_disconnect=seconds_until,
+            idle_timeout_seconds=self._idle_timeout_seconds,
+            warning_lead_seconds=self._warning_lead_seconds,
+            has_session_password=bool(self._password),
+            working_schema=self._working_schema,
+            reconnect_prompt_dismissed=self._reconnect_prompt_dismissed,
         )
+
+    def evaluate_idle_policy(self) -> InteractivePoolStatus:
+        """Apply warn/disconnect transitions for application-level DB inactivity."""
+        if self._state is not InteractivePoolState.CONNECTED:
+            return self.status()
+        if self._in_flight > 0 or self._transaction_uncertain:
+            return self.status()
+
+        idle_for = self._clock() - self._last_activity_at
+        if idle_for >= self._idle_timeout_seconds:
+            self._teardown_pool_keep_credentials(DisconnectReason.APP_IDLE)
+        return self.status()
 
     def open(self, binding: InteractiveDriverBinding, *, password: str) -> None:
         """Open or keep the pool for the given profile binding.
@@ -188,36 +266,107 @@ class InteractiveOraclePool:
             return
 
         if self._pool is not None:
-            self.close()
+            self._teardown_pool_keep_credentials(None)
+            self._password = None
+            self._binding = None
 
         self._state = InteractivePoolState.CONNECTING
         self._binding = binding
         self._password = password
+        self._disconnect_reason = None
+        self._reconnect_prompt_dismissed = False
         try:
-            self._pool = self._driver.create_pool(
-                user=binding.username,
-                password=password,
-                dsn=binding.dsn,
-                min=self._pool_min,
-                max=self._pool_max,
-            )
+            self._pool = self._create_driver_pool(binding, password)
+            self._apply_working_schema_on_pool()
         except Exception:
             self._binding = None
             self._password = None
             self._pool = None
             self._state = InteractivePoolState.DEAD
+            self._disconnect_reason = DisconnectReason.VALIDATION_FAILED
             raise
 
         self._state = InteractivePoolState.CONNECTED
+        self.touch_activity()
+
+    def reconnect(self) -> InteractivePoolStatus:
+        """Reconnect using the retained session-only password after clean idle/expiry.
+
+        Never replays uncertain writes — callers must start a fresh user action.
+        """
+        binding = self._binding
+        password = self._password
+        if binding is None or not password:
+            msg = "Interactive reconnect requires a retained Connection Profile and session password."
+            raise InteractivePoolError(msg)
+
+        self._state = InteractivePoolState.RECONNECTING
+        self._disconnect_reason = None
+        self._reconnect_prompt_dismissed = False
+        if self._pool is not None:
+            self._teardown_pool_keep_credentials(None)
+
+        try:
+            self._pool = self._create_driver_pool(binding, password)
+            self._apply_working_schema_on_pool()
+        except Exception:
+            self._pool = None
+            self._state = InteractivePoolState.DEAD
+            self._disconnect_reason = DisconnectReason.VALIDATION_FAILED
+            raise
+
+        self._state = InteractivePoolState.CONNECTED
+        self.touch_activity()
+        return self.status()
+
+    def touch_activity(self) -> InteractivePoolStatus:
+        """Record application-level database activity and clear idle warning."""
+        self._last_activity_at = self._clock()
+        return self.status()
+
+    def set_working_schema(self, schema_name: str | None) -> None:
+        """Remember Working Schema for reconnect verification (non-secret)."""
+        normalized = schema_name.strip() if schema_name else None
+        self._working_schema = normalized.upper() if normalized else None
+
+    def set_transaction_uncertain(self, uncertain: bool) -> None:
+        """Block idle teardown while transaction outcome is active or unknown."""
+        self._transaction_uncertain = uncertain
+
+    def dismiss_idle_prompt(self) -> InteractivePoolStatus:
+        """Cancel/dismiss reconnect UX — leave Unconnected until manual reconnect.
+
+        Refuses teardown while a call is in flight or transaction state is
+        uncertain (ADR-0008), matching automatic idle disconnect guards.
+        """
+        if self._in_flight > 0 or self._transaction_uncertain:
+            msg = "Cannot dismiss idle reconnect while a database call is in flight or transaction state is uncertain."
+            raise InteractivePoolError(msg)
+
+        self._reconnect_prompt_dismissed = True
+        if self._pool is not None or self._state is InteractivePoolState.CONNECTED:
+            self._teardown_pool_keep_credentials(DisconnectReason.APP_IDLE)
+        elif self._state is InteractivePoolState.DEAD:
+            self._state = InteractivePoolState.DISCONNECTED
+            if self._disconnect_reason is None:
+                self._disconnect_reason = DisconnectReason.APP_IDLE
+        else:
+            self._state = InteractivePoolState.DISCONNECTED
+            if self._disconnect_reason is None:
+                self._disconnect_reason = DisconnectReason.APP_IDLE
+        return self.status()
 
     @contextmanager
     def borrow_readonly(self) -> Iterator[object]:
         """Borrow a short-lived connection for browse/health reads."""
         pool = self._require_open_pool()
+        self._in_flight += 1
         connection = pool.acquire()
         try:
             yield connection
+            self.touch_activity()
         finally:
+            self._in_flight = max(0, self._in_flight - 1)
             pool.release(connection)
 
     def acquire_dedicated(self, document_id: str) -> DedicatedSessionHandle:
@@ -229,6 +378,7 @@ class InteractiveOraclePool:
 
         existing = self._dedicated.get(normalized)
         if existing is not None:
+            self.touch_activity()
             return existing
 
         if len(self._dedicated) >= self._dedicated_limit:
@@ -249,6 +399,7 @@ class InteractiveOraclePool:
             connection=connection,
         )
         self._dedicated[normalized] = handle
+        self.touch_activity()
         return handle
 
     def release_dedicated(self, document_id: str) -> None:
@@ -260,6 +411,40 @@ class InteractiveOraclePool:
 
     def close(self) -> None:
         """Close the pool and clear session-only credentials."""
+        self._teardown_pool_keep_credentials(DisconnectReason.USER)
+        self._password = None
+        self._binding = None
+        self._working_schema = None
+        self._disconnect_reason = DisconnectReason.USER
+        self._state = InteractivePoolState.DISCONNECTED
+        self._reconnect_prompt_dismissed = False
+        self._transaction_uncertain = False
+
+    def _create_driver_pool(self, binding: InteractiveDriverBinding, password: str) -> OracleDriverPool:
+        return self._driver.create_pool(
+            user=binding.username,
+            password=password,
+            dsn=binding.dsn,
+            min=self._pool_min,
+            max=self._pool_max,
+            timeout=self._readonly_member_timeout_seconds,
+        )
+
+    def _apply_working_schema_on_pool(self) -> None:
+        if self._pool is None or not self._working_schema:
+            return
+        connection = self._pool.acquire()
+        try:
+            cursor = getattr(connection, "cursor", None)
+            if callable(cursor):
+                active = cursor()
+                execute = getattr(active, "execute", None)
+                if callable(execute):
+                    execute(f"ALTER SESSION SET CURRENT_SCHEMA = {self._working_schema}")
+        finally:
+            self._pool.release(connection)
+
+    def _teardown_pool_keep_credentials(self, reason: DisconnectReason | None) -> None:
         if self._pool is not None:
             for handle in list(self._dedicated.values()):
                 with suppress(Exception):
@@ -269,10 +454,9 @@ class InteractiveOraclePool:
                 self._pool.close()
             finally:
                 self._pool = None
-
-        self._password = None
-        self._binding = None
-        self._state = InteractivePoolState.DISCONNECTED
+        if reason is not None:
+            self._disconnect_reason = reason
+            self._state = InteractivePoolState.DISCONNECTED
 
     def _require_open_pool(self) -> OracleDriverPool:
         if self._pool is None or self._state is not InteractivePoolState.CONNECTED:

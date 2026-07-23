@@ -3,6 +3,7 @@
 from apex_pilot.mcp.client import SqlclMcpSdkClient, ToolActivityMcpClient
 from apex_pilot.mcp.connections import (
     CONNECT_TOOL,
+    DISCONNECT_TOOL,
     LIST_CONNECTIONS_TOOL,
     SqlclConnectionError,
     SqlclConnectionManager,
@@ -36,6 +37,7 @@ from apex_pilot.mcp.sqlcl import (
 
 __all__ = [
     "CONNECT_TOOL",
+    "DISCONNECT_TOOL",
     "LIST_CONNECTIONS_TOOL",
     "SQLCL_MINIMUM_VERSION",
     "SUPPORTED_JAVA_MAJOR_VERSIONS",

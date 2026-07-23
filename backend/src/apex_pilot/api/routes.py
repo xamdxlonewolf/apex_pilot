@@ -85,6 +85,15 @@ class InteractiveConnectBody(BaseModel):
     username: str = Field(min_length=1)
     dsn: str = Field(min_length=1)
     password: str = Field(min_length=1)
+    working_schema: str | None = None
+
+
+class InteractiveWorkingSchemaBody(BaseModel):
+    """Update Working Schema remembered for interactive reconnect."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_name: str | None = None
 
 
 class InteractivePoolStatusResponse(BaseModel):
@@ -99,6 +108,15 @@ class InteractivePoolStatusResponse(BaseModel):
     dedicated_limit: int
     pool_min: int
     pool_max: int
+    disconnect_reason: str | None = None
+    idle_warning: bool = False
+    seconds_until_idle_disconnect: float | None = None
+    idle_timeout_seconds: int = 900
+    warning_lead_seconds: int = 60
+    has_session_password: bool = False
+    working_schema: str | None = None
+    reconnect_prompt_dismissed: bool = False
+    mcp_process: str | None = None
 
 
 class DatabaseContextResponse(BaseModel):
@@ -509,10 +527,11 @@ async def connect_saved_connection(connection_name: str, request: Request) -> Co
     tags=["interactive"],
     dependencies=[Depends(require_bearer_token)],
 )
-def get_interactive_status(request: Request) -> InteractivePoolStatusResponse:
+async def get_interactive_status(request: Request) -> InteractivePoolStatusResponse:
     """Return app-owned interactive pool status for Context Bar / status bar cues."""
     runtime = _runtime_from_request(request)
-    return _interactive_status_response(runtime.interactive_status())
+    await runtime.evaluate_mcp_idle_stop()
+    return _interactive_status_response(runtime.interactive_status(), runtime)
 
 
 @router.post(
@@ -536,6 +555,7 @@ def connect_interactive_pool(
                 dsn=body.dsn.strip(),
             ),
             password=body.password,
+            working_schema=body.working_schema,
         )
     except InteractivePoolError as error:
         raise HTTPException(
@@ -547,7 +567,80 @@ def connect_interactive_pool(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Interactive Oracle pool failed to open.",
         ) from error
-    return _interactive_status_response(status_snapshot)
+    return _interactive_status_response(status_snapshot, runtime)
+
+
+@router.post(
+    "/interactive/reconnect",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def reconnect_interactive_pool(request: Request) -> InteractivePoolStatusResponse:
+    """Reconnect using the retained session-only password after clean idle/expiry."""
+    runtime = _runtime_from_request(request)
+    try:
+        status_snapshot = runtime.reconnect_interactive_pool()
+    except InteractivePoolError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Interactive Oracle pool failed to reconnect.",
+        ) from error
+    return _interactive_status_response(status_snapshot, runtime)
+
+
+@router.post(
+    "/interactive/touch",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def touch_interactive_pool(request: Request) -> InteractivePoolStatusResponse:
+    """Reset application idle clock (Keep connected during warning)."""
+    runtime = _runtime_from_request(request)
+    return _interactive_status_response(runtime.touch_interactive_activity(), runtime)
+
+
+@router.post(
+    "/interactive/dismiss-idle",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def dismiss_interactive_idle(request: Request) -> InteractivePoolStatusResponse:
+    """Cancel/dismiss idle reconnect prompt — Unconnected until manual reconnect."""
+    runtime = _runtime_from_request(request)
+    try:
+        snapshot = runtime.dismiss_interactive_idle_prompt()
+    except InteractivePoolError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    return _interactive_status_response(snapshot, runtime)
+
+
+@router.post(
+    "/interactive/working-schema",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def set_interactive_working_schema(
+    body: InteractiveWorkingSchemaBody,
+    request: Request,
+) -> InteractivePoolStatusResponse:
+    """Remember Working Schema for interactive reconnect verification."""
+    runtime = _runtime_from_request(request)
+    return _interactive_status_response(
+        runtime.set_interactive_working_schema(body.schema_name),
+        runtime,
+    )
 
 
 @router.post(
@@ -559,7 +652,23 @@ def connect_interactive_pool(
 def disconnect_interactive_pool(request: Request) -> InteractivePoolStatusResponse:
     """Explicitly close the interactive pool and clear session-only credentials."""
     runtime = _runtime_from_request(request)
-    return _interactive_status_response(runtime.disconnect_interactive_pool())
+    return _interactive_status_response(runtime.disconnect_interactive_pool(), runtime)
+
+
+@router.post(
+    "/connections/disconnect",
+    response_model=ConnectResponse,
+    tags=["connections"],
+    dependencies=[Depends(require_bearer_token)],
+)
+async def disconnect_saved_connection(request: Request) -> ConnectResponse:
+    """Disconnect MCP database sessions and start the SQLcl process-idle clock."""
+    runtime = _runtime_from_request(request)
+    try:
+        await runtime.disconnect_mcp_sessions()
+    except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
+        raise _mcp_http_error(error) from error
+    return ConnectResponse(connection_name="")
 
 
 @router.get(
@@ -969,7 +1078,10 @@ def put_retention(
     return _project_summary(project)
 
 
-def _interactive_status_response(snapshot: InteractivePoolStatus) -> InteractivePoolStatusResponse:
+def _interactive_status_response(
+    snapshot: InteractivePoolStatus,
+    runtime: ApexPilotRuntime | None = None,
+) -> InteractivePoolStatusResponse:
     return InteractivePoolStatusResponse(
         state=snapshot.state,
         profile_id=snapshot.profile_id,
@@ -978,6 +1090,15 @@ def _interactive_status_response(snapshot: InteractivePoolStatus) -> Interactive
         dedicated_limit=snapshot.dedicated_limit,
         pool_min=snapshot.pool_min,
         pool_max=snapshot.pool_max,
+        disconnect_reason=snapshot.disconnect_reason.value if snapshot.disconnect_reason else None,
+        idle_warning=snapshot.idle_warning,
+        seconds_until_idle_disconnect=snapshot.seconds_until_idle_disconnect,
+        idle_timeout_seconds=snapshot.idle_timeout_seconds,
+        warning_lead_seconds=snapshot.warning_lead_seconds,
+        has_session_password=snapshot.has_session_password,
+        working_schema=snapshot.working_schema,
+        reconnect_prompt_dismissed=snapshot.reconnect_prompt_dismissed,
+        mcp_process=runtime.mcp_process_status() if runtime is not None else None,
     )
 
 

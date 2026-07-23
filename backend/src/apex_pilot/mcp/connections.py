@@ -12,6 +12,7 @@ from apex_pilot.safety import SqlRequestAccess
 
 LIST_CONNECTIONS_TOOL = "list-connections"
 CONNECT_TOOL = "connect"
+DISCONNECT_TOOL = "disconnect"
 
 _CONNECT_STRING_MARKERS = frozenset({"/", "@", ":", "(", ")", ";"})
 
@@ -107,6 +108,13 @@ class SqlclMcpSession:
         self._connection_name = normalized_name
         return normalized_name
 
+    async def disconnect(self) -> None:
+        """Disconnect the active database session; process may stay warm."""
+        if self._connection_name is None:
+            return
+        await self._client.call_tool(DISCONNECT_TOOL, {})
+        self._connection_name = None
+
     async def call_tool(
         self,
         tool_name: str,
@@ -188,6 +196,17 @@ class SqlclConnectionManager:
             await self._read_only_pool.connect_all(normalized_name)
 
         return connected_name
+
+    async def disconnect(self) -> None:
+        """Disconnect every managed MCP database session."""
+        if self._read_only_pool is not None:
+            for _ in range(self._read_only_pool.size):
+                await self._read_only_pool.acquire().disconnect()
+        await self._primary_session.disconnect()
+
+    def has_connected_session(self) -> bool:
+        """Return whether any managed MCP session still holds a DB connection."""
+        return self._primary_session.connection_name is not None
 
 
 def _connection_entries(payload: object) -> Sequence[object]:

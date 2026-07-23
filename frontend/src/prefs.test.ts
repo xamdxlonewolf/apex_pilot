@@ -29,6 +29,7 @@ describe("prefs persistence", () => {
       showConsole: true,
       showJunkFiles: true,
       skipDestructiveSqlPrompt: true,
+      autoReconnectInteractive: true,
     };
 
     saveProfileLayout(profileId, prefs);
@@ -47,6 +48,7 @@ describe("prefs persistence", () => {
     expect(restored.showConsole).toBe(true);
     expect(restored.showJunkFiles).toBe(true);
     expect(restored.skipDestructiveSqlPrompt).toBe(true);
+    expect(restored.autoReconnectInteractive).toBe(true);
   });
 
   it("defaults activityRailLabels to auto and sanitizes unknown values", () => {

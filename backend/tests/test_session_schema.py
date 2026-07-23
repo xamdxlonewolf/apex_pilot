@@ -37,8 +37,8 @@ def test_alter_session_current_schema_is_allowed() -> None:
 
 
 def test_sql_with_current_schema_prefixes_user_sql() -> None:
-    from apex_pilot.schema import SchemaIntelligenceService
     from apex_pilot.mcp import SqlclMcpSession
+    from apex_pilot.schema import SchemaIntelligenceService
 
     class _UnusedClient:
         async def call_tool(self, tool_name: str, arguments: object) -> object:
@@ -53,14 +53,10 @@ def test_qualify_sql_for_schema_skips_already_qualified_and_dual() -> None:
     from apex_pilot.schema import qualify_sql_for_schema
 
     assert (
-        qualify_sql_for_schema("APEX_PILOT", "create table HR.demo (id number)")
-        == "create table HR.demo (id number)"
+        qualify_sql_for_schema("APEX_PILOT", "create table HR.demo (id number)") == "create table HR.demo (id number)"
     )
     assert qualify_sql_for_schema("APEX_PILOT", "select * from dual") == "select * from dual"
-    assert (
-        qualify_sql_for_schema("APEX_PILOT", "select * from user_tables")
-        == "select * from user_tables"
-    )
+    assert qualify_sql_for_schema("APEX_PILOT", "select * from user_tables") == "select * from user_tables"
     assert (
         qualify_sql_for_schema("APEX_PILOT", "insert into orders (id) values (1)")
         == "insert into APEX_PILOT.orders (id) values (1)"

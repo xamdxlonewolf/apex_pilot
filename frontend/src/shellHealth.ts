@@ -23,6 +23,15 @@ export const backendHealthLabel = (status: BackendStatus): ShellHealthItem => {
 /** Honest interactive driver binding cue (separate from SQLcl MCP / Backend). */
 export const interactiveHealthLabel = (status: InteractivePoolStatus): ShellHealthItem => {
   const name = status.display_name?.trim() || status.profile_id?.trim() || null;
+  if (status.state === "connected" && status.idle_warning) {
+    const seconds = Math.max(0, Math.ceil(status.seconds_until_idle_disconnect ?? 0));
+    return {
+      label: name
+        ? `Interactive: ${name} · idle warning (${seconds}s)`
+        : `Interactive: Idle warning (${seconds}s)`,
+      tone: "warn",
+    };
+  }
   switch (status.state) {
     case "connected":
       return {
@@ -36,8 +45,17 @@ export const interactiveHealthLabel = (status: InteractivePoolStatus): ShellHeal
     case "dead":
       return { label: "Interactive: Dead", tone: "bad" };
     case "disconnected":
-    default:
+    default: {
+      if (status.disconnect_reason === "app_idle") {
+        return {
+          label: name
+            ? `Interactive: ${name} · disconnected (idle)`
+            : "Interactive: Disconnected (idle)",
+          tone: "warn",
+        };
+      }
       return { label: "Interactive: Disconnected", tone: "idle" };
+    }
   }
 };
 

@@ -484,6 +484,7 @@ _INDEX_ON_PATTERN = re.compile(
     rf"(?is)(?P<prefix>\bON\s+)(?P<name>{_QUALIFIED_OR_BARE})",
 )
 
+
 def rows_from_mcp_payload(payload: object) -> tuple[Mapping[str, object], ...]:
     """Extract row mappings from common SQLcl MCP fake/live payload shapes."""
     return _rows_from_payload(payload, depth=0)
