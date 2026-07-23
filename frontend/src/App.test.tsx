@@ -83,6 +83,21 @@ const workspaceFetch = (opened = openedProjectFixture) =>
     if (url.includes("/activity")) {
       return Promise.resolve(new Response(JSON.stringify({ entries: [], active_session_id: null })));
     }
+    if (url.endsWith("/interactive/status")) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            state: "disconnected",
+            profile_id: null,
+            display_name: null,
+            dedicated_pinned: 0,
+            dedicated_limit: 5,
+            pool_min: 1,
+            pool_max: 6,
+          }),
+        ),
+      );
+    }
     return Promise.resolve(new Response(JSON.stringify({})));
   });
 
@@ -1585,6 +1600,21 @@ describe("App", () => {
             new Response(JSON.stringify({ entries: [], active_session_id: null })),
           );
         }
+        if (url.endsWith("/interactive/status")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                state: "disconnected",
+                profile_id: null,
+                display_name: null,
+                dedicated_pinned: 0,
+                dedicated_limit: 5,
+                pool_min: 1,
+                pool_max: 6,
+              }),
+            ),
+          );
+        }
         return Promise.resolve(new Response(JSON.stringify({})));
       }),
     );
@@ -1818,7 +1848,8 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /connected · reconnect/i })).toBeEnabled();
     });
-    expect(screen.getByLabelText("Status bar")).toHaveTextContent(/db: dev/i);
+    expect(screen.getByLabelText("Status bar")).toHaveTextContent(/sqlcl: dev/i);
+    expect(screen.getByLabelText("Status bar")).toHaveTextContent(/interactive: disconnected/i);
   });
 
   it("shows schema running state in the schema tool", async () => {

@@ -52,17 +52,21 @@ import {
   type ActivityEntry,
   type BackendConfig,
   type BackendStatus,
+  type InteractivePoolStatus,
   type OpenedProject,
   type SavedConnection,
+  DISCONNECTED_INTERACTIVE_STATUS,
   checkBackendHealth,
   closeCurrentProject,
   connectSavedConnection,
   getBackendConfig,
   getCurrentProject,
+  getInteractiveStatus,
   listActivity,
   listSavedConnections,
   resolveBackendConfig,
 } from "./backend";
+import { interactiveHealthLabel } from "./shellHealth";
 
 const statusFromConfig = (config: BackendConfig): BackendStatus => {
   if (!config.baseUrl) {
@@ -102,6 +106,9 @@ export const App = () => {
   const [selectedConnection, setSelectedConnection] = useState("");
   const [connectedConnection, setConnectedConnection] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [interactiveStatus, setInteractiveStatus] = useState<InteractivePoolStatus>(
+    DISCONNECTED_INTERACTIVE_STATUS,
+  );
   const [connectionMessage, setConnectionMessage] = useState("Waiting for backend.");
   const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
   const [activeActivitySessionId, setActiveActivitySessionId] = useState<string | null>(null);
@@ -181,6 +188,38 @@ export const App = () => {
       setActiveActivitySessionId(null);
     }
   }, [backendConfig, connectedConnection, isBackendOnline]);
+
+  const refreshInteractiveStatus = useCallback(async () => {
+    if (!isBackendOnline || !projectOpen) {
+      setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);
+      return;
+    }
+    try {
+      const next = await getInteractiveStatus(backendConfig);
+      if (
+        next.state === "disconnected" ||
+        next.state === "connecting" ||
+        next.state === "connected" ||
+        next.state === "reconnecting" ||
+        next.state === "dead"
+      ) {
+        setInteractiveStatus(next);
+      }
+    } catch {
+      // Keep last known cue; Settings/dialog remounts must not invent Connected.
+    }
+  }, [backendConfig, isBackendOnline, projectOpen]);
+
+  useEffect(() => {
+    void refreshInteractiveStatus();
+    if (!isBackendOnline || !projectOpen) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void refreshInteractiveStatus();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [isBackendOnline, projectOpen, refreshInteractiveStatus]);
 
   const refreshConnections = useCallback(async () => {
     if (!isBackendOnline) {
@@ -266,6 +305,7 @@ export const App = () => {
       setWizardMode(null);
       setOpenCenterEditorKind(null);
       setOpenCenterEditorRequest(0);
+      setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);
       setConnectionMessage("Project closed.");
     } catch (error) {
       setConnectionMessage(
@@ -620,6 +660,7 @@ export const App = () => {
             onSelectedConnectionChange={setSelectedConnection}
             onConnect={connectSelectedConnection}
             isConnecting={isConnecting}
+            interactiveStatus={interactiveStatus}
             layout={layout}
             onLayoutChange={setLayout}
             activityCount={activityEntries.length}
@@ -670,9 +711,10 @@ export const App = () => {
             : `Phase: ${shellPhase}`}
         </span>
         <span>
-          {connectedConnection ? `DB: ${connectedConnection}` : "DB: not connected"}
+          {connectedConnection ? `SQLcl: ${connectedConnection}` : "SQLcl: not connected"}
           {isConnecting ? " · connecting…" : ""}
         </span>
+        <span>{interactiveHealthLabel(interactiveStatus).label}</span>
       </footer>
 
       <McpActivityWindow

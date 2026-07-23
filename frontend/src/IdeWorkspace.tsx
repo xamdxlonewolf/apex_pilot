@@ -26,6 +26,7 @@ import {
   type ActivityEntry,
   type BackendConfig,
   type BackendStatus,
+  type InteractivePoolStatus,
   type OpenedProject,
   type SavedConnection,
   type SchemaSummary,
@@ -161,6 +162,7 @@ type IdeWorkspaceProps = Readonly<{
   onSelectedConnectionChange: (name: string) => void;
   onConnect: (connectionName?: string) => Promise<void> | void;
   isConnecting: boolean;
+  interactiveStatus: InteractivePoolStatus;
   layout: ProfileLayoutPrefs;
   onLayoutChange: (
     next: ProfileLayoutPrefs | ((current: ProfileLayoutPrefs) => ProfileLayoutPrefs),
@@ -308,6 +310,7 @@ export const IdeWorkspace = ({
   onSelectedConnectionChange,
   onConnect,
   isConnecting,
+  interactiveStatus,
   layout,
   onLayoutChange,
   activityCount,
@@ -1030,6 +1033,7 @@ export const IdeWorkspace = ({
         isConnecting={isConnecting}
         workingSchema={workingSchema}
         onWorkingSchemaChange={handleWorkingSchemaChange}
+        interactiveStatus={interactiveStatus}
         onOpenSettings={onOpenSettings}
       />
 

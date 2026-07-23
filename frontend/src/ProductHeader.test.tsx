@@ -6,6 +6,7 @@ import { ProductHeader } from "./ProductHeader";
 import { defaultProfileLayout } from "./prefs";
 import type { AppMenuHandlers, AppMenuState } from "./appMenuModel";
 import type { OpenedProject } from "./backend";
+import { DISCONNECTED_INTERACTIVE_STATUS } from "./backend";
 import { initialShellSession } from "./shellSession";
 
 const baseHandlers = (): AppMenuHandlers => ({
@@ -157,6 +158,7 @@ describe("ProductHeader", () => {
         isConnecting={false}
         workingSchema="HR"
         onWorkingSchemaChange={vi.fn()}
+        interactiveStatus={DISCONNECTED_INTERACTIVE_STATUS}
         onOpenSettings={onOpenSettings}
       />,
     );
@@ -164,8 +166,10 @@ describe("ProductHeader", () => {
     expect(screen.getByRole("banner", { name: "Product Header" })).toHaveTextContent("Apex Pilot");
     expect(screen.getByRole("region", { name: "Context Bar" })).toHaveTextContent("Demo");
     expect(screen.getByLabelText("Backend health")).toBeInTheDocument();
+    expect(screen.getByLabelText("Interactive database")).toHaveTextContent(
+      "Interactive: Disconnected",
+    );
     expect(screen.queryByLabelText("MCP health")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Connection health")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(onConnect).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
