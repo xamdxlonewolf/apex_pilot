@@ -2290,6 +2290,24 @@ td {
   background: rgb(230 184 77 / 10%);
 }
 
+.source-compare-panes {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.source-compare-pre {
+  max-height: 12rem;
+  margin: 4px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: 4px;
+  background: var(--input);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .sql-log-status {
   font-size: 0.72rem;
   font-weight: 700;

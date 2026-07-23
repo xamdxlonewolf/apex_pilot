@@ -25,15 +25,17 @@ import {
 import { languageFromPath } from "./editorLanguages";
 import { detectDatabaseSourceMode } from "./databaseSourceMode";
 import type { DatabaseSourceProblem } from "./databaseSourceDiagnostics";
-import type { DatabaseSourceTarget } from "./databaseSourceState";
+import type { AttachmentState, DatabaseObjectType, DatabaseSourceTarget } from "./databaseSourceState";
 import {
   type ActivityEntry,
   type BackendConfig,
   type BackendStatus,
   type InteractivePoolStatus,
   type OpenedProject,
+  type OracleUnitType,
   type SavedConnection,
   type SchemaSummary,
+  type SourceFingerprint,
   getSessionContextOnce,
   fetchDatabaseSource,
   releaseDedicatedSession,
@@ -94,10 +96,38 @@ type WorkspaceTab = Readonly<{
   readOnly?: boolean;
   databaseSource?: Readonly<{
     target: DatabaseSourceTarget;
-    attachmentState: "unconnected" | "attached" | "retarget_pending";
-    baselineFingerprints?: readonly import("./backend").SourceFingerprint[];
+    attachmentState: AttachmentState;
+    baselineFingerprints?: readonly SourceFingerprint[];
   }>;
 }>;
+
+const stickyConnectionProfileId = (interactiveStatus: InteractivePoolStatus): string | null =>
+  interactiveStatus.profile_id;
+
+const stickyConnectionProfileLabel = (interactiveStatus: InteractivePoolStatus): string | null =>
+  interactiveStatus.display_name?.trim() || interactiveStatus.profile_id;
+
+const toDatabaseSourceTarget = (
+  raw: NonNullable<ReturnType<typeof loadProjectTabs>["openTabs"][number]["databaseSource"]>,
+): DatabaseSourceTarget => ({
+  connectionProfileId: raw.target.connectionProfileId,
+  workingSchema: raw.target.workingSchema,
+  owner: raw.target.owner,
+  objectTypes: raw.target.objectTypes.map((type) => type as DatabaseObjectType),
+  name: raw.target.name,
+});
+
+const toPersistedFingerprints = (
+  fingerprints: readonly SourceFingerprint[] | undefined,
+): SourceFingerprint[] | undefined =>
+  fingerprints?.map((fingerprint) => ({
+    owner: fingerprint.owner,
+    name: fingerprint.name,
+    unit_type: fingerprint.unit_type,
+    digest: fingerprint.digest,
+    exists: fingerprint.exists ?? true,
+    status: fingerprint.status ?? null,
+  }));
 
 /** Editor peer tabs — Mission is a dual-primary peer, not a center tab. */
 const EDITOR_TAB_KINDS = new Set<WorkspaceTabKind>([
@@ -142,18 +172,38 @@ const restoreWorkspaceTabs = (
     saved.openTabs.length > 0
       ? saved.openTabs
           .filter((tab) => EDITOR_TAB_KINDS.has(tab.kind))
-          .map((tab) => ({
-            id: tab.id,
-            kind: tab.kind,
-            title:
-              tab.kind === "sql"
-                ? "SQL Editor"
-                : tab.title ||
-                  (isCenterEditorStubKind(tab.kind)
-                    ? CENTER_EDITOR_STUB_META[tab.kind].title
-                    : tab.title),
-            path: tab.path,
-          }))
+          .map((tab) => {
+            const databaseSource = tab.databaseSource
+              ? {
+                  target: toDatabaseSourceTarget(tab.databaseSource),
+                  attachmentState: tab.databaseSource.attachmentState,
+                  baselineFingerprints: toPersistedFingerprints(
+                    tab.databaseSource.baselineFingerprints?.map((fingerprint) => ({
+                      owner: fingerprint.owner,
+                      name: fingerprint.name,
+                      unit_type: fingerprint.unit_type as OracleUnitType,
+                      digest: fingerprint.digest,
+                      exists: fingerprint.exists ?? true,
+                      status: fingerprint.status ?? null,
+                    })),
+                  ),
+                }
+              : undefined;
+            return {
+              id: tab.id,
+              kind: tab.kind,
+              title:
+                tab.kind === "sql" && !databaseSource
+                  ? "SQL Editor"
+                  : tab.title ||
+                    (isCenterEditorStubKind(tab.kind)
+                      ? CENTER_EDITOR_STUB_META[tab.kind].title
+                      : tab.title),
+              path: tab.path,
+              content: databaseSource ? (tab.content ?? "") : tab.content,
+              databaseSource,
+            };
+          })
       : defaultEditorTabs();
 
   let tabs = restored;
@@ -528,12 +578,64 @@ export const IdeWorkspace = ({
         kind: tab.kind,
         title: tab.title,
         path: tab.path,
+        content: tab.databaseSource ? tab.content : undefined,
+        databaseSource: tab.databaseSource
+          ? {
+              target: {
+                connectionProfileId: tab.databaseSource.target.connectionProfileId,
+                workingSchema: tab.databaseSource.target.workingSchema,
+                owner: tab.databaseSource.target.owner,
+                objectTypes: [...tab.databaseSource.target.objectTypes],
+                name: tab.databaseSource.target.name,
+              },
+              attachmentState: tab.databaseSource.attachmentState,
+              baselineFingerprints: tab.databaseSource.baselineFingerprints?.map((fingerprint) => ({
+                owner: fingerprint.owner,
+                name: fingerprint.name,
+                unit_type: fingerprint.unit_type,
+                digest: fingerprint.digest,
+                exists: fingerprint.exists,
+                status: fingerprint.status,
+              })),
+            }
+          : undefined,
       })),
       activeTabId: activeCenterTabId,
       activeCenterTabId,
       activeInspectorTabId: null,
     });
   }, [activeCenterTabId, openedProject.project.project_id, tabs]);
+
+  // Rehydrate path-backed Database Source Document buffers after Workspace reload.
+  useEffect(() => {
+    const pending = tabs.filter((tab) => tab.databaseSource && tab.path);
+    if (pending.length === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      pending.map(async (tab) => {
+        if (!tab.path) return null;
+        try {
+          const content = await readTextFile(tab.path);
+          return { id: tab.id, content };
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setTabs((current) =>
+        current.map((tab) => {
+          const match = results.find((item) => item?.id === tab.id);
+          return match ? { ...tab, content: match.content } : tab;
+        }),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Only on project/tab identity restore — not every content keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once per restored path set
+  }, [openedProject.project.project_id, tabsProjectId]);
 
   useEffect(() => {
     if (!isBackendOnline || isConnecting || connections.length === 0) {
@@ -674,8 +776,9 @@ export const IdeWorkspace = ({
       /\.[^.]+$/,
       "",
     );
+    const profileId = stickyConnectionProfileId(interactiveStatus);
     const target: DatabaseSourceTarget = {
-      connectionProfileId: connectedConnection ?? selectedConnection ?? null,
+      connectionProfileId: profileId,
       workingSchema: workingSchema || null,
       owner: workingSchema || "UNKNOWN",
       objectTypes: [],
@@ -689,6 +792,7 @@ export const IdeWorkspace = ({
               kind: "sql",
               content: sourceText,
               path: path ?? tab.path,
+              // Local attach starts Unconnected until Attach & Compile confirms the sticky target.
               databaseSource: { target, attachmentState: "unconnected" },
             }
           : tab,
@@ -700,9 +804,10 @@ export const IdeWorkspace = ({
   const openDatabaseSourceUnit = (
     owner: string,
     name: string,
-    unitType: import("./backend").OracleUnitType,
+    unitType: OracleUnitType,
     combined: boolean,
   ) => {
+    const profileId = stickyConnectionProfileId(interactiveStatus);
     void fetchDatabaseSource(
       {
         owner,
@@ -720,15 +825,15 @@ export const IdeWorkspace = ({
         content: source.source_text,
         databaseSource: {
           target: {
-            connectionProfileId: connectedConnection ?? selectedConnection ?? null,
+            connectionProfileId: profileId,
             workingSchema: source.working_schema ?? (workingSchema || null),
             owner: source.owner,
             objectTypes: source.unit_types.map(
-              (unit) => unit.replaceAll(" ", "_") as import("./databaseSourceState").DatabaseObjectType,
+              (unit) => unit.replaceAll(" ", "_") as DatabaseObjectType,
             ),
             name: source.name,
           },
-          attachmentState: "attached",
+          attachmentState: profileId ? "attached" : "unconnected",
           baselineFingerprints: source.fingerprints,
         },
       });
@@ -817,8 +922,9 @@ export const IdeWorkspace = ({
         content = error instanceof Error ? error.message : "Could not read file.";
       }
       const mode = detectDatabaseSourceMode({ path: node.path, readOnly: node.protected });
+      const profileId = stickyConnectionProfileId(interactiveStatus);
       const target: DatabaseSourceTarget = {
-        connectionProfileId: connectedConnection ?? selectedConnection ?? null,
+        connectionProfileId: profileId,
         workingSchema: workingSchema || null,
         owner: workingSchema || "UNKNOWN",
         objectTypes: [],
@@ -847,7 +953,7 @@ export const IdeWorkspace = ({
       openDatabaseSourceUnit(
         target.schemaName,
         target.objectName,
-        target.objectType as import("./backend").OracleUnitType,
+        target.objectType as OracleUnitType,
         target.objectType === "PACKAGE" || target.objectType === "TYPE",
       );
       return;
@@ -1482,8 +1588,18 @@ export const IdeWorkspace = ({
                           attachmentState={tab.databaseSource!.attachmentState}
                           baselineFingerprints={tab.databaseSource!.baselineFingerprints}
                           blockCloseOnCompileWarnings={layout.blockCloseOnCompileWarnings}
-                          globalConnectionProfileId={connectedConnection}
+                          globalConnectionProfileId={stickyConnectionProfileId(interactiveStatus)}
                           globalWorkingSchema={workingSchema || null}
+                          connectionProfileLabel={
+                            tab.databaseSource!.target.connectionProfileId
+                              ? stickyConnectionProfileLabel(interactiveStatus) &&
+                                stickyConnectionProfileId(interactiveStatus) ===
+                                  tab.databaseSource!.target.connectionProfileId
+                                ? stickyConnectionProfileLabel(interactiveStatus)
+                                : tab.databaseSource!.target.connectionProfileId
+                              : null
+                          }
+                          interactiveConnected={interactiveStatus.state === "connected"}
                           onSave={(text) => saveDatabaseSource(tab, text)}
                           onRunAsSqlScript={(text) => {
                             const nextId = nextSqlDocumentId(tabs);
@@ -1497,6 +1613,22 @@ export const IdeWorkspace = ({
                               false,
                             )
                           }
+                          onStickyStateChange={(snapshot) => {
+                            setTabs((current) =>
+                              current.map((item) =>
+                                item.id === tab.id
+                                  ? {
+                                      ...item,
+                                      databaseSource: {
+                                        target: snapshot.target,
+                                        attachmentState: snapshot.attachmentState,
+                                        baselineFingerprints: snapshot.baselineFingerprints,
+                                      },
+                                    }
+                                  : item,
+                              ),
+                            );
+                          }}
                           onDiagnostics={(nextProblems, messages, hasErrors) => {
                             setProblems(nextProblems);
                             setOracleMessages(messages);

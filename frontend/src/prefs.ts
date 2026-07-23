@@ -96,6 +96,26 @@ const PERSISTED_TAB_KINDS = new Set<WorkspaceTabKind>([
   "diff",
 ]);
 
+/** Sticky Database Source Document attachment persisted across Workspace reload (#145). */
+export type PersistedDatabaseSourceTab = Readonly<{
+  target: Readonly<{
+    connectionProfileId: string | null;
+    workingSchema: string | null;
+    owner: string;
+    objectTypes: readonly string[];
+    name: string;
+  }>;
+  attachmentState: "unconnected" | "attached" | "retarget_pending";
+  baselineFingerprints?: ReadonlyArray<{
+    owner: string;
+    name: string;
+    unit_type: string;
+    digest: string;
+    exists?: boolean;
+    status?: string | null;
+  }>;
+}>;
+
 export type ProjectTabState = Readonly<{
   openTabs: ReadonlyArray<{
     id: string;
@@ -103,6 +123,9 @@ export type ProjectTabState = Readonly<{
     title: string;
     path?: string;
     schemaName?: string;
+    /** Last known buffer for Database Source Documents (path tabs rehydrate from disk). */
+    content?: string;
+    databaseSource?: PersistedDatabaseSourceTab;
   }>;
   activeTabId: string | null;
   activeCenterTabId?: string | null;
@@ -205,6 +228,58 @@ export const saveProfileLayout = (profileId: string, prefs: ProfileLayoutPrefs):
   localStorage.setItem(`${PROFILE_KEY}.${profileId}`, JSON.stringify(prefs));
 };
 
+const sanitizeDatabaseSource = (value: unknown): PersistedDatabaseSourceTab | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<PersistedDatabaseSourceTab> & {
+    target?: Partial<PersistedDatabaseSourceTab["target"]>;
+  };
+  const target = raw.target;
+  if (!target || typeof target.owner !== "string" || typeof target.name !== "string") {
+    return undefined;
+  }
+  const attachmentState =
+    raw.attachmentState === "attached" ||
+    raw.attachmentState === "retarget_pending" ||
+    raw.attachmentState === "unconnected"
+      ? raw.attachmentState
+      : "unconnected";
+  const objectTypes = Array.isArray(target.objectTypes)
+    ? target.objectTypes.filter((item): item is string => typeof item === "string")
+    : [];
+  const baselineFingerprints = Array.isArray(raw.baselineFingerprints)
+    ? raw.baselineFingerprints
+        .filter(
+          (item): item is NonNullable<PersistedDatabaseSourceTab["baselineFingerprints"]>[number] =>
+            Boolean(item) &&
+            typeof item === "object" &&
+            typeof item.owner === "string" &&
+            typeof item.name === "string" &&
+            typeof item.unit_type === "string" &&
+            typeof item.digest === "string",
+        )
+        .map((item) => ({
+          owner: item.owner,
+          name: item.name,
+          unit_type: item.unit_type,
+          digest: item.digest,
+          exists: item.exists,
+          status: item.status ?? null,
+        }))
+    : undefined;
+  return {
+    target: {
+      connectionProfileId:
+        typeof target.connectionProfileId === "string" ? target.connectionProfileId : null,
+      workingSchema: typeof target.workingSchema === "string" ? target.workingSchema : null,
+      owner: target.owner,
+      objectTypes,
+      name: target.name,
+    },
+    attachmentState,
+    baselineFingerprints,
+  };
+};
+
 export const loadProjectTabs = (projectId: string): ProjectTabState => {
   try {
     const raw = localStorage.getItem(projectKey(projectId));
@@ -212,9 +287,20 @@ export const loadProjectTabs = (projectId: string): ProjectTabState => {
       return { openTabs: [], activeTabId: null };
     }
     const parsed = JSON.parse(raw) as ProjectTabState;
-    const openTabs = (parsed.openTabs ?? []).filter((tab) =>
-      PERSISTED_TAB_KINDS.has(tab.kind),
-    );
+    const openTabs = (parsed.openTabs ?? [])
+      .filter((tab) => PERSISTED_TAB_KINDS.has(tab.kind))
+      .map((tab) => {
+        const databaseSource = sanitizeDatabaseSource(tab.databaseSource);
+        return {
+          id: tab.id,
+          kind: tab.kind,
+          title: tab.title,
+          path: tab.path,
+          schemaName: tab.schemaName,
+          content: typeof tab.content === "string" ? tab.content : undefined,
+          databaseSource,
+        };
+      });
     const activeTabId =
       parsed.activeTabId && openTabs.some((tab) => tab.id === parsed.activeTabId)
         ? parsed.activeTabId

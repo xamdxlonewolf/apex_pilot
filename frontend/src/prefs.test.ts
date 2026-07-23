@@ -132,6 +132,67 @@ describe("prefs persistence", () => {
     expect(restored.activeCenterTabId).toBe("stub:object");
   });
 
+  it("persists Database Source Document sticky attachment across reload", () => {
+    saveProjectTabs("proj-source", {
+      openTabs: [
+        {
+          id: "database-source:HR.PACKAGE.ORDER_API:combined",
+          kind: "sql",
+          title: "ORDER_API",
+          path: "/tmp/order_api.pkg",
+          content: "create package order_api as end;\n/\n",
+          databaseSource: {
+            target: {
+              connectionProfileId: "profile-1",
+              workingSchema: "HR",
+              owner: "HR",
+              objectTypes: ["PACKAGE", "PACKAGE_BODY"],
+              name: "ORDER_API",
+            },
+            attachmentState: "attached",
+            baselineFingerprints: [
+              {
+                owner: "HR",
+                name: "ORDER_API",
+                unit_type: "PACKAGE",
+                digest: "abc",
+                exists: true,
+                status: "VALID",
+              },
+            ],
+          },
+        },
+        {
+          id: "sql:unconnected",
+          kind: "sql",
+          title: "local.pkg",
+          content: "create package local as end;",
+          databaseSource: {
+            target: {
+              connectionProfileId: null,
+              workingSchema: null,
+              owner: "UNKNOWN",
+              objectTypes: [],
+              name: "LOCAL",
+            },
+            attachmentState: "unconnected",
+          },
+        },
+      ],
+      activeTabId: "database-source:HR.PACKAGE.ORDER_API:combined",
+      activeCenterTabId: "database-source:HR.PACKAGE.ORDER_API:combined",
+    });
+
+    const restored = loadProjectTabs("proj-source");
+    expect(restored.openTabs[0]?.databaseSource).toMatchObject({
+      attachmentState: "attached",
+      target: { connectionProfileId: "profile-1", owner: "HR", name: "ORDER_API" },
+    });
+    expect(restored.openTabs[0]?.content).toContain("order_api");
+    expect(restored.openTabs[1]?.databaseSource?.attachmentState).toBe("unconnected");
+    expect(restored.openTabs[1]?.databaseSource?.target.connectionProfileId).toBeNull();
+  });
+
   it("does not restore mappings or schema as persisted workspace tabs", () => {
     saveProjectTabs("proj-1", {
       openTabs: [

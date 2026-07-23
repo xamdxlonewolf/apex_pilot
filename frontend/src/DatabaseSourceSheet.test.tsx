@@ -7,13 +7,40 @@ import { DatabaseSourceSheet, type DatabaseSourceSheetHandle } from "./DatabaseS
 import type { DatabaseSourceTarget } from "./databaseSourceState";
 
 const target: DatabaseSourceTarget = {
-  connectionProfileId: "dev",
+  connectionProfileId: "profile-1",
   workingSchema: "HR",
   owner: "HR",
   objectTypes: ["PACKAGE"],
   name: "ORDER_API",
 };
 const backendConfig = { baseUrl: "http://localhost:8000", bearerToken: "test" };
+
+const compareDiffering = {
+  exists: true,
+  identical: false,
+  local_fingerprints: [
+    {
+      owner: "HR",
+      name: "ORDER_API",
+      unit_type: "PACKAGE",
+      digest: "local",
+      exists: true,
+      status: null,
+    },
+  ],
+  database_fingerprints: [
+    {
+      owner: "HR",
+      name: "ORDER_API",
+      unit_type: "PACKAGE",
+      digest: "database",
+      exists: true,
+      status: "VALID",
+    },
+  ],
+  local_source: "create package order_api as end;",
+  database_source: "create package order_api as procedure p; end;\n/\n",
+};
 
 const matchingParse = {
   kind: "single",
@@ -70,8 +97,10 @@ const renderSheet = (overrides: Partial<ComponentProps<typeof DatabaseSourceShee
         target={target}
         savedText="create package order_api as end;"
         attachmentState="attached"
-        globalConnectionProfileId="dev"
+        globalConnectionProfileId="profile-1"
         globalWorkingSchema="HR"
+        connectionProfileLabel="HR Dev"
+        interactiveConnected
         onSave={onSave}
         {...overrides}
       />,
@@ -88,15 +117,25 @@ describe("DatabaseSourceSheet", () => {
     expect(screen.getByText("Target: HR.ORDER_API")).toBeInTheDocument();
   });
 
-  it("uses Attach & Compile for an unconnected source document", () => {
-    renderSheet({ attachmentState: "unconnected" });
-    expect(screen.getByRole("button", { name: "Attach & Compile" })).toBeInTheDocument();
+  it("shows Connection Profile identity in sticky target chrome", () => {
+    renderSheet();
+    expect(screen.getByText("Connection Profile: HR Dev")).toBeInTheDocument();
+    expect(screen.queryByText(/Connection Profile: dev\b/)).not.toBeInTheDocument();
   });
 
-  it("shows confirmation and stale conflicts returned by the backend", async () => {
+  it("uses Attach & Compile for an unconnected source document", () => {
+    renderSheet({ attachmentState: "unconnected", connectionProfileLabel: null, target: { ...target, connectionProfileId: null } });
+    expect(screen.getByRole("button", { name: "Attach & Compile" })).toBeInTheDocument();
+    expect(screen.getByText("Connection Profile: Unconnected")).toBeInTheDocument();
+  });
+
+  it("shows confirmation, compare panes, and reload after stale conflicts", async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
       if (url.endsWith("/interactive/source/parse")) {
         return Promise.resolve(new Response(JSON.stringify(matchingParse)));
+      }
+      if (url.endsWith("/interactive/source/compare")) {
+        return Promise.resolve(new Response(JSON.stringify(compareDiffering)));
       }
       return Promise.resolve(new Response(JSON.stringify({
         detail: {
@@ -110,7 +149,79 @@ describe("DatabaseSourceSheet", () => {
     }));
     renderSheet();
     fireEvent.click(screen.getByRole("button", { name: "Force" }));
-    expect(await screen.findByRole("alertdialog", { name: "Confirm database source action" })).toHaveTextContent("Stale: HR.ORDER_API");
+    const dialog = await screen.findByRole("alertdialog", { name: "Confirm database source action" });
+    expect(dialog).toHaveTextContent("Stale: HR.ORDER_API");
+    expect(await screen.findByLabelText("Source compare result")).toHaveTextContent("differs");
+    expect(screen.getByRole("button", { name: "Reload from database" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep local (merge baselines)" })).toBeInTheDocument();
+  });
+
+  it("reconciles after unknown DDL 503 without silent rebinding", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("/interactive/source/parse")) {
+        return Promise.resolve(new Response(JSON.stringify(matchingParse)));
+      }
+      if (url.endsWith("/interactive/source/compile")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              detail: {
+                outcome: "unknown",
+                units: [],
+                diagnostics: [],
+                confirmation: null,
+                invalid_dependents: [],
+                schema_ddl_outside_editor_transaction: true,
+                message: "Network lost during DDL.",
+                requires_reconcile: true,
+              },
+            }),
+            { status: 503 },
+          ),
+        );
+      }
+      if (url.endsWith("/interactive/source/reconcile")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              fingerprints: [
+                {
+                  owner: "HR",
+                  name: "ORDER_API",
+                  unit_type: "PACKAGE",
+                  digest: "db",
+                  exists: true,
+                  status: "VALID",
+                  source_text: "create package order_api as end;\n",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url.endsWith("/interactive/source/compare")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          ...compareDiffering,
+          identical: true,
+          database_source: "create package order_api as end;\n/\n",
+          database_fingerprints: [{ ...compareDiffering.database_fingerprints[0], digest: "local" }],
+        })));
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSheet();
+    fireEvent.click(screen.getByRole("button", { name: "Compile" }));
+    expect(await screen.findByText(/Reconcile required/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reconcile" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/interactive/source/reconcile"),
+        expect.any(Object),
+      ),
+    );
+    expect(screen.getByText("Connection Profile: HR Dev")).toBeInTheDocument();
+    expect(screen.getByText("Target: HR.ORDER_API")).toBeInTheDocument();
   });
 
   it("sends errors to Problems without treating warnings as errors", async () => {
@@ -251,8 +362,10 @@ describe("DatabaseSourceSheet", () => {
         target={{ ...target, objectTypes: ["PACKAGE", "PACKAGE_BODY"] }}
         savedText="create package order_api as end;"
         attachmentState="attached"
-        globalConnectionProfileId="dev"
+        globalConnectionProfileId="profile-1"
         globalWorkingSchema="HR"
+        connectionProfileLabel="HR Dev"
+        interactiveConnected
         onSave={vi.fn().mockResolvedValue(true)}
       />,
     );
