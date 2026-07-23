@@ -30,10 +30,7 @@ class SqlSheetConfirmationRequiredError(SqlSheetError):
 
     def __init__(self, classification: SqlSafetyClassification) -> None:
         self.classification = classification
-        super().__init__(
-            "SQL requires confirmation before execution: "
-            + "; ".join(classification.reasons)
-        )
+        super().__init__("SQL requires confirmation before execution: " + "; ".join(classification.reasons))
 
 
 @dataclass(frozen=True)
@@ -97,18 +94,14 @@ class SqlSheetService:
         # user-authored statement only so mixed-statement policy does not fire.
         classification = self.classify(classify_sql_text or sql_text)
         if classification.decision is SafetyDecision.BLOCK:
-            raise SqlSheetBlockedError(
-                "SQL is blocked by safety policy: " + "; ".join(classification.reasons)
-            )
+            raise SqlSheetBlockedError("SQL is blocked by safety policy: " + "; ".join(classification.reasons))
 
         needs_prompt = classification.decision is SafetyDecision.PROMPT
         if needs_prompt and not confirmed and not skip_destructive_prompt:
             raise SqlSheetConfirmationRequiredError(classification)
 
         if self._session.connection_name is None:
-            raise SqlclConnectionError(
-                "Connect to a SQLcl saved connection before running SQL."
-            )
+            raise SqlclConnectionError("Connect to a SQLcl saved connection before running SQL.")
 
         payload = await self._session.call_tool(
             RUN_SQL_TOOL,

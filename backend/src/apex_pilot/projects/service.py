@@ -182,8 +182,7 @@ class ProjectService:
             readme = root / "README.md"
             if not readme.exists():
                 readme.write_text(
-                    f"# {manifest.name}\n\n"
-                    f"Apex Pilot project. Portable facts live in `{MANIFEST_FILENAME}`.\n",
+                    f"# {manifest.name}\n\nApex Pilot project. Portable facts live in `{MANIFEST_FILENAME}`.\n",
                     encoding="utf-8",
                 )
 
@@ -285,9 +284,7 @@ class ProjectService:
             raise ProjectError(f"Unknown project_id {project_id!r}")
         manifest = load_project_manifest(manifest_path_for(Path(project.root_path)))
         if environment_name not in manifest.environment_names():
-            raise ProjectError(
-                f"Environment {environment_name!r} is not declared in {MANIFEST_FILENAME}."
-            )
+            raise ProjectError(f"Environment {environment_name!r} is not declared in {MANIFEST_FILENAME}.")
         return self._store.set_environment_mapping(
             project_id=project_id,
             environment_name=environment_name,
