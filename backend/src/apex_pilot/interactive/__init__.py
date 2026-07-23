@@ -18,15 +18,34 @@ from apex_pilot.interactive.pool import (
     clamp_idle_timeout_seconds,
 )
 from apex_pilot.interactive.sessions import DedicatedSessionPin, InteractiveSessionService
+from apex_pilot.interactive.source import (
+    AttachmentState,
+    CompileOutcome,
+    CompileRequest,
+    CompileResult,
+    CompileTarget,
+    DatabaseSourceService,
+    DocumentKind,
+    OracleUnitType,
+    SourceParseError,
+    SourceServiceError,
+    parse_database_source,
+)
 
 __all__ = [
+    "AttachmentState",
+    "CompileOutcome",
+    "CompileRequest",
+    "CompileResult",
+    "CompileTarget",
     "DEFAULT_IDLE_TIMEOUT_SECONDS",
     "DEFAULT_WARNING_LEAD_SECONDS",
-    "READONLY_POOL_MEMBER_TIMEOUT_SECONDS",
+    "DatabaseSourceService",
     "DedicatedSessionHandle",
     "DedicatedSessionLimitError",
     "DedicatedSessionPin",
     "DisconnectReason",
+    "DocumentKind",
     "InteractiveBrowseError",
     "InteractiveBrowseService",
     "InteractiveDriverBinding",
@@ -36,6 +55,11 @@ __all__ = [
     "InteractivePoolStatus",
     "InteractiveSessionService",
     "OraclePoolDriver",
+    "OracleUnitType",
     "PoolNotOpenError",
+    "READONLY_POOL_MEMBER_TIMEOUT_SECONDS",
+    "SourceParseError",
+    "SourceServiceError",
     "clamp_idle_timeout_seconds",
+    "parse_database_source",
 ]

@@ -364,6 +364,16 @@ class InteractiveOraclePool:
     @contextmanager
     def borrow_readonly(self) -> Iterator[object]:
         """Borrow a short-lived connection for browse/health reads."""
+        with self.borrow_isolated() as connection:
+            yield connection
+
+    @contextmanager
+    def borrow_isolated(self) -> Iterator[object]:
+        """Borrow a short-lived isolated lease (browse/health/compile DDL).
+
+        Isolated leases must never use a dedicated editor pin so Oracle DDL
+        cannot implicitly commit or roll back an editor transaction.
+        """
         pool = self._require_open_pool()
         self._in_flight += 1
         connection = pool.acquire()
