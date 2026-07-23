@@ -1,13 +1,24 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import {
   BackendApiError,
+  compareDatabaseSource,
   compileDatabaseSource,
   parseDatabaseSource,
+  reconcileDatabaseSource,
   type BackendConfig,
   type BaselineFingerprint,
   type OracleUnitType,
+  type SourceCompareResult,
   type SourceCompileConfirmation,
+  type SourceCompileResult,
   type SourceDiagnostic,
   type SourceFingerprint,
 } from "./backend";
@@ -15,6 +26,11 @@ import { CodeEditor } from "./CodeEditor";
 import { DialogChrome } from "./DialogChrome";
 import { planDatabaseSourceAction, type DatabaseSourceActionIntent } from "./databaseSourceActions";
 import { resolveCloseDialog, type CloseDialogOption } from "./databaseSourceClose";
+import {
+  baselinesFromCompare,
+  planReconcileOutcome,
+  summarizeCompare,
+} from "./databaseSourceCompare";
 import { mapDatabaseSourceDiagnostics, type DatabaseSourceProblem } from "./databaseSourceDiagnostics";
 import {
   createDatabaseSourceState,
@@ -30,6 +46,12 @@ export type DatabaseSourceSheetHandle = Readonly<{
   requestClose: () => Promise<"closed" | "cancelled">;
 }>;
 
+export type DatabaseSourceStickySnapshot = Readonly<{
+  target: DatabaseSourceTarget;
+  attachmentState: AttachmentState;
+  baselineFingerprints: readonly SourceFingerprint[];
+}>;
+
 type DatabaseSourceSheetProps = Readonly<{
   documentId: string;
   backendConfig: BackendConfig;
@@ -40,12 +62,17 @@ type DatabaseSourceSheetProps = Readonly<{
   attachmentState?: AttachmentState;
   baselineFingerprints?: readonly SourceFingerprint[];
   blockCloseOnCompileWarnings?: boolean;
+  /** Stable Connection Profile id for global-context mismatch checks. */
   globalConnectionProfileId: string | null;
   globalWorkingSchema: string | null;
+  /** Display label for sticky chrome — Connection Profile display_name, never SQLcl alone. */
+  connectionProfileLabel?: string | null;
+  interactiveConnected?: boolean;
   onSave: (text: string) => Promise<boolean>;
   onRunAsSqlScript?: (text: string) => void;
   onOpenSeparateUnit?: (unitType: "PACKAGE" | "PACKAGE BODY" | "TYPE" | "TYPE BODY") => void;
   onDiagnostics?: (problems: DatabaseSourceProblem[], oracleMessages: string[], hasErrors: boolean) => void;
+  onStickyStateChange?: (snapshot: DatabaseSourceStickySnapshot) => void;
 }>;
 
 const COMPILE_UNIT_TYPES = new Set<string>([
@@ -93,6 +120,15 @@ const confirmationFrom = (error: unknown): SourceCompileConfirmation | null => {
   return detail.confirmation ?? (detail.reason && detail.message ? (detail as SourceCompileConfirmation) : null);
 };
 
+const unknownCompileFrom = (error: unknown): SourceCompileResult | null => {
+  if (!(error instanceof BackendApiError) || error.status !== 503 || !error.detail || typeof error.detail !== "object") {
+    return null;
+  }
+  const detail = error.detail as Partial<SourceCompileResult>;
+  if (detail.requires_reconcile !== true) return null;
+  return detail as SourceCompileResult;
+};
+
 const closeOptionLabel = (option: CloseDialogOption): string =>
   option.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
@@ -100,6 +136,12 @@ const baselinesFromFingerprints = (
   fingerprints: readonly SourceFingerprint[],
 ): BaselineFingerprint[] =>
   fingerprints.map(({ owner, name, unit_type, digest }) => ({ owner, name, unit_type, digest }));
+
+const unitStatusLabel = (status: string): string => {
+  if (status === "identical") return "identical";
+  if (status === "differs") return "differs";
+  return "missing in database";
+};
 
 export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, DatabaseSourceSheetProps>(
   (
@@ -115,10 +157,13 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
       blockCloseOnCompileWarnings = false,
       globalConnectionProfileId,
       globalWorkingSchema,
+      connectionProfileLabel = null,
+      interactiveConnected = false,
       onSave,
       onRunAsSqlScript,
       onOpenSeparateUnit,
       onDiagnostics,
+      onStickyStateChange,
     },
     ref,
   ) => {
@@ -137,11 +182,22 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
     const [baselines, setBaselines] = useState<BaselineFingerprint[]>(() =>
       baselinesFromFingerprints(baselineFingerprints),
     );
+    const [fingerprintSnapshot, setFingerprintSnapshot] = useState<SourceFingerprint[]>(() => [
+      ...baselineFingerprints,
+    ]);
     const [diagnostics, setDiagnostics] = useState<SourceDiagnostic[]>([]);
     const [busy, setBusy] = useState(false);
     const [confirmation, setConfirmation] = useState<SourceCompileConfirmation | null>(null);
+    const [compareResult, setCompareResult] = useState<SourceCompareResult | null>(null);
+    const [compareBusy, setCompareBusy] = useState(false);
+    const [requiresReconcile, setRequiresReconcile] = useState(false);
+    const [reconcileMessage, setReconcileMessage] = useState<string | null>(null);
     const [closeResolver, setCloseResolver] = useState<((result: "closed" | "cancelled") => void) | null>(null);
     const mappedDiagnostics = mapDatabaseSourceDiagnostics(diagnostics);
+    const compareSummary = compareResult ? summarizeCompare(compareResult) : null;
+    const stickyChangeRef = useRef(onStickyStateChange);
+    stickyChangeRef.current = onStickyStateChange;
+    const lastStickyKey = useRef<string | null>(null);
 
     useEffect(() => {
       const timer = window.setTimeout(() => {
@@ -160,6 +216,18 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
       );
     }, [diagnostics, mappedDiagnostics.oracleMessages, mappedDiagnostics.problems, onDiagnostics]);
 
+    useEffect(() => {
+      const snapshot: DatabaseSourceStickySnapshot = {
+        target: state.target,
+        attachmentState: state.attachmentState,
+        baselineFingerprints: fingerprintSnapshot,
+      };
+      const key = JSON.stringify(snapshot);
+      if (lastStickyKey.current === key) return;
+      lastStickyKey.current = key;
+      stickyChangeRef.current?.(snapshot);
+    }, [fingerprintSnapshot, state.attachmentState, state.target]);
+
     const save = async (): Promise<boolean> => {
       if (readOnly) return false;
       const saved = await onSave(state.bufferText);
@@ -169,11 +237,168 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
       return saved;
     };
 
+    const runCompare = async (): Promise<SourceCompareResult | null> => {
+      if (readOnly || compareBusy) return null;
+      setCompareBusy(true);
+      try {
+        const result = await compareDatabaseSource(
+          {
+            source_text: state.bufferText,
+            owner: state.target.owner,
+            name: state.target.name,
+            unit_types:
+              state.target.objectTypes.length > 0
+                ? state.target.objectTypes.map(toOracleUnitType)
+                : undefined,
+          },
+          backendConfig,
+        );
+        setCompareResult(result);
+        setState((current) => ({
+          ...current,
+          stale: !result.identical,
+          conflictDetected: !result.exists || !result.identical,
+          databaseSourceMatches: result.identical,
+        }));
+        return result;
+      } catch (error) {
+        setDiagnostics([
+          {
+            severity: "error",
+            message: error instanceof Error ? error.message : "Compare failed.",
+          },
+        ]);
+        return null;
+      } finally {
+        setCompareBusy(false);
+      }
+    };
+
+    const reloadFromDatabase = (result: SourceCompareResult = compareResult!) => {
+      if (!result?.database_source) return;
+      const nextBaselines = baselinesFromCompare(result);
+      setBaselines([...nextBaselines]);
+      setFingerprintSnapshot(
+        result.database_fingerprints.filter((fingerprint) => fingerprint.exists),
+      );
+      setState((current) =>
+        withBufferText(
+          {
+            ...current,
+            stale: false,
+            conflictDetected: false,
+            databaseSourceMatches: true,
+            baselineFingerprints: {
+              saved: nextBaselines[0]?.digest ?? null,
+              database: nextBaselines[0]?.digest ?? null,
+            },
+          },
+          result.database_source ?? current.bufferText,
+        ),
+      );
+      setConfirmation(null);
+      setCompareResult(null);
+      setReconcileMessage("Reloaded buffer from database source.");
+    };
+
+    const mergeKeepLocalAdoptBaselines = () => {
+      if (!compareResult) return;
+      const nextBaselines = baselinesFromCompare(compareResult);
+      setBaselines([...nextBaselines]);
+      setFingerprintSnapshot(
+        compareResult.database_fingerprints.filter((fingerprint) => fingerprint.exists),
+      );
+      setState((current) => ({
+        ...current,
+        stale: !compareResult.identical,
+        conflictDetected: compareSummary?.droppedTarget ?? false,
+        baselineFingerprints: {
+          saved: nextBaselines[0]?.digest ?? current.baselineFingerprints.saved,
+          database: nextBaselines[0]?.digest ?? current.baselineFingerprints.database,
+        },
+      }));
+      setReconcileMessage(
+        "Kept local buffer and adopted database baselines. Force Compile still required to overwrite.",
+      );
+    };
+
+    const runReconcile = async (): Promise<void> => {
+      if (readOnly || busy || state.target.objectTypes.length === 0) return;
+      setBusy(true);
+      try {
+        const result = await reconcileDatabaseSource(
+          {
+            owner: state.target.owner,
+            name: state.target.name,
+            unit_types: state.target.objectTypes.map(toOracleUnitType),
+          },
+          backendConfig,
+        );
+        const outcome = planReconcileOutcome(result.fingerprints, state.bufferText);
+        setBaselines([...outcome.baselines]);
+        setFingerprintSnapshot(
+          result.fingerprints.filter((fingerprint) => fingerprint.exists).map((fingerprint) => ({
+            owner: fingerprint.owner,
+            name: fingerprint.name,
+            unit_type: fingerprint.unit_type,
+            digest: fingerprint.digest,
+            exists: fingerprint.exists,
+            status: fingerprint.status,
+          })),
+        );
+        setRequiresReconcile(false);
+        setReconcileMessage(outcome.message);
+        setState((current) => ({
+          ...current,
+          // Never silently rebind from global Context Bar — sticky target stays.
+          compileStatus: outcome.kind === "matched" ? current.compileStatus : "unknown",
+          stale: outcome.kind === "stale" || outcome.kind === "conflicted",
+          conflictDetected: outcome.kind === "dropped" || outcome.kind === "conflicted",
+          objectStatus: outcome.objectStatus,
+          databaseSourceMatches: outcome.kind === "matched",
+          baselineFingerprints: {
+            saved: outcome.baselines[0]?.digest ?? current.baselineFingerprints.saved,
+            database: outcome.baselines[0]?.digest ?? current.baselineFingerprints.database,
+          },
+        }));
+        if (outcome.kind === "stale" || outcome.kind === "conflicted" || outcome.kind === "dropped") {
+          await runCompare();
+        }
+      } catch (error) {
+        setDiagnostics([
+          {
+            severity: "error",
+            message: error instanceof Error ? error.message : "Reconcile failed.",
+          },
+        ]);
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    useEffect(() => {
+      if (!requiresReconcile || !interactiveConnected || readOnly) return;
+      // After reconnect, surface reconcile without silently compiling.
+      setReconcileMessage(
+        "Interactive connection restored. Reconcile sticky target before another Compile.",
+      );
+    }, [interactiveConnected, readOnly, requiresReconcile]);
+
     const compile = async (
       intent: DatabaseSourceActionIntent,
       confirmed?: SourceCompileConfirmation,
     ): Promise<boolean> => {
       if (readOnly || busy) return false;
+      if (requiresReconcile && intent !== "force") {
+        setReconcileMessage("Reconcile required after unknown DDL before Compile.");
+        return false;
+      }
+      if (confirmed?.reason === "force" && !compareResult) {
+        const compared = await runCompare();
+        if (!compared) return false;
+        setConfirmation(confirmed);
+        return false;
+      }
       setBusy(true);
       setConfirmation(null);
       try {
@@ -257,9 +482,12 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
           .filter((fingerprint): fingerprint is SourceFingerprint => Boolean(fingerprint));
         if (nextBaselines.length > 0) {
           setBaselines(baselinesFromFingerprints(nextBaselines));
+          setFingerprintSnapshot(nextBaselines);
         }
         const invalid = result.units.some((unit) => unit.status === "INVALID") || result.outcome === "failed";
         const succeeded = result.outcome === "succeeded";
+        setCompareResult(null);
+        setRequiresReconcile(false);
         setState((current) => ({
           ...current,
           target: compileTarget,
@@ -274,6 +502,8 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
           objectStatus: invalid ? "INVALID" : succeeded ? "VALID" : current.objectStatus,
           lastSuccessfulCompileUsedCurrentBuffer: succeeded,
           databaseSourceMatches: succeeded ? true : result.outcome === "partial" ? false : current.databaseSourceMatches,
+          stale: result.outcome === "partial" ? true : false,
+          conflictDetected: result.outcome === "partial",
           baselineFingerprints: {
             saved: nextBaselines[0]?.digest ?? current.baselineFingerprints.saved,
             database: nextBaselines[0]?.digest ?? current.baselineFingerprints.database,
@@ -285,6 +515,30 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
         const nextConfirmation = confirmationFrom(error);
         if (nextConfirmation) {
           setConfirmation(nextConfirmation);
+          if (nextConfirmation.reason === "force" || nextConfirmation.reason === "attach") {
+            void runCompare();
+          }
+          return false;
+        }
+        const unknown = unknownCompileFrom(error);
+        if (unknown) {
+          setRequiresReconcile(true);
+          setDiagnostics(unknown.diagnostics ?? [
+            {
+              severity: "error",
+              message:
+                unknown.message ??
+                "Compile outcome unknown. Reconnect and reconcile before another Compile.",
+            },
+          ]);
+          setState((current) => ({
+            ...current,
+            compileStatus: "unknown",
+            conflictDetected: true,
+          }));
+          setReconcileMessage(
+            "Compile outcome unknown after DDL. Reconcile sticky target before another Compile — never auto-retry.",
+          );
           return false;
         }
         setDiagnostics([
@@ -361,6 +615,12 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
       }
     };
 
+    const profileChromeLabel =
+      state.attachmentState === "unconnected" || !state.target.connectionProfileId
+        ? "Unconnected"
+        : connectionProfileLabel?.trim() ||
+          state.target.connectionProfileId;
+
     const confirmLabel =
       confirmation?.reason === "retarget"
         ? "Attach as New Target"
@@ -370,11 +630,14 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
             ? "Recreate Object"
             : "Confirm and compile";
 
+    const forceBlockedPendingCompare =
+      confirmation?.reason === "force" && !compareResult && !compareBusy;
+
     return (
       <div className="tool-panel database-source-sheet" aria-label="Database Source Document">
         <div className="schema-status" role="status">
           <span className="status-pill">
-            Connection: {state.target.connectionProfileId ?? "Unconnected"}
+            Connection Profile: {profileChromeLabel}
           </span>
           <span className="status-pill">Schema: {state.target.workingSchema ?? "—"}</span>
           <span className="status-pill">
@@ -386,8 +649,32 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
           {state.globalContextMismatch ? (
             <span className="status-pill">Global context differs</span>
           ) : null}
+          {state.stale ? <span className="status-pill">Stale source</span> : null}
+          {requiresReconcile ? <span className="status-pill">Reconcile required</span> : null}
           {readOnly ? <span className="status-pill">Read-only</span> : null}
         </div>
+        {requiresReconcile || reconcileMessage ? (
+          <div className="confirm-banner" role="status" aria-label="Database source reconcile">
+            <p>{reconcileMessage ?? "Reconcile sticky target after unknown DDL."}</p>
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() => void runReconcile()}
+                disabled={busy || !interactiveConnected || state.target.objectTypes.length === 0}
+              >
+                Reconcile
+              </button>
+              <button type="button" className="chrome-button" onClick={() => void runCompare()} disabled={compareBusy}>
+                Compare
+              </button>
+              {reconcileMessage && !requiresReconcile ? (
+                <button type="button" className="chrome-button" onClick={() => setReconcileMessage(null)}>
+                  Dismiss
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         {confirmation ? (
           <div className="confirm-banner" role="alertdialog" aria-label="Confirm database source action">
             <p>{confirmation.message}</p>
@@ -400,7 +687,58 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
                 ))}
               </ul>
             ) : null}
+            {compareBusy ? <p className="pane-muted">Comparing local and database source…</p> : null}
+            {compareSummary ? (
+              <div aria-label="Source compare result">
+                <p>
+                  {compareSummary.allIdentical
+                    ? "Local and database source are identical."
+                    : compareSummary.droppedTarget
+                      ? "One or more target units are missing in the database."
+                      : "Local and database source differ."}
+                </p>
+                <ul className="dense-list">
+                  {compareSummary.rows.map((row) => (
+                    <li key={`${row.owner}.${row.name}.${row.unitType}`}>
+                      {row.owner}.{row.name} ({row.unitType}): {unitStatusLabel(row.status)}
+                    </li>
+                  ))}
+                </ul>
+                {compareResult?.local_source || compareResult?.database_source ? (
+                  <div className="source-compare-panes">
+                    <details open>
+                      <summary>Local source</summary>
+                      <pre className="source-compare-pre">{compareResult?.local_source ?? "—"}</pre>
+                    </details>
+                    <details open>
+                      <summary>Database source</summary>
+                      <pre className="source-compare-pre">
+                        {compareResult?.database_source ??
+                          (compareSummary.droppedTarget
+                            ? "Target missing or incomplete in the database."
+                            : "—")}
+                      </pre>
+                    </details>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="button-row">
+              {(confirmation.reason === "force" || confirmation.reason === "attach") && !compareResult ? (
+                <button type="button" onClick={() => void runCompare()} disabled={compareBusy}>
+                  Compare sources
+                </button>
+              ) : null}
+              {compareSummary?.canReloadFromDatabase ? (
+                <button type="button" onClick={() => reloadFromDatabase()} disabled={busy}>
+                  Reload from database
+                </button>
+              ) : null}
+              {compareSummary && !compareSummary.allIdentical && compareSummary.canReloadFromDatabase ? (
+                <button type="button" className="chrome-button" onClick={mergeKeepLocalAdoptBaselines}>
+                  Keep local (merge baselines)
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() =>
@@ -417,12 +755,47 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
                     confirmation,
                   )
                 }
-                disabled={busy}
+                disabled={busy || forceBlockedPendingCompare}
               >
                 {confirmLabel}
               </button>
-              <button type="button" className="chrome-button" onClick={() => setConfirmation(null)}>
+              <button
+                type="button"
+                className="chrome-button"
+                onClick={() => {
+                  setConfirmation(null);
+                  setCompareResult(null);
+                }}
+              >
                 Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {!confirmation && compareResult && compareSummary ? (
+          <div className="confirm-banner" role="region" aria-label="Source compare result">
+            <p>
+              {compareSummary.allIdentical
+                ? "Compare: local and database source are identical."
+                : compareSummary.droppedTarget
+                  ? "Compare: dropped or partial target — Reload unavailable for missing units."
+                  : "Compare: sources differ."}
+            </p>
+            <ul className="dense-list">
+              {compareSummary.rows.map((row) => (
+                <li key={`${row.owner}.${row.name}.${row.unitType}`}>
+                  {row.owner}.{row.name} ({row.unitType}): {unitStatusLabel(row.status)}
+                </li>
+              ))}
+            </ul>
+            <div className="button-row">
+              {compareSummary.canReloadFromDatabase ? (
+                <button type="button" onClick={() => reloadFromDatabase()} disabled={busy}>
+                  Reload from database
+                </button>
+              ) : null}
+              <button type="button" className="chrome-button" onClick={() => setCompareResult(null)}>
+                Dismiss compare
               </button>
             </div>
           </div>
@@ -447,17 +820,24 @@ export const DatabaseSourceSheet = forwardRef<DatabaseSourceSheetHandle, Databas
               onClick={() =>
                 void act(state.attachmentState === "unconnected" ? "attach-and-compile" : "compile")
               }
-              disabled={busy}
+              disabled={busy || requiresReconcile}
             >
               {state.attachmentState === "unconnected" ? "Attach & Compile" : "Compile"}
             </button>
-            <button type="button" onClick={() => void act("save-and-compile")} disabled={busy}>
+            <button
+              type="button"
+              onClick={() => void act("save-and-compile")}
+              disabled={busy || requiresReconcile}
+            >
               Save & Compile
             </button>
-            <button type="button" onClick={() => void act("force")} disabled={busy}>
+            <button type="button" onClick={() => void runCompare()} disabled={busy || compareBusy}>
+              Compare
+            </button>
+            <button type="button" onClick={() => void act("force")} disabled={busy || requiresReconcile}>
               Force
             </button>
-            <button type="button" onClick={() => void act("recreate")} disabled={busy}>
+            <button type="button" onClick={() => void act("recreate")} disabled={busy || requiresReconcile}>
               Recreate
             </button>
             {onOpenSeparateUnit &&
