@@ -24,6 +24,15 @@ from apex_pilot.interactive import (
     InteractivePoolStatus,
     PoolNotOpenError,
 )
+from apex_pilot.interactive.source import (
+    AttachmentState,
+    BaselineFingerprint,
+    CompileRequest,
+    CompileTarget,
+    OracleUnitType,
+    SourceParseError,
+    SourceServiceError,
+)
 from apex_pilot.mcp import SqlclConnectionError, SqlclMcpError
 from apex_pilot.projects import (
     CreateProjectRequest,
@@ -141,6 +150,79 @@ class DedicatedSessionResponse(BaseModel):
     dedicated_pinned: int
     dedicated_limit: int
     state: str
+
+
+class SourceParseBody(BaseModel):
+    """Parse a Database Source Document without database access."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_text: str = Field(min_length=1)
+    expected_owner: str | None = None
+    expected_name: str | None = None
+    expected_unit_types: list[str] | None = None
+
+
+class SourceFetchBody(BaseModel):
+    """Fetch editable CREATE OR REPLACE source from Oracle."""
+
+    model_config = ConfigDict(frozen=True)
+
+    owner: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    unit_type: str = Field(min_length=1)
+    combined: bool = False
+    working_schema: str | None = None
+
+
+class SourceCompareBody(BaseModel):
+    """Compare local buffer source with current database stored source."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_text: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    unit_types: list[str] | None = None
+
+
+class SourceBaselineFingerprintBody(BaseModel):
+    """Client-held canonical fingerprint for stale checks."""
+
+    model_config = ConfigDict(frozen=True)
+
+    owner: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    unit_type: str = Field(min_length=1)
+    digest: str = Field(min_length=1)
+
+
+class SourceCompileBody(BaseModel):
+    """Compile Database Source Document through an isolated pool lease."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_text: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    unit_types: list[str] = Field(min_length=1)
+    attachment_state: AttachmentState = AttachmentState.UNCONNECTED
+    working_schema: str | None = None
+    baseline_fingerprints: list[SourceBaselineFingerprintBody] = Field(default_factory=list)
+    confirm_attach: bool = False
+    confirm_retarget: bool = False
+    confirm_force: bool = False
+    confirm_recreate: bool = False
+
+
+class SourceReconcileBody(BaseModel):
+    """Re-read fingerprints after an unknown DDL outcome."""
+
+    model_config = ConfigDict(frozen=True)
+
+    owner: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    unit_types: list[str] = Field(min_length=1)
 
 
 class DatabaseContextResponse(BaseModel):
@@ -758,6 +840,188 @@ def release_dedicated_session(
     return _dedicated_session_response(pin)
 
 
+@router.post(
+    "/interactive/source/parse",
+    tags=["interactive-source"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def parse_interactive_source(body: SourceParseBody, request: Request) -> dict[str, object]:
+    """Parse a strict Database Source Document (no database access)."""
+    runtime = _runtime_from_request(request)
+    try:
+        parsed = runtime.parse_database_source(
+            body.source_text,
+            expected_owner=body.expected_owner,
+            expected_name=body.expected_name,
+            expected_unit_types=_parse_unit_types(body.expected_unit_types),
+        )
+    except SourceParseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": str(error),
+                "diagnostics": [item.to_dict() for item in error.diagnostics],
+            },
+        ) from error
+    return {
+        "kind": parsed.kind.value,
+        "units": [
+            {
+                "owner": unit.identity.owner,
+                "name": unit.identity.name,
+                "unit_type": unit.identity.unit_type.value,
+                "start_line": unit.start_line,
+                "end_line": unit.end_line,
+                "ddl_text": unit.ddl_text,
+            }
+            for unit in parsed.units
+        ],
+        "diagnostics": [item.to_dict() for item in parsed.diagnostics],
+    }
+
+
+@router.post(
+    "/interactive/source/fetch",
+    tags=["interactive-source"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def fetch_interactive_source(body: SourceFetchBody, request: Request) -> dict[str, object]:
+    """Fetch complete editable CREATE OR REPLACE source via isolated lease."""
+    runtime = _runtime_from_request(request)
+    try:
+        document = runtime.fetch_database_source(
+            owner=body.owner,
+            name=body.name,
+            unit_type=_parse_unit_type(body.unit_type),
+            combined=body.combined,
+            working_schema=body.working_schema,
+        )
+    except SourceServiceError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except InteractivePoolError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to fetch Oracle source.",
+        ) from error
+    return document.to_dict()
+
+
+@router.post(
+    "/interactive/source/compare",
+    tags=["interactive-source"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def compare_interactive_source(body: SourceCompareBody, request: Request) -> dict[str, object]:
+    """First-attach / reconcile comparison of local vs database source."""
+    runtime = _runtime_from_request(request)
+    try:
+        result = runtime.compare_database_source(
+            body.source_text,
+            owner=body.owner,
+            name=body.name,
+            unit_types=_parse_unit_types(body.unit_types),
+        )
+    except SourceParseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": str(error),
+                "diagnostics": [item.to_dict() for item in error.diagnostics],
+            },
+        ) from error
+    except InteractivePoolError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to compare Oracle source.",
+        ) from error
+    return result.to_dict()
+
+
+@router.post(
+    "/interactive/source/compile",
+    tags=["interactive-source"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def compile_interactive_source(body: SourceCompileBody, request: Request) -> dict[str, object]:
+    """Compile through guarded facade on a short-lived isolated pool lease."""
+    runtime = _runtime_from_request(request)
+    unit_types = _parse_unit_types(body.unit_types)
+    if unit_types is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="unit_types is required.",
+        )
+    compile_request = CompileRequest(
+        source_text=body.source_text,
+        target=CompileTarget(
+            owner=body.owner.strip().upper(),
+            name=body.name.strip().upper(),
+            unit_types=unit_types,
+        ),
+        attachment_state=body.attachment_state,
+        working_schema=body.working_schema.strip().upper() if body.working_schema else None,
+        baseline_fingerprints=tuple(
+            BaselineFingerprint(
+                owner=item.owner.strip().upper(),
+                name=item.name.strip().upper(),
+                unit_type=_parse_unit_type(item.unit_type),
+                digest=item.digest.strip(),
+            )
+            for item in body.baseline_fingerprints
+        ),
+        confirm_attach=body.confirm_attach,
+        confirm_retarget=body.confirm_retarget,
+        confirm_force=body.confirm_force,
+        confirm_recreate=body.confirm_recreate,
+    )
+    result = runtime.compile_database_source(compile_request)
+    if result.outcome.value == "blocked":
+        code = status.HTTP_409_CONFLICT if result.confirmation is not None else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=code, detail=result.to_dict())
+    if result.outcome.value == "unknown":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=result.to_dict(),
+        )
+    return result.to_dict()
+
+
+@router.post(
+    "/interactive/source/reconcile",
+    tags=["interactive-source"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def reconcile_interactive_source(body: SourceReconcileBody, request: Request) -> dict[str, object]:
+    """Re-read stored source fingerprints/status after unknown DDL outcomes."""
+    runtime = _runtime_from_request(request)
+    unit_types = _parse_unit_types(body.unit_types)
+    if unit_types is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="unit_types is required.",
+        )
+    try:
+        fingerprints = runtime.reconcile_database_source(
+            owner=body.owner,
+            name=body.name,
+            unit_types=unit_types,
+        )
+    except InteractivePoolError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reconcile Oracle source.",
+        ) from error
+    return {
+        "fingerprints": [item.to_dict(include_source=True) for item in fingerprints],
+    }
+
+
 @router.get(
     "/schema/summary",
     response_model=SchemaSummaryResponse,
@@ -1221,6 +1485,23 @@ def _dedicated_session_response(pin: DedicatedSessionPin) -> DedicatedSessionRes
         dedicated_limit=pin.dedicated_limit,
         state=pin.state,
     )
+
+
+def _parse_unit_type(raw: str) -> OracleUnitType:
+    normalized = " ".join(raw.strip().upper().split())
+    try:
+        return OracleUnitType(normalized)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported Oracle unit type: {raw}",
+        ) from error
+
+
+def _parse_unit_types(raw: list[str] | None) -> tuple[OracleUnitType, ...] | None:
+    if raw is None:
+        return None
+    return tuple(_parse_unit_type(item) for item in raw)
 
 
 def _runtime_from_request(request: Request) -> ApexPilotRuntime:

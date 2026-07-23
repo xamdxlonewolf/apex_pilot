@@ -19,6 +19,16 @@ from apex_pilot.interactive import (
     InteractiveSessionService,
     OraclePoolDriver,
 )
+from apex_pilot.interactive.source import (
+    CompareResult,
+    CompileRequest,
+    CompileResult,
+    DatabaseSourceService,
+    FetchedSourceDocument,
+    OracleUnitType,
+    ParseSuccess,
+    SourceFingerprint,
+)
 from apex_pilot.mcp import (
     SqlclConnectionManager,
     SqlclMcpConfig,
@@ -86,6 +96,7 @@ class ApexPilotRuntime:
         self._interactive_pool = interactive_pool or InteractiveOraclePool(driver=interactive_driver)
         self._interactive_browse = InteractiveBrowseService(self._interactive_pool)
         self._interactive_sessions = InteractiveSessionService(self._interactive_pool)
+        self._database_source = DatabaseSourceService(self._interactive_pool)
         self._clock = clock or time.monotonic
         self._mcp_idle_stop_seconds = max(1, int(mcp_idle_stop_seconds))
         self._mcp_idle_since: float | None = None
@@ -228,6 +239,74 @@ class ApexPilotRuntime:
     def clear_interactive_browse_cache(self) -> None:
         """Invalidate browse caches (Refresh / Working Schema change)."""
         self._interactive_browse.clear_cache()
+
+    def parse_database_source(
+        self,
+        source_text: str,
+        *,
+        expected_owner: str | None = None,
+        expected_name: str | None = None,
+        expected_unit_types: tuple[OracleUnitType, ...] | None = None,
+    ) -> ParseSuccess:
+        """Parse a Database Source Document without database access."""
+        return self._database_source.parse(
+            source_text,
+            expected_owner=expected_owner,
+            expected_name=expected_name,
+            expected_unit_types=expected_unit_types,
+        )
+
+    def fetch_database_source(
+        self,
+        *,
+        owner: str,
+        name: str,
+        unit_type: OracleUnitType,
+        combined: bool = False,
+        working_schema: str | None = None,
+    ) -> FetchedSourceDocument:
+        """Fetch editable CREATE OR REPLACE source through an isolated lease."""
+        return self._database_source.fetch(
+            owner=owner,
+            name=name,
+            unit_type=unit_type,
+            combined=combined,
+            working_schema=working_schema,
+        )
+
+    def compare_database_source(
+        self,
+        source_text: str,
+        *,
+        owner: str,
+        name: str,
+        unit_types: tuple[OracleUnitType, ...] | None = None,
+    ) -> CompareResult:
+        """Compare local buffer source with current database stored source."""
+        return self._database_source.compare(
+            source_text,
+            owner=owner,
+            name=name,
+            unit_types=unit_types,
+        )
+
+    def compile_database_source(self, request: CompileRequest) -> CompileResult:
+        """Compile on a short-lived isolated lease; never uses dedicated editor pins."""
+        return self._database_source.compile(request)
+
+    def reconcile_database_source(
+        self,
+        *,
+        owner: str,
+        name: str,
+        unit_types: tuple[OracleUnitType, ...],
+    ) -> tuple[SourceFingerprint, ...]:
+        """Re-read fingerprints/status after an unknown DDL outcome."""
+        return self._database_source.reconcile(
+            owner=owner,
+            name=name,
+            unit_types=unit_types,
+        )
 
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
