@@ -79,11 +79,32 @@ export const SqlSheet = ({
     interactiveStatus.dedicated_pinned >= interactiveStatus.dedicated_limit &&
     !pinned;
 
+  const capacityDetail =
+    `Dedicated session limit reached (${interactiveStatus.dedicated_limit}). Close a connected tab or raise the limit.`;
+  const deadDetail = "Interactive pool is dead. Reconnect before attaching this editor.";
+  const effectiveAttachment: SqlSessionAttachment = interactiveDead
+    ? "dead"
+    : atCapacity
+      ? "capacity"
+      : pinned
+        ? "pinned"
+        : attachment === "error"
+          ? "error"
+          : "unconnected";
+  const effectiveDetail =
+    effectiveAttachment === "dead"
+      ? deadDetail
+      : effectiveAttachment === "capacity"
+        ? capacityDetail
+        : effectiveAttachment === "error"
+          ? attachmentDetail
+          : null;
+
   const canRunMcp = isBackendOnline && Boolean(connectedConnection) && !busy;
   const canRun =
     canRunMcp &&
-    attachment !== "capacity" &&
-    attachment !== "dead" &&
+    effectiveAttachment !== "capacity" &&
+    effectiveAttachment !== "dead" &&
     interactiveStatus.state !== "dead";
   const hasSql = Boolean(sql.trim());
 
@@ -96,36 +117,6 @@ export const SqlSheet = ({
       onRunStateChange?.({ busy: false, hasSql: false, canRun: false });
     };
   }, [onRunStateChange]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (interactiveDead) {
-        setAttachment("dead");
-        setAttachmentDetail("Interactive pool is dead. Reconnect before attaching this editor.");
-        return;
-      }
-      if (!interactiveConnected) {
-        if (!pinned) {
-          setAttachment("unconnected");
-          setAttachmentDetail(null);
-        }
-        return;
-      }
-      if (atCapacity) {
-        setAttachment("capacity");
-        setAttachmentDetail(
-          `Dedicated session limit reached (${interactiveStatus.dedicated_limit}). Close a connected tab or raise the limit.`,
-        );
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [
-    atCapacity,
-    interactiveConnected,
-    interactiveDead,
-    interactiveStatus.dedicated_limit,
-    pinned,
-  ]);
 
   const ensureDedicatedPin = async (): Promise<boolean> => {
     if (!interactiveConnected) {
@@ -174,7 +165,7 @@ export const SqlSheet = ({
         appendLog({
           sql: text,
           status: "error",
-          detail: attachmentDetail || "Editor session is Unconnected.",
+          detail: effectiveDetail || "Editor session is Unconnected.",
         });
         return;
       }
@@ -233,13 +224,13 @@ export const SqlSheet = ({
   };
 
   const attachmentLabel =
-    attachment === "pinned"
+    effectiveAttachment === "pinned"
       ? "Interactive: Pinned"
-      : attachment === "capacity"
+      : effectiveAttachment === "capacity"
         ? "Interactive: Unconnected (capacity)"
-        : attachment === "dead"
+        : effectiveAttachment === "dead"
           ? "Interactive: Dead"
-          : attachment === "error"
+          : effectiveAttachment === "error"
             ? "Interactive: Attach failed"
             : interactiveConnected
               ? "Interactive: Unconnected (lazy)"
@@ -250,9 +241,9 @@ export const SqlSheet = ({
       <div className="schema-status" role="status">
         <span
           className={
-            attachment === "pinned"
+            effectiveAttachment === "pinned"
               ? "status-pill status-pill--ok"
-              : attachment === "capacity" || attachment === "dead" || attachment === "error"
+              : effectiveAttachment === "capacity" || effectiveAttachment === "dead" || effectiveAttachment === "error"
                 ? "status-pill"
                 : "status-pill"
           }
@@ -260,7 +251,7 @@ export const SqlSheet = ({
           {attachmentLabel}
         </span>
       </div>
-      {attachmentDetail ? <p className="pane-muted">{attachmentDetail}</p> : null}
+      {effectiveDetail ? <p className="pane-muted">{effectiveDetail}</p> : null}
       <form
         id={documentId === "sql" ? WORKSPACE_SQL_FORM_ID : `${WORKSPACE_SQL_FORM_ID}-${documentId}`}
         className="sql-editor"
