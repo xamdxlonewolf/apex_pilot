@@ -270,6 +270,229 @@ export const releaseDedicatedSession = async (
     config,
   );
 
+export type OracleUnitType =
+  | "FUNCTION"
+  | "PACKAGE"
+  | "PACKAGE BODY"
+  | "PROCEDURE"
+  | "TRIGGER"
+  | "TYPE"
+  | "TYPE BODY";
+
+export type SourceAttachmentState = "unconnected" | "attached" | "retarget_pending";
+
+export type CompileOutcome = "succeeded" | "failed" | "partial" | "blocked" | "unknown";
+
+export type SourceDiagnostic = Readonly<{
+  severity: "error" | "warning" | "info";
+  message: string;
+  line?: number | null;
+  column?: number | null;
+  unit_type?: OracleUnitType | null;
+  unit_name?: string | null;
+  attribute?: string | null;
+}>;
+
+export type SourceUnit = Readonly<{
+  owner: string;
+  name: string;
+  unit_type: OracleUnitType;
+  start_line: number;
+  end_line: number;
+  ddl_text: string;
+}>;
+
+export type SourceFingerprint = Readonly<{
+  owner: string;
+  name: string;
+  unit_type: OracleUnitType;
+  digest: string;
+  exists: boolean;
+  status: string | null;
+}>;
+
+export type BaselineFingerprint = Readonly<{
+  owner: string;
+  name: string;
+  unit_type: OracleUnitType;
+  digest: string;
+}>;
+
+export type SourceParseResult = Readonly<{
+  kind: string;
+  units: SourceUnit[];
+  diagnostics: SourceDiagnostic[];
+}>;
+
+export type FetchedSourceDocument = Readonly<{
+  kind: string;
+  owner: string;
+  name: string;
+  unit_types: OracleUnitType[];
+  source_text: string;
+  fingerprints: SourceFingerprint[];
+  working_schema: string | null;
+}>;
+
+export type SourceCompareResult = Readonly<{
+  exists: boolean;
+  identical: boolean;
+  local_fingerprints: SourceFingerprint[];
+  database_fingerprints: SourceFingerprint[];
+  local_source: string | null;
+  database_source: string | null;
+}>;
+
+export type SourceStaleConflict = Readonly<{
+  unit_type: OracleUnitType;
+  name: string;
+  owner: string;
+  baseline_digest: string;
+  current_digest: string;
+  baseline_source: string | null;
+  local_source: string;
+  current_source: string | null;
+}>;
+
+export type SourceCompileConfirmation = Readonly<{
+  reason: "attach" | "retarget" | "force" | "recreate";
+  message: string;
+  stale_conflicts: SourceStaleConflict[];
+}>;
+
+export type UnitCompileResult = Readonly<{
+  owner: string | null;
+  name: string;
+  unit_type: OracleUnitType;
+  executed: boolean;
+  status: string | null;
+  fingerprint: SourceFingerprint | null;
+  diagnostics: SourceDiagnostic[];
+  error: string | null;
+}>;
+
+export type SourceCompileResult = Readonly<{
+  outcome: CompileOutcome;
+  units: UnitCompileResult[];
+  diagnostics: SourceDiagnostic[];
+  confirmation: SourceCompileConfirmation | null;
+  invalid_dependents: ReadonlyArray<{
+    owner: string;
+    name: string;
+    object_type: string;
+    status: string;
+  }>;
+  schema_ddl_outside_editor_transaction: boolean;
+  message: string | null;
+  requires_reconcile: boolean;
+}>;
+
+export type SourceReconcileResult = Readonly<{
+  fingerprints: Array<SourceFingerprint & { source_text?: string | null }>;
+}>;
+
+export const parseDatabaseSource = async (
+  body: Readonly<{
+    source_text: string;
+    expected_owner?: string;
+    expected_name?: string;
+    expected_unit_types?: OracleUnitType[];
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<SourceParseResult> =>
+  apiFetch(
+    "/interactive/source/parse",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const fetchDatabaseSource = async (
+  body: Readonly<{
+    owner: string;
+    name: string;
+    unit_type: OracleUnitType;
+    combined?: boolean;
+    working_schema?: string;
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<FetchedSourceDocument> =>
+  apiFetch(
+    "/interactive/source/fetch",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const compareDatabaseSource = async (
+  body: Readonly<{
+    source_text: string;
+    owner: string;
+    name: string;
+    unit_types?: OracleUnitType[];
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<SourceCompareResult> =>
+  apiFetch(
+    "/interactive/source/compare",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const compileDatabaseSource = async (
+  body: Readonly<{
+    source_text: string;
+    owner: string;
+    name: string;
+    unit_types: OracleUnitType[];
+    attachment_state: SourceAttachmentState;
+    working_schema?: string;
+    baseline_fingerprints: BaselineFingerprint[];
+    confirm_attach?: boolean;
+    confirm_retarget?: boolean;
+    confirm_force?: boolean;
+    confirm_recreate?: boolean;
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<SourceCompileResult> =>
+  apiFetch(
+    "/interactive/source/compile",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
+export const reconcileDatabaseSource = async (
+  body: Readonly<{
+    owner: string;
+    name: string;
+    unit_types: OracleUnitType[];
+  }>,
+  config: BackendConfig = getBackendConfig(),
+): Promise<SourceReconcileResult> =>
+  apiFetch(
+    "/interactive/source/reconcile",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    config,
+  );
+
 export const getSchemaSummary = async (
   schemaName: string,
   options: Readonly<{ refresh?: boolean; config?: BackendConfig }> = {},

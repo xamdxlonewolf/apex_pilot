@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { ActivityRail } from "./ActivityRail";
 import { type ApexOpenTarget } from "./ApexBrowser";
 import { CodeEditor } from "./CodeEditor";
+import { DatabaseSourceSheet, type DatabaseSourceSheetHandle } from "./DatabaseSourceSheet";
 import { DatabaseDrawer } from "./DatabaseDrawer";
 import { DeveloperConsole } from "./DeveloperConsole";
 import { Explorer, type ExplorerSectionId } from "./Explorer";
@@ -22,6 +23,9 @@ import {
   type CenterEditorStubKind,
 } from "./centerEditors";
 import { languageFromPath } from "./editorLanguages";
+import { detectDatabaseSourceMode } from "./databaseSourceMode";
+import type { DatabaseSourceProblem } from "./databaseSourceDiagnostics";
+import type { DatabaseSourceTarget } from "./databaseSourceState";
 import {
   type ActivityEntry,
   type BackendConfig,
@@ -31,6 +35,7 @@ import {
   type SavedConnection,
   type SchemaSummary,
   getSessionContextOnce,
+  fetchDatabaseSource,
   releaseDedicatedSession,
 } from "./backend";
 import {
@@ -87,6 +92,11 @@ type WorkspaceTab = Readonly<{
   content?: string;
   /** Protected APEX / root f*.sql opens stay read-only. */
   readOnly?: boolean;
+  databaseSource?: Readonly<{
+    target: DatabaseSourceTarget;
+    attachmentState: "unconnected" | "attached" | "retarget_pending";
+    baselineFingerprints?: readonly import("./backend").SourceFingerprint[];
+  }>;
 }>;
 
 /** Editor peer tabs — Mission is a dual-primary peer, not a center tab. */
@@ -377,6 +387,10 @@ export const IdeWorkspace = ({
   });
   const schemaAutofillKey = useRef<string | null>(null);
   const workspacePeersRef = useRef<HTMLDivElement | null>(null);
+  const databaseSourceHandles = useRef(new Map<string, DatabaseSourceSheetHandle>());
+  const [problems, setProblems] = useState<DatabaseSourceProblem[]>([]);
+  const [oracleMessages, setOracleMessages] = useState<string[]>([]);
+  const [focusProblemsRequest, setFocusProblemsRequest] = useState(0);
 
   if (projectId !== tabsProjectId) {
     const saved = loadProjectTabs(projectId);
@@ -655,7 +669,104 @@ export const IdeWorkspace = ({
     }
   };
 
-  const closeTab = (tabId: string) => {
+  const attachAsDatabaseSource = (tabId: string, sourceText: string, path?: string) => {
+    const baseName = (path?.replace(/\\/g, "/").split("/").pop() ?? "database-source").replace(
+      /\.[^.]+$/,
+      "",
+    );
+    const target: DatabaseSourceTarget = {
+      connectionProfileId: connectedConnection ?? selectedConnection ?? null,
+      workingSchema: workingSchema || null,
+      owner: workingSchema || "UNKNOWN",
+      objectTypes: [],
+      name: baseName.toUpperCase(),
+    };
+    setTabs((current) =>
+      current.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              kind: "sql",
+              content: sourceText,
+              path: path ?? tab.path,
+              databaseSource: { target, attachmentState: "unconnected" },
+            }
+          : tab,
+      ),
+    );
+    setActiveCenterTabId(tabId);
+  };
+
+  const openDatabaseSourceUnit = (
+    owner: string,
+    name: string,
+    unitType: import("./backend").OracleUnitType,
+    combined: boolean,
+  ) => {
+    void fetchDatabaseSource(
+      {
+        owner,
+        name,
+        unit_type: unitType,
+        combined,
+        working_schema: workingSchema || undefined,
+      },
+      backendConfig,
+    ).then((source) => {
+      openOrFocus({
+        id: `database-source:${owner}.${unitType}.${name}${combined ? ":combined" : ""}`,
+        kind: "sql",
+        title: name,
+        content: source.source_text,
+        databaseSource: {
+          target: {
+            connectionProfileId: connectedConnection ?? selectedConnection ?? null,
+            workingSchema: source.working_schema ?? (workingSchema || null),
+            owner: source.owner,
+            objectTypes: source.unit_types.map(
+              (unit) => unit.replaceAll(" ", "_") as import("./databaseSourceState").DatabaseObjectType,
+            ),
+            name: source.name,
+          },
+          attachmentState: "attached",
+          baselineFingerprints: source.fingerprints,
+        },
+      });
+    }).catch((error) =>
+      setSaveMessage(error instanceof Error ? error.message : "Could not fetch database source."),
+    );
+  };
+
+  const saveDatabaseSource = async (tab: WorkspaceTab, text: string): Promise<boolean> => {
+    try {
+      let targetPath = tab.path;
+      if (!targetPath) {
+        const runtime = window as Window & { __TAURI_INTERNALS__?: unknown };
+        if (!runtime.__TAURI_INTERNALS__) {
+          setSaveMessage("Save As needs the Tauri desktop shell.");
+          return false;
+        }
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const extension = detectDatabaseSourceMode({
+          explicitAttach: true,
+          parsedUnitTypes: tab.databaseSource?.target.objectTypes,
+        }).suggestedSaveExtension ?? ".sql";
+        targetPath = await save({
+          defaultPath: `${tab.databaseSource?.target.name.toLowerCase() ?? "database-source"}${extension}`,
+        }) ?? undefined;
+        if (!targetPath) return false;
+      }
+      await writeTextFile(targetPath, text);
+      setTabs((current) => current.map((item) => item.id === tab.id ? { ...item, path: targetPath, content: text } : item));
+      setSaveMessage(`Saved ${tab.title}`);
+      return true;
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Could not save database source.");
+      return false;
+    }
+  };
+
+  const closeTabNow = (tabId: string) => {
     setTabs((current) => {
       const closing = current.find((tab) => tab.id === tabId);
       const next = current.filter((tab) => tab.id !== tabId);
@@ -678,6 +789,17 @@ export const IdeWorkspace = ({
     });
   };
 
+  const closeTab = (tabId: string) => {
+    const handle = databaseSourceHandles.current.get(tabId);
+    if (!handle) {
+      closeTabNow(tabId);
+      return;
+    }
+    void handle.requestClose().then((result) => {
+      if (result === "closed") closeTabNow(tabId);
+    });
+  };
+
   const onOpenFile = (node: FileTreeNode) => {
     if (node.protected) {
       const proceed = window.confirm(
@@ -694,13 +816,25 @@ export const IdeWorkspace = ({
       } catch (error) {
         content = error instanceof Error ? error.message : "Could not read file.";
       }
+      const mode = detectDatabaseSourceMode({ path: node.path, readOnly: node.protected });
+      const target: DatabaseSourceTarget = {
+        connectionProfileId: connectedConnection ?? selectedConnection ?? null,
+        workingSchema: workingSchema || null,
+        owner: workingSchema || "UNKNOWN",
+        objectTypes: [],
+        name: node.name.replace(/\.[^.]+$/, ""),
+      };
       openOrFocus({
         id: `file:${node.path}`,
-        kind: "file",
+        kind: mode.mode === "database-source" ? "sql" : "file",
         title: node.name,
         path: node.path,
         content,
-        readOnly: node.protected,
+        readOnly: mode.readOnly,
+        databaseSource:
+          mode.mode === "database-source"
+            ? { target, attachmentState: "unconnected" }
+            : undefined,
       });
     })();
   };
@@ -708,6 +842,16 @@ export const IdeWorkspace = ({
   const onOpenObject = (target: SchemaOpenTarget) => {
     const qualified = `${target.schemaName}.${target.objectName}`;
     setFocusedObjectName(qualified);
+    const supported = new Set(["PACKAGE", "PACKAGE BODY", "PROCEDURE", "FUNCTION", "TRIGGER", "TYPE", "TYPE BODY"]);
+    if (supported.has(target.objectType)) {
+      openDatabaseSourceUnit(
+        target.schemaName,
+        target.objectName,
+        target.objectType as import("./backend").OracleUnitType,
+        target.objectType === "PACKAGE" || target.objectType === "TYPE",
+      );
+      return;
+    }
     openOrFocus({
       id: `object:${target.schemaName}.${target.objectType}.${target.objectName}`,
       kind: "object",
@@ -800,7 +944,7 @@ export const IdeWorkspace = ({
 
   const editorTabs = tabs.filter(isEditorTab);
   const activeCenterTab = editorTabs.find((tab) => tab.id === activeCenterTabId) ?? null;
-  const sqlEditorActive = activeCenterTab?.kind === "sql";
+  const sqlEditorActive = activeCenterTab?.kind === "sql" && !activeCenterTab.databaseSource;
   const visualPrimacy = workspaceVisualPrimacy(focusMode);
   const missionPrimacy = visualPrimacy.mission;
   const editorsPrimacy = visualPrimacy.editors;
@@ -1287,7 +1431,7 @@ export const IdeWorkspace = ({
                 </div>
                 <div className="pane-body">
                   {editorTabs
-                    .filter((tab) => tab.kind === "sql")
+                    .filter((tab) => tab.kind === "sql" && !tab.databaseSource)
                     .map((tab) => (
                       <div
                         key={tab.id}
@@ -1296,6 +1440,7 @@ export const IdeWorkspace = ({
                       >
                         <SqlSheet
                           documentId={tab.id}
+                          initialSql={tab.content}
                           backendConfig={backendConfig}
                           connectedConnection={connectedConnection}
                           interactiveStatus={interactiveStatus}
@@ -1309,6 +1454,57 @@ export const IdeWorkspace = ({
                           onRunStateChange={
                             tab.id === activeCenterTabId ? setSqlRunState : undefined
                           }
+                          onAttachAsDatabaseSource={(text) =>
+                            attachAsDatabaseSource(tab.id, text, tab.path)
+                          }
+                        />
+                      </div>
+                    ))}
+                  {editorTabs
+                    .filter((tab) => tab.kind === "sql" && tab.databaseSource && tab.content !== undefined)
+                    .map((tab) => (
+                      <div
+                        key={tab.id}
+                        style={{ display: tab.id === activeCenterTabId ? undefined : "none" }}
+                        aria-hidden={tab.id !== activeCenterTabId}
+                      >
+                        <DatabaseSourceSheet
+                          ref={(handle) => {
+                            if (handle) databaseSourceHandles.current.set(tab.id, handle);
+                            else databaseSourceHandles.current.delete(tab.id);
+                          }}
+                          documentId={tab.id}
+                          backendConfig={backendConfig}
+                          target={tab.databaseSource!.target}
+                          savedText={tab.content!}
+                          path={tab.path}
+                          readOnly={Boolean(tab.readOnly)}
+                          attachmentState={tab.databaseSource!.attachmentState}
+                          baselineFingerprints={tab.databaseSource!.baselineFingerprints}
+                          blockCloseOnCompileWarnings={layout.blockCloseOnCompileWarnings}
+                          globalConnectionProfileId={connectedConnection}
+                          globalWorkingSchema={workingSchema || null}
+                          onSave={(text) => saveDatabaseSource(tab, text)}
+                          onRunAsSqlScript={(text) => {
+                            const nextId = nextSqlDocumentId(tabs);
+                            openOrFocus({ id: nextId, kind: "sql", title: "SQL Editor", content: text });
+                          }}
+                          onOpenSeparateUnit={(unitType) =>
+                            openDatabaseSourceUnit(
+                              tab.databaseSource!.target.owner,
+                              tab.databaseSource!.target.name,
+                              unitType,
+                              false,
+                            )
+                          }
+                          onDiagnostics={(nextProblems, messages, hasErrors) => {
+                            setProblems(nextProblems);
+                            setOracleMessages(messages);
+                            if (hasErrors) {
+                              setFocusProblemsRequest((current) => current + 1);
+                              onLayoutChange((current) => ({ ...current, showConsole: true }));
+                            }
+                          }}
                         />
                       </div>
                     ))}
@@ -1348,6 +1544,26 @@ export const IdeWorkspace = ({
                             onClick={() => void saveActiveFileTab()}
                           >
                             Save
+                          </button>
+                        ) : null}
+                        {!activeCenterTab.readOnly &&
+                        detectDatabaseSourceMode({
+                          path: activeCenterTab.path,
+                          explicitAttach: true,
+                        }).mode === "database-source" &&
+                        /\.sql$/i.test(activeCenterTab.path ?? "") ? (
+                          <button
+                            type="button"
+                            className="chrome-button"
+                            onClick={() =>
+                              attachAsDatabaseSource(
+                                activeCenterTab.id,
+                                activeCenterTab.content ?? "",
+                                activeCenterTab.path,
+                              )
+                            }
+                          >
+                            Attach as Database Source
                           </button>
                         ) : null}
                       </div>
@@ -1402,6 +1618,9 @@ export const IdeWorkspace = ({
               activeSessionId={activeActivitySessionId}
               mcpFocusRequest={mcpFocusRequest}
               onMcpFocusHandled={onMcpFocusHandled}
+              problems={problems}
+              oracleMessages={oracleMessages}
+              focusProblemsRequest={focusProblemsRequest}
               onClose={closeConsole}
             />
           </section>

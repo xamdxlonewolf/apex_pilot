@@ -44,6 +44,9 @@ type SqlSheetProps = Readonly<{
   onInteractiveStatusRefresh?: () => Promise<void>;
   /** Reports live Run preconditions for progressive Toolbar enablement. */
   onRunStateChange?: (state: SqlRunState) => void;
+  initialSql?: string;
+  /** Explicit promotion into Database Source Document mode (.sql never auto-promotes). */
+  onAttachAsDatabaseSource?: (sql: string) => void;
 }>;
 
 export const SqlSheet = ({
@@ -59,8 +62,10 @@ export const SqlSheet = ({
   onActivityRefresh,
   onInteractiveStatusRefresh,
   onRunStateChange,
+  initialSql,
+  onAttachAsDatabaseSource,
 }: SqlSheetProps) => {
-  const [sql, setSql] = useState("select * from dual");
+  const [sql, setSql] = useState(() => initialSql ?? "select * from dual");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SqlRunResult | null>(null);
   const [log, setLog] = useState<SqlLogEntry[]>([]);
@@ -277,6 +282,16 @@ export const SqlSheet = ({
           <button type="submit" disabled={!canRun || !hasSql} aria-busy={busy}>
             {busy ? "Running…" : "Run"}
           </button>
+          {onAttachAsDatabaseSource ? (
+            <button
+              type="button"
+              className="chrome-button"
+              disabled={!hasSql}
+              onClick={() => onAttachAsDatabaseSource(sql)}
+            >
+              Attach as Database Source
+            </button>
+          ) : null}
           <span className="pane-muted">
             {connectedConnection
               ? workingSchema

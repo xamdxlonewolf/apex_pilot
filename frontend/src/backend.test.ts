@@ -1,11 +1,16 @@
 import {
   checkBackendHealth,
+  compareDatabaseSource,
+  compileDatabaseSource,
   connectSavedConnection,
   createProject,
+  fetchDatabaseSource,
   getPreflight,
   getSchemaSummary,
   listActivity,
   listSavedConnections,
+  parseDatabaseSource,
+  reconcileDatabaseSource,
 } from "./backend";
 
 describe("checkBackendHealth", () => {
@@ -138,7 +143,7 @@ describe("backend API helpers", () => {
   });
 
   it("calls project preflight and create endpoints", async () => {
-    const fetchMock = vi.fn((url: string) => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => { void init;
       if (url.includes("/preflight")) {
         return Promise.resolve(
           new Response(JSON.stringify({ ready: true, blocking_ids: [], checks: [] })),
@@ -186,5 +191,301 @@ describe("backend API helpers", () => {
         config,
       ),
     ).resolves.toMatchObject({ project: { name: "Demo" } });
+  });
+});
+
+describe("database source API helpers", () => {
+  const config = { baseUrl: "http://127.0.0.1:8000/", bearerToken: "test-token" };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("parses source with the expected source constraints", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => { void init;
+      if (url.endsWith("/interactive/source/parse")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              kind: "parsed",
+              units: [],
+              diagnostics: [],
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      parseDatabaseSource(
+        {
+          source_text: "create procedure demo as begin null; end;",
+          expected_owner: "APP",
+          expected_name: "DEMO",
+          expected_unit_types: ["PROCEDURE"],
+        },
+        config,
+      ),
+    ).resolves.toMatchObject({ kind: "parsed", units: [] });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/interactive/source/parse");
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(request.method).toBe("POST");
+    expect((request.headers as Headers).get("Authorization")).toBe("Bearer test-token");
+    expect(JSON.parse(request.body as string)).toEqual({
+      source_text: "create procedure demo as begin null; end;",
+      expected_owner: "APP",
+      expected_name: "DEMO",
+      expected_unit_types: ["PROCEDURE"],
+    });
+  });
+
+  it("fetches a combined source document with its working schema", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => { void init;
+      if (url.endsWith("/interactive/source/fetch")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              kind: "fetched",
+              owner: "APP",
+              name: "DEMO",
+              unit_types: ["PACKAGE", "PACKAGE BODY"],
+              source_text: "create package demo as end;",
+              fingerprints: [],
+              working_schema: "APP",
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchDatabaseSource(
+        {
+          owner: "APP",
+          name: "DEMO",
+          unit_type: "PACKAGE",
+          combined: true,
+          working_schema: "APP",
+        },
+        config,
+      ),
+    ).resolves.toMatchObject({ name: "DEMO", unit_types: ["PACKAGE", "PACKAGE BODY"] });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/interactive/source/fetch");
+    expect(request.method).toBe("POST");
+    expect((request.headers as Headers).get("Authorization")).toBe("Bearer test-token");
+    expect(JSON.parse(request.body as string)).toEqual({
+      owner: "APP",
+      name: "DEMO",
+      unit_type: "PACKAGE",
+      combined: true,
+      working_schema: "APP",
+    });
+  });
+
+  it("compares source against the database", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => { void init;
+      if (url.endsWith("/interactive/source/compare")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              exists: true,
+              identical: false,
+              local_fingerprints: [],
+              database_fingerprints: [],
+              local_source: "local",
+              database_source: "database",
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      compareDatabaseSource(
+        {
+          source_text: "create procedure demo as begin null; end;",
+          owner: "APP",
+          name: "DEMO",
+          unit_types: ["PROCEDURE"],
+        },
+        config,
+      ),
+    ).resolves.toMatchObject({ exists: true, identical: false });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/interactive/source/compare");
+    expect(request.method).toBe("POST");
+    expect((request.headers as Headers).get("Authorization")).toBe("Bearer test-token");
+    expect(JSON.parse(request.body as string)).toEqual({
+      source_text: "create procedure demo as begin null; end;",
+      owner: "APP",
+      name: "DEMO",
+      unit_types: ["PROCEDURE"],
+    });
+  });
+
+  it("compiles source with attachment and confirmation state", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => { void init;
+      if (url.endsWith("/interactive/source/compile")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              outcome: "succeeded",
+              units: [],
+              diagnostics: [],
+              confirmation: null,
+              invalid_dependents: [],
+              schema_ddl_outside_editor_transaction: false,
+              message: "Compiled.",
+              requires_reconcile: false,
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      compileDatabaseSource(
+        {
+          source_text: "create procedure demo as begin null; end;",
+          owner: "APP",
+          name: "DEMO",
+          unit_types: ["PROCEDURE"],
+          attachment_state: "retarget_pending",
+          working_schema: "APP",
+          baseline_fingerprints: [
+            { owner: "APP", name: "DEMO", unit_type: "PROCEDURE", digest: "before" },
+          ],
+          confirm_attach: true,
+          confirm_retarget: true,
+          confirm_force: true,
+          confirm_recreate: true,
+        },
+        config,
+      ),
+    ).resolves.toMatchObject({ outcome: "succeeded", requires_reconcile: false });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/interactive/source/compile");
+    expect(request.method).toBe("POST");
+    expect((request.headers as Headers).get("Authorization")).toBe("Bearer test-token");
+    expect(JSON.parse(request.body as string)).toEqual({
+      source_text: "create procedure demo as begin null; end;",
+      owner: "APP",
+      name: "DEMO",
+      unit_types: ["PROCEDURE"],
+      attachment_state: "retarget_pending",
+      working_schema: "APP",
+      baseline_fingerprints: [
+        { owner: "APP", name: "DEMO", unit_type: "PROCEDURE", digest: "before" },
+      ],
+      confirm_attach: true,
+      confirm_retarget: true,
+      confirm_force: true,
+      confirm_recreate: true,
+    });
+  });
+
+  it("preserves source compile conflict details", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => { void init;
+        if (url.endsWith("/interactive/source/compile")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                detail: {
+                  message: "Confirmation required.",
+                  confirmation: {
+                    reason: "attach",
+                    message: "Attach required.",
+                    stale_conflicts: [],
+                  },
+                },
+              }),
+              { status: 409 },
+            ),
+          );
+        }
+        return Promise.resolve(new Response("{}", { status: 404 }));
+      }),
+    );
+
+    await expect(
+      compileDatabaseSource(
+        {
+          source_text: "create procedure demo as begin null; end;",
+          owner: "APP",
+          name: "DEMO",
+          unit_types: ["PROCEDURE"],
+          attachment_state: "unconnected",
+          baseline_fingerprints: [],
+        },
+        config,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      detail: {
+        message: "Confirmation required.",
+        confirmation: {
+          reason: "attach",
+          message: "Attach required.",
+          stale_conflicts: [],
+        },
+      },
+    });
+  });
+
+  it("reconciles source fingerprints", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => { void init;
+      if (url.endsWith("/interactive/source/reconcile")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              fingerprints: [
+                {
+                  owner: "APP",
+                  name: "DEMO",
+                  unit_type: "PROCEDURE",
+                  digest: "after",
+                  exists: true,
+                  status: "VALID",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 404 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      reconcileDatabaseSource(
+        { owner: "APP", name: "DEMO", unit_types: ["PROCEDURE"] },
+        config,
+      ),
+    ).resolves.toMatchObject({ fingerprints: [{ digest: "after" }] });
+
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/interactive/source/reconcile");
+    expect(request.method).toBe("POST");
+    expect((request.headers as Headers).get("Authorization")).toBe("Bearer test-token");
+    expect(JSON.parse(request.body as string)).toEqual({
+      owner: "APP",
+      name: "DEMO",
+      unit_types: ["PROCEDURE"],
+    });
   });
 });
