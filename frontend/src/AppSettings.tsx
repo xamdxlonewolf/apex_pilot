@@ -272,6 +272,20 @@ export const AppSettings = ({
         <label className="checkbox-row">
           <input
             type="checkbox"
+            checked={layout.autoReconnectInteractive}
+            onChange={(event) =>
+              persistLayout({
+                ...layout,
+                autoReconnectInteractive: event.target.checked,
+              })
+            }
+            disabled={!activeProfileId}
+          />
+          Auto-reconnect interactive pool after idle disconnect
+        </label>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
             checked={layout.showJunkFiles}
             onChange={(event) =>
               persistLayout({

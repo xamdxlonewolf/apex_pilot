@@ -185,6 +185,15 @@ export type InteractivePoolStatus = Readonly<{
   dedicated_limit: number;
   pool_min: number;
   pool_max: number;
+  disconnect_reason?: string | null;
+  idle_warning?: boolean;
+  seconds_until_idle_disconnect?: number | null;
+  idle_timeout_seconds?: number;
+  warning_lead_seconds?: number;
+  has_session_password?: boolean;
+  working_schema?: string | null;
+  reconnect_prompt_dismissed?: boolean;
+  mcp_process?: string | null;
 }>;
 
 export const DISCONNECTED_INTERACTIVE_STATUS: InteractivePoolStatus = {
@@ -195,11 +204,35 @@ export const DISCONNECTED_INTERACTIVE_STATUS: InteractivePoolStatus = {
   dedicated_limit: 5,
   pool_min: 1,
   pool_max: 6,
+  disconnect_reason: null,
+  idle_warning: false,
+  seconds_until_idle_disconnect: null,
+  idle_timeout_seconds: 900,
+  warning_lead_seconds: 60,
+  has_session_password: false,
+  working_schema: null,
+  reconnect_prompt_dismissed: false,
+  mcp_process: null,
 };
 
 export const getInteractiveStatus = async (
   config: BackendConfig = getBackendConfig(),
 ): Promise<InteractivePoolStatus> => apiFetch("/interactive/status", {}, config);
+
+export const reconnectInteractivePool = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<InteractivePoolStatus> =>
+  apiFetch("/interactive/reconnect", { method: "POST" }, config);
+
+export const touchInteractivePool = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<InteractivePoolStatus> =>
+  apiFetch("/interactive/touch", { method: "POST" }, config);
+
+export const dismissInteractiveIdle = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<InteractivePoolStatus> =>
+  apiFetch("/interactive/dismiss-idle", { method: "POST" }, config);
 
 export const getSchemaSummary = async (
   schemaName: string,

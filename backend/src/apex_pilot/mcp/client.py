@@ -28,6 +28,7 @@ _LIVE_TOOL_NAMES = {
     "list-connections": "connections_list",
     "run-sql": "sql_run",
     "run-sqlcl": "sqlcl_run",
+    "disconnect": "disconnect",
 }
 
 
@@ -161,6 +162,10 @@ def _translate_tool_call(tool_name: str, arguments: Mapping[str, object]) -> tup
         connection_name = live_arguments.pop("name", None)
         if connection_name is not None:
             live_arguments["connection_name"] = connection_name
+        live_arguments.setdefault("model", _CLIENT_MODEL_NAME)
+        return live_tool_name, live_arguments
+
+    if live_tool_name == "disconnect":
         live_arguments.setdefault("model", _CLIENT_MODEL_NAME)
         return live_tool_name, live_arguments
 

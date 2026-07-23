@@ -10,6 +10,7 @@ import { AboutDialog, UpdatesDialog } from "./UpdatesDialog";
 import { BrowserAppMenu } from "./BrowserAppMenu";
 import { CommandPalette } from "./CommandPalette";
 import { CompareProjectToDatabaseDialog } from "./CompareProjectToDatabaseDialog";
+import { IdleReconnectDialog } from "./IdleReconnectDialog";
 import {
   matchCommandPaletteShortcut,
   type CommandPaletteAction,
@@ -59,12 +60,15 @@ import {
   checkBackendHealth,
   closeCurrentProject,
   connectSavedConnection,
+  dismissInteractiveIdle,
   getBackendConfig,
   getCurrentProject,
   getInteractiveStatus,
   listActivity,
   listSavedConnections,
+  reconnectInteractivePool,
   resolveBackendConfig,
+  touchInteractivePool,
 } from "./backend";
 import { interactiveHealthLabel } from "./shellHealth";
 
@@ -136,6 +140,12 @@ export const App = () => {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [compareProjectDbOpen, setCompareProjectDbOpen] = useState(false);
+  const [idleDialogOpen, setIdleDialogOpen] = useState(false);
+  const [idleDialogMode, setIdleDialogMode] = useState<"warning" | "disconnected" | "dead">(
+    "warning",
+  );
+  const [interactiveReconnectBusy, setInteractiveReconnectBusy] = useState(false);
+  const autoReconnectHandledRef = useRef(false);
 
   const openedProjectId = openedProject?.project.project_id ?? null;
   if (openedProjectId !== focusModeProjectId) {
@@ -192,6 +202,7 @@ export const App = () => {
   const refreshInteractiveStatus = useCallback(async () => {
     if (!isBackendOnline || !projectOpen) {
       setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);
+      setIdleDialogOpen(false);
       return;
     }
     try {
@@ -205,10 +216,99 @@ export const App = () => {
       ) {
         setInteractiveStatus(next);
       }
+
+      if (next.state === "connected" && next.idle_warning) {
+        setIdleDialogMode("warning");
+        setIdleDialogOpen(true);
+        autoReconnectHandledRef.current = false;
+      } else if (next.state === "dead") {
+        setIdleDialogMode("dead");
+        setIdleDialogOpen(true);
+      } else if (
+        next.state === "disconnected" &&
+        next.disconnect_reason === "app_idle" &&
+        next.has_session_password &&
+        !next.reconnect_prompt_dismissed
+      ) {
+        if (layout.autoReconnectInteractive && !autoReconnectHandledRef.current) {
+          autoReconnectHandledRef.current = true;
+          setInteractiveReconnectBusy(true);
+          try {
+            const reconnected = await reconnectInteractivePool(backendConfig);
+            setInteractiveStatus(reconnected);
+            setIdleDialogOpen(false);
+          } catch {
+            setIdleDialogMode("disconnected");
+            setIdleDialogOpen(true);
+          } finally {
+            setInteractiveReconnectBusy(false);
+          }
+        } else if (!layout.autoReconnectInteractive) {
+          setIdleDialogMode("disconnected");
+          setIdleDialogOpen(true);
+        }
+      } else if (next.state === "connected" && !next.idle_warning) {
+        if (idleDialogMode === "warning") {
+          setIdleDialogOpen(false);
+        }
+      }
     } catch {
       // Keep last known cue; Settings/dialog remounts must not invent Connected.
     }
-  }, [backendConfig, isBackendOnline, projectOpen]);
+  }, [backendConfig, idleDialogMode, isBackendOnline, layout.autoReconnectInteractive, projectOpen]);
+
+  const handleInteractiveReconnect = useCallback(async () => {
+    setInteractiveReconnectBusy(true);
+    try {
+      const next = await reconnectInteractivePool(backendConfig);
+      setInteractiveStatus(next);
+      setIdleDialogOpen(false);
+      autoReconnectHandledRef.current = false;
+    } catch {
+      setIdleDialogMode("dead");
+      setIdleDialogOpen(true);
+    } finally {
+      setInteractiveReconnectBusy(false);
+    }
+  }, [backendConfig]);
+
+  const handleIdleKeepConnected = useCallback(async () => {
+    try {
+      const next = await touchInteractivePool(backendConfig);
+      setInteractiveStatus(next);
+      setIdleDialogOpen(false);
+    } catch {
+      // Keep dialog open if touch failed.
+    }
+  }, [backendConfig]);
+
+  const handleIdleDismiss = useCallback(async () => {
+    try {
+      const next = await dismissInteractiveIdle(backendConfig);
+      setInteractiveStatus(next);
+    } catch {
+      setInteractiveStatus((current) => ({
+        ...current,
+        state: "disconnected",
+        reconnect_prompt_dismissed: true,
+      }));
+    } finally {
+      setIdleDialogOpen(false);
+      autoReconnectHandledRef.current = true;
+    }
+  }, [backendConfig]);
+
+  const handleAutoReconnectPrefChange = useCallback(
+    (value: boolean) => {
+      if (!profileId) {
+        return;
+      }
+      const next = { ...layout, autoReconnectInteractive: value };
+      setLayout(next);
+      saveProfileLayout(profileId, next);
+    },
+    [layout, profileId],
+  );
 
   useEffect(() => {
     void refreshInteractiveStatus();
@@ -661,6 +761,8 @@ export const App = () => {
             onConnect={connectSelectedConnection}
             isConnecting={isConnecting}
             interactiveStatus={interactiveStatus}
+            onInteractiveReconnect={() => void handleInteractiveReconnect()}
+            interactiveReconnectBusy={interactiveReconnectBusy}
             layout={layout}
             onLayoutChange={setLayout}
             activityCount={activityEntries.length}
@@ -737,6 +839,18 @@ export const App = () => {
       <CompareProjectToDatabaseDialog
         open={compareProjectDbOpen}
         onClose={() => setCompareProjectDbOpen(false)}
+      />
+      <IdleReconnectDialog
+        open={idleDialogOpen && projectOpen}
+        mode={idleDialogMode}
+        profileName={interactiveStatus.display_name ?? interactiveStatus.profile_id}
+        secondsRemaining={interactiveStatus.seconds_until_idle_disconnect ?? null}
+        autoReconnect={layout.autoReconnectInteractive}
+        onAutoReconnectChange={handleAutoReconnectPrefChange}
+        busy={interactiveReconnectBusy}
+        onKeepConnected={() => void handleIdleKeepConnected()}
+        onReconnect={() => void handleInteractiveReconnect()}
+        onDismiss={() => void handleIdleDismiss()}
       />
     </div>
   );

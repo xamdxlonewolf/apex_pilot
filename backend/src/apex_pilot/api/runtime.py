@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
@@ -43,6 +44,10 @@ _MCP_SESSION_DEAD_MARKERS = (
     "closedresourceerror",
 )
 
+# Distinct from interactive pool idle: stop SQLcl process 5 minutes after the
+# final MCP database session disconnects (ADR-0008).
+SQLCL_MCP_IDLE_STOP_SECONDS = 5 * 60
+
 
 class ApexPilotRuntime:
     """App-scoped façade over MCP, schema intelligence, activity, and projects."""
@@ -59,6 +64,8 @@ class ApexPilotRuntime:
         owns_metadata_store: bool = False,
         interactive_pool: InteractiveOraclePool | None = None,
         interactive_driver: OraclePoolDriver | None = None,
+        clock: Callable[[], float] | None = None,
+        mcp_idle_stop_seconds: int = SQLCL_MCP_IDLE_STOP_SECONDS,
     ) -> None:
         self._managed_client = managed_client
         self._activity_log = activity_log or ToolActivityLog()
@@ -73,6 +80,10 @@ class ApexPilotRuntime:
         self._opened_project: OpenedProject | None = None
         self._mcp_lock = asyncio.Lock()
         self._interactive_pool = interactive_pool or InteractiveOraclePool(driver=interactive_driver)
+        self._clock = clock or time.monotonic
+        self._mcp_idle_stop_seconds = max(1, int(mcp_idle_stop_seconds))
+        self._mcp_idle_since: float | None = None
+        self._mcp_process_stopped_for_idle = False
 
     @classmethod
     def live(cls, settings: BackendSettings) -> ApexPilotRuntime:
@@ -101,6 +112,7 @@ class ApexPilotRuntime:
         """Start any owned runtime resources."""
         if self._managed_client is not None:
             await self._managed_client.start()
+            self._mcp_process_stopped_for_idle = False
 
     async def stop(self) -> None:
         """Stop any owned runtime resources."""
@@ -141,17 +153,37 @@ class ApexPilotRuntime:
         return self._interactive_pool
 
     def interactive_status(self) -> InteractivePoolStatus:
-        """Return interactive driver binding status for Context Bar / status bar."""
-        return self._interactive_pool.status()
+        """Return interactive driver binding status after applying idle policy."""
+        return self._interactive_pool.evaluate_idle_policy()
 
     def open_interactive_pool(
         self,
         binding: InteractiveDriverBinding,
         *,
         password: str,
+        working_schema: str | None = None,
     ) -> InteractivePoolStatus:
         """Open or keep the interactive pool for the selected Connection Profile."""
+        if working_schema is not None:
+            self._interactive_pool.set_working_schema(working_schema)
         self._interactive_pool.open(binding, password=password)
+        return self._interactive_pool.status()
+
+    def reconnect_interactive_pool(self) -> InteractivePoolStatus:
+        """Lazy reconnect using the retained session-only password."""
+        return self._interactive_pool.reconnect()
+
+    def touch_interactive_activity(self) -> InteractivePoolStatus:
+        """Reset the interactive idle clock (Keep connected)."""
+        return self._interactive_pool.touch_activity()
+
+    def dismiss_interactive_idle_prompt(self) -> InteractivePoolStatus:
+        """Cancel reconnect UX — Unconnected until manual reconnect."""
+        return self._interactive_pool.dismiss_idle_prompt()
+
+    def set_interactive_working_schema(self, schema_name: str | None) -> InteractivePoolStatus:
+        """Persist Working Schema for interactive reconnect verification."""
+        self._interactive_pool.set_working_schema(schema_name)
         return self._interactive_pool.status()
 
     def disconnect_interactive_pool(self) -> InteractivePoolStatus:
@@ -159,19 +191,53 @@ class ApexPilotRuntime:
         self._interactive_pool.close()
         return self._interactive_pool.status()
 
+    def mcp_process_status(self) -> str:
+        """Honest SQLcl MCP process state (independent of Connection Profile)."""
+        if self._managed_client is None:
+            return "unmanaged"
+        if self._mcp_process_stopped_for_idle:
+            return "stopped"
+        if getattr(self._managed_client, "is_running", False):
+            return "running"
+        return "stopped"
+
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
         return await self._with_mcp_recovery(self._connection_manager.list_saved_connections)
 
     async def connect(self, connection_name: str) -> str:
         """Connect the primary MCP session by saved connection name."""
-        # Tag future activity with this connection before the MCP connect call so
-        # reconnects keep prior history for the same saved connection name.
         self._activity_log.set_active_connection(connection_name)
         async with self._mcp_lock:
-            return await self._with_mcp_recovery(
+            connected = await self._with_mcp_recovery(
                 lambda: self._connection_manager.connect(connection_name),
             )
+            self._mcp_idle_since = None
+            return connected
+
+    async def disconnect_mcp_sessions(self) -> None:
+        """Disconnect MCP database sessions; start the process-idle clock."""
+        async with self._mcp_lock:
+            await self._with_mcp_recovery(self._connection_manager.disconnect)
+            if not self._connection_manager.has_connected_session():
+                self._mcp_idle_since = self._clock()
+
+    async def evaluate_mcp_idle_stop(self) -> str:
+        """Stop the SQLcl MCP process 5 minutes after the final session disconnect."""
+        if self._managed_client is None:
+            return self.mcp_process_status()
+        if self._connection_manager.has_connected_session():
+            self._mcp_idle_since = None
+            return self.mcp_process_status()
+        if self._mcp_idle_since is None:
+            return self.mcp_process_status()
+        if self._clock() - self._mcp_idle_since < self._mcp_idle_stop_seconds:
+            return self.mcp_process_status()
+        if getattr(self._managed_client, "is_running", True):
+            await self._managed_client.stop()
+        self._mcp_process_stopped_for_idle = True
+        self._mcp_idle_since = None
+        return self.mcp_process_status()
 
     async def summarize_schema(self, schema_name: str, *, refresh: bool = False) -> SchemaSummary:
         """Return a schema summary through guarded MCP dictionary queries."""
@@ -205,9 +271,6 @@ class ApexPilotRuntime:
         active_schema: str | None = None
         executable_sql = sql_text
         if schema_name:
-            # Qualify unqualified objects with the working schema. SQLcl MCP
-            # sql_run often executes only the first statement, so ALTER SESSION
-            # prefixes are unreliable for DDL.
             active_schema = normalize_dictionary_identifier(schema_name)
             executable_sql = self._schema_service.sql_with_current_schema(
                 active_schema,
@@ -242,8 +305,24 @@ class ApexPilotRuntime:
         """Return the SQLcl MCP configuration used by this runtime."""
         return self._sqlcl_config
 
+    async def _ensure_mcp_started(self) -> None:
+        if self._managed_client is None:
+            return
+        if self._mcp_process_stopped_for_idle:
+            await self._managed_client.start()
+            self._mcp_process_stopped_for_idle = False
+            return
+        # Production SDK client exposes is_running. Test doubles without the
+        # attribute are assumed already available (do not break MCP connect).
+        is_running = getattr(self._managed_client, "is_running", None)
+        if is_running is False:
+            await self._managed_client.start()
+            self._mcp_process_stopped_for_idle = False
+
     async def _with_mcp_recovery(self, operation: Callable[[], Awaitable[_T]]) -> _T:
-        """Run an MCP operation once, restarting a dead managed client on transport failure."""
+        """Run an MCP operation once, restarting a dead/stopped managed client on demand."""
+        await self.evaluate_mcp_idle_stop()
+        await self._ensure_mcp_started()
         try:
             return await operation()
         except SqlclMcpError as error:
@@ -251,6 +330,7 @@ class ApexPilotRuntime:
                 raise
             await self._managed_client.stop()
             await self._managed_client.start()
+            self._mcp_process_stopped_for_idle = False
             return await operation()
 
 

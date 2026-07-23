@@ -32,6 +32,8 @@ export type ProfileLayoutPrefs = Readonly<{
   showConsole: boolean;
   showJunkFiles: boolean;
   skipDestructiveSqlPrompt: boolean;
+  /** Persist optional auto-reconnect after application idle disconnect (ADR-0008). */
+  autoReconnectInteractive: boolean;
   rightTools: ReadonlyArray<"files" | "mappings">;
 }>;
 
@@ -146,6 +148,7 @@ export const defaultProfileLayout = (): ProfileLayoutPrefs => ({
   showConsole: false,
   showJunkFiles: false,
   skipDestructiveSqlPrompt: false,
+  autoReconnectInteractive: false,
   // Legacy field; Inspector is no longer a tool-tab host (issue #36).
   rightTools: [],
 });
@@ -186,6 +189,7 @@ export const loadProfileLayout = (profileId: string | null): ProfileLayoutPrefs 
       showConsole: Boolean(merged.showConsole),
       showJunkFiles: Boolean(merged.showJunkFiles),
       skipDestructiveSqlPrompt: Boolean(merged.skipDestructiveSqlPrompt),
+      autoReconnectInteractive: Boolean(merged.autoReconnectInteractive),
       rightTools: Array.isArray(merged.rightTools) ? merged.rightTools : [],
     };
   } catch {

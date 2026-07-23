@@ -163,6 +163,8 @@ type IdeWorkspaceProps = Readonly<{
   onConnect: (connectionName?: string) => Promise<void> | void;
   isConnecting: boolean;
   interactiveStatus: InteractivePoolStatus;
+  onInteractiveReconnect?: () => void;
+  interactiveReconnectBusy?: boolean;
   layout: ProfileLayoutPrefs;
   onLayoutChange: (
     next: ProfileLayoutPrefs | ((current: ProfileLayoutPrefs) => ProfileLayoutPrefs),
@@ -311,6 +313,8 @@ export const IdeWorkspace = ({
   onConnect,
   isConnecting,
   interactiveStatus,
+  onInteractiveReconnect,
+  interactiveReconnectBusy = false,
   layout,
   onLayoutChange,
   activityCount,
@@ -1035,6 +1039,8 @@ export const IdeWorkspace = ({
         onWorkingSchemaChange={handleWorkingSchemaChange}
         interactiveStatus={interactiveStatus}
         onOpenSettings={onOpenSettings}
+        onInteractiveReconnect={onInteractiveReconnect}
+        interactiveReconnectBusy={interactiveReconnectBusy}
       />
 
       <div

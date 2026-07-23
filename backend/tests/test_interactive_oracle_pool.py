@@ -11,7 +11,6 @@ from apex_pilot.interactive import (
     InteractiveDriverBinding,
     InteractiveOraclePool,
     InteractivePoolState,
-    InteractivePoolStatus,
     PoolNotOpenError,
 )
 
@@ -73,7 +72,9 @@ class FakeOracleDriver:
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> FakeDriverPool:
+        _ = timeout
         pool = FakeDriverPool(min=min, max=max, user=user, dsn=dsn, password=password)
         self.pools.append(pool)
         return pool
@@ -95,15 +96,15 @@ def test_pool_opens_and_reports_connected() -> None:
     pool.open(BINDING, password="s3cret")
 
     status = pool.status()
-    assert status == InteractivePoolStatus(
-        state=InteractivePoolState.CONNECTED,
-        profile_id="profile-hr",
-        display_name="HR Dev",
-        dedicated_pinned=0,
-        dedicated_limit=5,
-        pool_min=1,
-        pool_max=6,
-    )
+    assert status.state is InteractivePoolState.CONNECTED
+    assert status.profile_id == "profile-hr"
+    assert status.display_name == "HR Dev"
+    assert status.dedicated_pinned == 0
+    assert status.dedicated_limit == 5
+    assert status.pool_min == 1
+    assert status.pool_max == 6
+    assert status.has_session_password is True
+    assert status.disconnect_reason is None
     assert len(driver.pools) == 1
     assert driver.pools[0].user == "hr"
     assert driver.pools[0].dsn == "localhost:1521/FREEPDB1"
