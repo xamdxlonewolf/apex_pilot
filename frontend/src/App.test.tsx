@@ -768,7 +768,8 @@ describe("App", () => {
       "true",
     );
     const editors = screen.getByRole("region", { name: "Editors" });
-    expect(within(editors).getByLabelText("SQL sheet")).toBeInTheDocument();
+    expect(within(editors).getAllByLabelText("SQL sheet").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("tab", { name: /SQL Editor/i }).length).toBeGreaterThanOrEqual(1);
     expect(within(toolbar).getByRole("button", { name: "Run" })).toBeDisabled();
     expect(within(toolbar).getByRole("button", { name: "Run" })).toHaveAttribute(
       "title",

@@ -234,6 +234,42 @@ export const dismissInteractiveIdle = async (
 ): Promise<InteractivePoolStatus> =>
   apiFetch("/interactive/dismiss-idle", { method: "POST" }, config);
 
+export type DedicatedSessionPin = Readonly<{
+  document_id: string;
+  profile_id: string;
+  dedicated_pinned: number;
+  dedicated_limit: number;
+  state: string;
+}>;
+
+export const acquireDedicatedSession = async (
+  documentId: string,
+  config: BackendConfig = getBackendConfig(),
+): Promise<DedicatedSessionPin> =>
+  apiFetch(
+    "/interactive/sessions/acquire",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ document_id: documentId }),
+    },
+    config,
+  );
+
+export const releaseDedicatedSession = async (
+  documentId: string,
+  config: BackendConfig = getBackendConfig(),
+): Promise<DedicatedSessionPin> =>
+  apiFetch(
+    "/interactive/sessions/release",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ document_id: documentId }),
+    },
+    config,
+  );
+
 export const getSchemaSummary = async (
   schemaName: string,
   options: Readonly<{ refresh?: boolean; config?: BackendConfig }> = {},

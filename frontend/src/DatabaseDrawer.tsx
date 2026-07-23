@@ -1,5 +1,6 @@
 import {
   type BackendConfig,
+  type InteractivePoolStatus,
   type SchemaSummary,
 } from "./backend";
 import { SchemaBrowser, type SchemaOpenTarget } from "./SchemaBrowser";
@@ -7,6 +8,7 @@ import { SchemaBrowser, type SchemaOpenTarget } from "./SchemaBrowser";
 export type DatabaseDrawerProps = Readonly<{
   backendConfig: BackendConfig;
   connectedConnection: string | null;
+  interactiveStatus: InteractivePoolStatus;
   isBackendOnline: boolean;
   projectSchemaOverride: string | null;
   workingSchema: string;
@@ -22,6 +24,7 @@ export type DatabaseDrawerProps = Readonly<{
 export const DatabaseDrawer = ({
   backendConfig,
   connectedConnection,
+  interactiveStatus,
   isBackendOnline,
   projectSchemaOverride,
   workingSchema,
@@ -41,6 +44,7 @@ export const DatabaseDrawer = ({
     <SchemaBrowser
       backendConfig={backendConfig}
       connectedConnection={connectedConnection}
+      interactiveStatus={interactiveStatus}
       isBackendOnline={isBackendOnline}
       projectSchemaOverride={projectSchemaOverride}
       workingSchema={workingSchema}
