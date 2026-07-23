@@ -311,14 +311,23 @@ export const App = () => {
   );
 
   useEffect(() => {
-    void refreshInteractiveStatus();
     if (!isBackendOnline || !projectOpen) {
-      return;
+      const reset = window.setTimeout(() => {
+        setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);
+        setIdleDialogOpen(false);
+      }, 0);
+      return () => window.clearTimeout(reset);
     }
+    const kick = window.setTimeout(() => {
+      void refreshInteractiveStatus();
+    }, 0);
     const timer = window.setInterval(() => {
       void refreshInteractiveStatus();
     }, 5000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(kick);
+      window.clearInterval(timer);
+    };
   }, [isBackendOnline, projectOpen, refreshInteractiveStatus]);
 
   const refreshConnections = useCallback(async () => {

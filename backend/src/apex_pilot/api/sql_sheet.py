@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from apex_pilot.mcp import SqlclConnectionError, SqlclMcpSession, SqlRequestAccess
+from apex_pilot.mcp import SqlclConnectionError, SqlclMcpSession
 from apex_pilot.safety import (
     SafetyDecision,
     SqlSafetyClassification,

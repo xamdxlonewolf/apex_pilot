@@ -615,7 +615,14 @@ def touch_interactive_pool(request: Request) -> InteractivePoolStatusResponse:
 def dismiss_interactive_idle(request: Request) -> InteractivePoolStatusResponse:
     """Cancel/dismiss idle reconnect prompt — Unconnected until manual reconnect."""
     runtime = _runtime_from_request(request)
-    return _interactive_status_response(runtime.dismiss_interactive_idle_prompt(), runtime)
+    try:
+        snapshot = runtime.dismiss_interactive_idle_prompt()
+    except InteractivePoolError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    return _interactive_status_response(snapshot, runtime)
 
 
 @router.post(

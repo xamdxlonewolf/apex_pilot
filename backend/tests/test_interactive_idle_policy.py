@@ -7,16 +7,15 @@ from dataclasses import dataclass, field
 import pytest
 
 from apex_pilot.interactive import (
-    InteractiveDriverBinding,
-    InteractiveOraclePool,
-    InteractivePoolState,
-    PoolNotOpenError,
-)
-from apex_pilot.interactive.pool import (
     DEFAULT_IDLE_TIMEOUT_SECONDS,
     DEFAULT_WARNING_LEAD_SECONDS,
-    DisconnectReason,
     READONLY_POOL_MEMBER_TIMEOUT_SECONDS,
+    DisconnectReason,
+    InteractiveDriverBinding,
+    InteractiveOraclePool,
+    InteractivePoolError,
+    InteractivePoolState,
+    PoolNotOpenError,
 )
 
 
@@ -217,6 +216,21 @@ def test_dismiss_idle_prompt_leaves_unconnected_until_manual_reconnect() -> None
     assert driver.pools[0].closed is True
 
 
+def test_dismiss_idle_prompt_blocked_while_in_flight_or_uncertain() -> None:
+    pool, driver, _clock = _open_pool()
+
+    with pool.borrow_readonly():
+        with pytest.raises(InteractivePoolError, match="in flight"):
+            pool.dismiss_idle_prompt()
+        assert driver.pools[0].closed is False
+        assert pool.status().state is InteractivePoolState.CONNECTED
+
+    pool.set_transaction_uncertain(True)
+    with pytest.raises(InteractivePoolError, match="uncertain"):
+        pool.dismiss_idle_prompt()
+    assert driver.pools[0].closed is False
+
+
 def test_reconnect_reuses_session_password_and_restores_working_schema() -> None:
     pool, driver, clock = _open_pool()
     pool.set_working_schema("HR")
@@ -245,7 +259,7 @@ def test_explicit_close_clears_session_password() -> None:
 
     assert pool.status().has_session_password is False
     assert pool.status().profile_id is None
-    with pytest.raises(Exception):
+    with pytest.raises(InteractivePoolError):
         pool.reconnect()
 
 

@@ -212,11 +212,7 @@ class InteractiveOraclePool:
         binding = self._binding
         idle_warning = False
         seconds_until: float | None = None
-        if (
-            self._state is InteractivePoolState.CONNECTED
-            and self._in_flight == 0
-            and not self._transaction_uncertain
-        ):
+        if self._state is InteractivePoolState.CONNECTED and self._in_flight == 0 and not self._transaction_uncertain:
             remaining = self._idle_timeout_seconds - (self._clock() - self._last_activity_at)
             seconds_until = max(0.0, remaining)
             idle_warning = 0 < remaining <= self._warning_lead_seconds
@@ -338,7 +334,15 @@ class InteractiveOraclePool:
         self._transaction_uncertain = uncertain
 
     def dismiss_idle_prompt(self) -> InteractivePoolStatus:
-        """Cancel/dismiss reconnect UX — leave Unconnected until manual reconnect."""
+        """Cancel/dismiss reconnect UX — leave Unconnected until manual reconnect.
+
+        Refuses teardown while a call is in flight or transaction state is
+        uncertain (ADR-0008), matching automatic idle disconnect guards.
+        """
+        if self._in_flight > 0 or self._transaction_uncertain:
+            msg = "Cannot dismiss idle reconnect while a database call is in flight or transaction state is uncertain."
+            raise InteractivePoolError(msg)
+
         self._reconnect_prompt_dismissed = True
         if self._pool is not None or self._state is InteractivePoolState.CONNECTED:
             self._teardown_pool_keep_credentials(DisconnectReason.APP_IDLE)
