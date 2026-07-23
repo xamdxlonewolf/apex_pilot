@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from fastapi.testclient import TestClient
@@ -101,7 +102,7 @@ class FakeToolClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, object]]] = []
 
-    async def call_tool(self, tool_name: str, arguments: dict[str, object]) -> object:
+    async def call_tool(self, tool_name: str, arguments: Mapping[str, object]) -> object:
         self.calls.append((tool_name, dict(arguments)))
         if tool_name == LIST_CONNECTIONS_TOOL:
             return {"connections": [{"name": "dev", "displayName": "Development"}]}
@@ -157,7 +158,7 @@ def make_client(
     tool_client: ManagedFakeClient | FakeToolClient = managed or FakeToolClient()
     runtime = ApexPilotRuntime(
         tool_client,
-        managed_client=managed,
+        managed_client=managed,  # type: ignore[arg-type]
         interactive_pool=pool,
         clock=fake_clock,
     )
