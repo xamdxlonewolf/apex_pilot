@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -88,6 +89,7 @@ class FakeDriverPool:
     dsn: str
     password: str
     shared_objects: dict[tuple[str, str, str], dict[str, Any]]
+    timeout: int = 300
     closed: bool = False
     _next_id: int = 1
     acquired: list[FakeConnection] = field(default_factory=list)
@@ -128,6 +130,7 @@ class FakeOracleDriver:
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> FakeDriverPool:
         pool = FakeDriverPool(
             min=min,
@@ -136,13 +139,14 @@ class FakeOracleDriver:
             dsn=dsn,
             password=password,
             shared_objects=self.objects,
+            timeout=timeout,
         )
         self.pools.append(pool)
         return pool
 
 
 class FakeToolClient:
-    async def call_tool(self, tool_name: str, arguments: dict[str, object]) -> object:
+    async def call_tool(self, tool_name: str, arguments: Mapping[str, object]) -> object:
         if tool_name == LIST_CONNECTIONS_TOOL:
             return {"connections": [{"name": "dev", "displayName": "Development"}]}
         if tool_name == CONNECT_TOOL:

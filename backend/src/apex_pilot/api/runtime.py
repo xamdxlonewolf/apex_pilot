@@ -308,7 +308,6 @@ class ApexPilotRuntime:
             unit_types=unit_types,
         )
 
-
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
         return await self._with_mcp_recovery(self._connection_manager.list_saved_connections)

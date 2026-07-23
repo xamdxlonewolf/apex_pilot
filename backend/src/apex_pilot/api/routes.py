@@ -225,7 +225,6 @@ class SourceReconcileBody(BaseModel):
     unit_types: list[str] = Field(min_length=1)
 
 
-
 class DatabaseContextResponse(BaseModel):
     """Current Oracle database/session context."""
 
@@ -981,11 +980,7 @@ def compile_interactive_source(body: SourceCompileBody, request: Request) -> dic
     )
     result = runtime.compile_database_source(compile_request)
     if result.outcome.value == "blocked":
-        code = (
-            status.HTTP_409_CONFLICT
-            if result.confirmation is not None
-            else status.HTTP_400_BAD_REQUEST
-        )
+        code = status.HTTP_409_CONFLICT if result.confirmation is not None else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=code, detail=result.to_dict())
     if result.outcome.value == "unknown":
         raise HTTPException(
@@ -1025,7 +1020,6 @@ def reconcile_interactive_source(body: SourceReconcileBody, request: Request) ->
     return {
         "fingerprints": [item.to_dict(include_source=True) for item in fingerprints],
     }
-
 
 
 @router.get(
@@ -1508,7 +1502,6 @@ def _parse_unit_types(raw: list[str] | None) -> tuple[OracleUnitType, ...] | Non
     if raw is None:
         return None
     return tuple(_parse_unit_type(item) for item in raw)
-
 
 
 def _runtime_from_request(request: Request) -> ApexPilotRuntime:

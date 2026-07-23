@@ -244,14 +244,10 @@ class DatabaseSourceService:
             )
 
         exists = all(item.exists for item in database_fps)
-        identical = exists and all(
-            local.digest == db.digest for local, db in zip(local_fps, database_fps, strict=True)
-        )
+        identical = exists and all(local.digest == db.digest for local, db in zip(local_fps, database_fps, strict=True))
         database_source = None
         if exists:
-            database_source = "\n\n".join(
-                (item.source_text or "").rstrip() + "\n/" for item in database_fps
-            ) + "\n"
+            database_source = "\n\n".join((item.source_text or "").rstrip() + "\n/" for item in database_fps) + "\n"
         return CompareResult(
             exists=exists,
             identical=identical,
@@ -313,9 +309,7 @@ class DatabaseSourceService:
                         unit_type=unit.identity.unit_type,
                     )
                 ]
-                creating_via_attach = (
-                    request.attachment_state is AttachmentState.UNCONNECTED and request.confirm_attach
-                )
+                creating_via_attach = request.attachment_state is AttachmentState.UNCONNECTED and request.confirm_attach
                 if (
                     missing
                     and not request.confirm_recreate
@@ -514,8 +508,7 @@ class DatabaseSourceService:
         if not request.baseline_fingerprints:
             return ()
         baseline_by_key = {
-            (item.owner.upper(), item.name.upper(), item.unit_type): item
-            for item in request.baseline_fingerprints
+            (item.owner.upper(), item.name.upper(), item.unit_type): item for item in request.baseline_fingerprints
         }
         conflicts: list[StaleConflict] = []
         for unit in units:
@@ -644,9 +637,7 @@ class DatabaseSourceService:
         diagnostics: list[SourceDiagnostic] = []
         for line, position, text, attribute in rows:
             attr = str(attribute).upper() if attribute is not None else "ERROR"
-            severity = (
-                DiagnosticSeverity.WARNING if attr == "WARNING" else DiagnosticSeverity.ERROR
-            )
+            severity = DiagnosticSeverity.WARNING if attr == "WARNING" else DiagnosticSeverity.ERROR
             oracle_line = int(line) if line is not None else None
             mapped_line = (start_line + oracle_line - 1) if oracle_line and oracle_line > 0 else start_line
             diagnostics.append(

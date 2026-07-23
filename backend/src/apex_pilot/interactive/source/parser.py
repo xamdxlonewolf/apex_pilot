@@ -183,10 +183,7 @@ def parse_database_source(
                     diagnostics=(
                         SourceDiagnostic(
                             severity=DiagnosticSeverity.ERROR,
-                            message=(
-                                f"Identity mismatch: expected owner {expected_owner_norm} "
-                                f"but found {owner}."
-                            ),
+                            message=(f"Identity mismatch: expected owner {expected_owner_norm} but found {owner}."),
                             line=unit.start_line,
                             column=1,
                             unit_type=unit.identity.unit_type,
@@ -257,10 +254,7 @@ def _parse_unit_segment(
                 diagnostics.append(
                     SourceDiagnostic(
                         severity=DiagnosticSeverity.ERROR,
-                        message=(
-                            "SQLcl command is not allowed in Database Source Documents: "
-                            f"{line.strip()}"
-                        ),
+                        message=(f"SQLcl command is not allowed in Database Source Documents: {line.strip()}"),
                         line=absolute,
                         column=1,
                     )
@@ -270,10 +264,7 @@ def _parse_unit_segment(
                 diagnostics.append(
                     SourceDiagnostic(
                         severity=DiagnosticSeverity.ERROR,
-                        message=(
-                            "Extra SQL is not allowed in Database Source Documents: "
-                            f"{line.strip()}"
-                        ),
+                        message=(f"Extra SQL is not allowed in Database Source Documents: {line.strip()}"),
                         line=absolute,
                         column=1,
                     )
@@ -310,10 +301,7 @@ def _parse_unit_segment(
                 diagnostics.append(
                     SourceDiagnostic(
                         severity=DiagnosticSeverity.ERROR,
-                        message=(
-                            "SQLcl command is not allowed in Database Source Documents: "
-                            f"{line.strip()}"
-                        ),
+                        message=(f"SQLcl command is not allowed in Database Source Documents: {line.strip()}"),
                         line=prefix_line,
                         column=1,
                     )
@@ -323,10 +311,7 @@ def _parse_unit_segment(
                 diagnostics.append(
                     SourceDiagnostic(
                         severity=DiagnosticSeverity.ERROR,
-                        message=(
-                            "Extra SQL is not allowed in Database Source Documents: "
-                            f"{line.strip()}"
-                        ),
+                        message=(f"Extra SQL is not allowed in Database Source Documents: {line.strip()}"),
                         line=prefix_line,
                         column=1,
                     )
@@ -386,10 +371,7 @@ def _document_kind(units: list[ParsedSourceUnit]) -> DocumentKind:
         diagnostics=(
             SourceDiagnostic(
                 severity=DiagnosticSeverity.ERROR,
-                message=(
-                    "V1 supports a single unit or combined package/type "
-                    "(specification then body)."
-                ),
+                message=("V1 supports a single unit or combined package/type (specification then body)."),
                 line=units[0].start_line,
                 column=1,
             ),

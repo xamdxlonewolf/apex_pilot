@@ -54,9 +54,7 @@ class FakeCursor:
                 # ALL_SOURCE style: strip CREATE OR REPLACE prefix if present.
                 stripped = text.lstrip()
                 body = (
-                    stripped[len("CREATE OR REPLACE ") :]
-                    if stripped.upper().startswith("CREATE OR REPLACE ")
-                    else text
+                    stripped[len("CREATE OR REPLACE ") :] if stripped.upper().startswith("CREATE OR REPLACE ") else text
                 )
                 self.rows = [(line + "\n",) for line in body.splitlines()] or [(body,)]
             return
@@ -143,6 +141,7 @@ class FakeDriverPool:
     password: str
     shared_objects: dict[tuple[str, str, str], dict[str, Any]]
     shared_dependents: dict[tuple[str, str, str], list[tuple[Any, ...]]]
+    timeout: int = 300
     closed: bool = False
     fail_next_ddl: bool = False
     fail_next_ddl_message: str = "DPI-1080: connection was closed"
@@ -195,6 +194,7 @@ class FakeOracleDriver:
         dsn: str,
         min: int,
         max: int,
+        timeout: int = 300,
     ) -> FakeDriverPool:
         pool = FakeDriverPool(
             min=min,
@@ -204,6 +204,7 @@ class FakeOracleDriver:
             password=password,
             shared_objects={key: dict(value) for key, value in self.objects.items()},
             shared_dependents={key: list(value) for key, value in self.dependents.items()},
+            timeout=timeout,
         )
         self.pools.append(pool)
         return pool
