@@ -8,6 +8,7 @@ describe("languageFromPath", () => {
     expect(languageFromPath("scripts/run.py")).toBe("python");
     expect(languageFromPath("styles/main.css")).toBe("css");
     expect(languageFromPath("pkg/body.pkb")).toBe("sql");
+    expect(languageFromPath("pkg/customer.pkg")).toBe("sql");
     expect(languageFromPath("query.sql")).toBe("sql");
     expect(languageFromPath("ui/Button.tsx")).toBe("typescript");
     expect(languageFromPath("lib/util.js")).toBe("javascript");

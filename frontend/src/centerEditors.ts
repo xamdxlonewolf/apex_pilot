@@ -19,11 +19,11 @@ export const CENTER_EDITOR_STUB_META: Readonly<
   object: {
     title: "Object Editor",
     secondary:
-      "Opened from Explorer. Column and source metadata arrives with schema object metadata integration.",
+      "Database Source Document lives in SQL Editor. Unsupported object metadata remains available from Explorer.",
   },
   package: {
     title: "Package Editor",
-    secondary: "Package viewing arrives with PL/SQL source integration.",
+    secondary: "Database Source Document lives in SQL Editor.",
   },
   apex: {
     title: "APEX Editor",

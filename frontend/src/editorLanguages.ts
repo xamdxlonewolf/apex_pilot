@@ -4,6 +4,7 @@ const EXTENSION_LANGUAGE: Readonly<Record<string, string>> = {
   ".sql": "sql",
   ".pls": "sql",
   ".plb": "sql",
+  ".pkg": "sql",
   ".pck": "sql",
   ".pks": "sql",
   ".pkb": "sql",

@@ -1,4 +1,14 @@
-import Editor from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
+import { useEffect, useState } from "react";
+
+export type CodeEditorMarker = Readonly<{
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+  message: string;
+  severity: "error" | "warning" | "info";
+}>;
 
 export type CodeEditorProps = Readonly<{
   /** Stable id — used as Monaco model path and optional DOM id for labels. */
@@ -10,6 +20,8 @@ export type CodeEditorProps = Readonly<{
   disabled?: boolean;
   "aria-label"?: string;
   className?: string;
+  markers?: readonly CodeEditorMarker[];
+  onMount?: OnMount;
 }>;
 
 /**
@@ -25,8 +37,32 @@ export const CodeEditor = ({
   disabled = false,
   "aria-label": ariaLabel,
   className,
+  markers = [],
+  onMount,
 }: CodeEditorProps) => {
   const locked = readOnly || disabled;
+  const [mountedEditor, setMountedEditor] = useState<Parameters<OnMount>[0] | null>(null);
+  const [mountedMonaco, setMountedMonaco] = useState<Parameters<OnMount>[1] | null>(null);
+
+  useEffect(() => {
+    const model = mountedEditor?.getModel();
+    if (!model || !mountedMonaco) {
+      return;
+    }
+    mountedMonaco.editor.setModelMarkers(
+      model,
+      "apex-pilot",
+      markers.map((marker) => ({
+        ...marker,
+        severity:
+          marker.severity === "error"
+            ? mountedMonaco.MarkerSeverity.Error
+            : marker.severity === "warning"
+              ? mountedMonaco.MarkerSeverity.Warning
+              : mountedMonaco.MarkerSeverity.Info,
+      })),
+    );
+  }, [markers, mountedEditor, mountedMonaco]);
 
   return (
     <div className={`code-editor${className ? ` ${className}` : ""}`} data-language={language}>
@@ -36,6 +72,11 @@ export const CodeEditor = ({
         value={value}
         theme="vs-dark"
         loading={<p className="pane-muted">Loading editor…</p>}
+        onMount={(editor, monaco) => {
+          setMountedEditor(editor);
+          setMountedMonaco(monaco);
+          onMount?.(editor, monaco);
+        }}
         onChange={(next) => {
           if (locked) {
             return;

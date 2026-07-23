@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { McpActivityPanel } from "./McpActivityPanel";
 import { StubSurface } from "./StubSurface";
 import type { ActivityEntry } from "./backend";
+import type { DatabaseSourceProblem } from "./databaseSourceDiagnostics";
 
 type ConsoleTabId =
   | "problems"
@@ -57,6 +58,9 @@ type DeveloperConsoleProps = Readonly<{
   activeSessionId: string | null;
   mcpFocusRequest?: number;
   onMcpFocusHandled?: () => void;
+  problems?: readonly DatabaseSourceProblem[];
+  oracleMessages?: readonly string[];
+  focusProblemsRequest?: number;
   onClose?: () => void;
 }>;
 
@@ -66,16 +70,26 @@ export const DeveloperConsole = ({
   activeSessionId,
   mcpFocusRequest = 0,
   onMcpFocusHandled,
+  problems = [],
+  oracleMessages = [],
+  focusProblemsRequest = 0,
   onClose,
 }: DeveloperConsoleProps) => {
   const [activeTabId, setActiveTabId] = useState<ConsoleTabId>(() =>
     mcpFocusRequest > 0 ? "mcp-activity" : CONSOLE_TABS[0].id,
   );
   const [handledMcpFocusRequest, setHandledMcpFocusRequest] = useState(0);
+  const [handledProblemsFocusRequest, setHandledProblemsFocusRequest] = useState(0);
   if (mcpFocusRequest !== handledMcpFocusRequest) {
     setHandledMcpFocusRequest(mcpFocusRequest);
     if (mcpFocusRequest > 0) {
       setActiveTabId("mcp-activity");
+    }
+  }
+  if (focusProblemsRequest !== handledProblemsFocusRequest) {
+    setHandledProblemsFocusRequest(focusProblemsRequest);
+    if (focusProblemsRequest > 0) {
+      setActiveTabId("problems");
     }
   }
   const activeTab = CONSOLE_TABS.find((tab) => tab.id === activeTabId) ?? CONSOLE_TABS[0];
@@ -135,6 +149,19 @@ export const DeveloperConsole = ({
             connectionName={connectionName}
             activeSessionId={activeSessionId}
           />
+        ) : activeTab.id === "problems" && problems.length ? (
+          <ul className="dense-list" aria-label="Problems list">
+            {problems.map((problem, index) => (
+              <li key={`${problem.source}-${problem.line}-${index}`}>
+                <strong>{problem.severity}</strong> {problem.source}
+                {problem.line ? `:${problem.line}${problem.column ? `:${problem.column}` : ""}` : ""} — {problem.message}
+              </li>
+            ))}
+          </ul>
+        ) : activeTab.id === "oracle-messages" && oracleMessages.length ? (
+          <ul className="dense-list" aria-label="Oracle messages">
+            {oracleMessages.map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}
+          </ul>
         ) : (
           <StubSurface title={activeTab.title} secondary={activeTab.secondary} bodyClassName="console-body" />
         )}

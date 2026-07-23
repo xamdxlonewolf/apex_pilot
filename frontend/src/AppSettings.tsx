@@ -286,6 +286,20 @@ export const AppSettings = ({
         <label className="checkbox-row">
           <input
             type="checkbox"
+            checked={layout.blockCloseOnCompileWarnings}
+            onChange={(event) =>
+              persistLayout({
+                ...layout,
+                blockCloseOnCompileWarnings: event.target.checked,
+              })
+            }
+            disabled={!activeProfileId}
+          />
+          Block Database Source Document close when compile has warnings
+        </label>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
             checked={layout.showJunkFiles}
             onChange={(event) =>
               persistLayout({
