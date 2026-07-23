@@ -161,7 +161,11 @@ export const App = () => {
   }
 
   const isBackendOnline = backendStatus.kind === "online";
-  const projectOpen = Boolean(openedProject) && !wizardMode;
+  const hasOpenedProject = Boolean(openedProject);
+  // Settings/connection dialogs must not tear down workspace mounts or pool cues.
+  const projectOpen = hasOpenedProject && !wizardMode;
+  const workspaceMounted =
+    hasOpenedProject && (wizardMode === null || wizardMode === "settings" || wizardMode === "connection");
   const setupLocked =
     !isBackendOnline ||
     shellPhase === "booting" ||
@@ -200,7 +204,7 @@ export const App = () => {
   }, [backendConfig, connectedConnection, isBackendOnline]);
 
   const refreshInteractiveStatus = useCallback(async () => {
-    if (!isBackendOnline || !projectOpen) {
+    if (!isBackendOnline || !hasOpenedProject) {
       setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);
       setIdleDialogOpen(false);
       return;
@@ -255,7 +259,13 @@ export const App = () => {
     } catch {
       // Keep last known cue; Settings/dialog remounts must not invent Connected.
     }
-  }, [backendConfig, idleDialogMode, isBackendOnline, layout.autoReconnectInteractive, projectOpen]);
+  }, [
+    backendConfig,
+    hasOpenedProject,
+    idleDialogMode,
+    isBackendOnline,
+    layout.autoReconnectInteractive,
+  ]);
 
   const handleInteractiveReconnect = useCallback(async () => {
     setInteractiveReconnectBusy(true);
@@ -311,7 +321,8 @@ export const App = () => {
   );
 
   useEffect(() => {
-    if (!isBackendOnline || !projectOpen) {
+    void refreshInteractiveStatus();
+    if (!isBackendOnline || !hasOpenedProject) {
       const reset = window.setTimeout(() => {
         setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);
         setIdleDialogOpen(false);
@@ -328,7 +339,7 @@ export const App = () => {
       window.clearTimeout(kick);
       window.clearInterval(timer);
     };
-  }, [isBackendOnline, projectOpen, refreshInteractiveStatus]);
+  }, [hasOpenedProject, isBackendOnline, refreshInteractiveStatus]);
 
   const refreshConnections = useCallback(async () => {
     if (!isBackendOnline) {
@@ -757,43 +768,54 @@ export const App = () => {
       {nativeAppMenu ? null : <BrowserAppMenu state={appMenuState} handlers={appMenuHandlers} />}
 
       <main className="ide-main">
-        {projectOpen && openedProject ? (
-          <IdeWorkspace
-            backendConfig={backendConfig}
-            backendStatus={backendStatus}
-            isBackendOnline={isBackendOnline}
-            connections={connections}
-            openedProject={openedProject}
-            connectedConnection={connectedConnection}
-            selectedConnection={selectedConnection}
-            onSelectedConnectionChange={setSelectedConnection}
-            onConnect={connectSelectedConnection}
-            isConnecting={isConnecting}
-            interactiveStatus={interactiveStatus}
-            onInteractiveReconnect={() => void handleInteractiveReconnect()}
-            interactiveReconnectBusy={interactiveReconnectBusy}
-            layout={layout}
-            onLayoutChange={setLayout}
-            activityCount={activityEntries.length}
-            activityEntries={activityEntries}
-            activeActivitySessionId={activeActivitySessionId}
-            mcpFocusRequest={mcpFocusRequest}
-            onMcpFocusHandled={handleMcpFocusHandled}
-            onActivityRefresh={refreshActivity}
-            onOpenMcp={() => void openMcp()}
-            onOpenSettings={() => setWizardMode("settings")}
-            sqlDirty={sqlDirty}
-            onSqlDirtyChange={setSqlDirty}
-            openCenterEditorKind={openCenterEditorKind}
-            openCenterEditorRequest={openCenterEditorRequest}
-            focusMode={focusMode}
-            onFocusModeChange={handleFocusModeChange}
-            activityRail={activityRail}
-            onActivityRailChange={setActivityRail}
-            shellSession={shellSession}
-            onShellSessionChange={setShellSession}
-          />
-        ) : (
+        {workspaceMounted && openedProject ? (
+          <div
+            style={{
+              display: wizardMode ? "none" : undefined,
+              height: "100%",
+              minHeight: 0,
+            }}
+            aria-hidden={Boolean(wizardMode)}
+          >
+            <IdeWorkspace
+              backendConfig={backendConfig}
+              backendStatus={backendStatus}
+              isBackendOnline={isBackendOnline}
+              connections={connections}
+              openedProject={openedProject}
+              connectedConnection={connectedConnection}
+              selectedConnection={selectedConnection}
+              onSelectedConnectionChange={setSelectedConnection}
+              onConnect={connectSelectedConnection}
+              isConnecting={isConnecting}
+              interactiveStatus={interactiveStatus}
+              onInteractiveReconnect={() => void handleInteractiveReconnect()}
+              interactiveReconnectBusy={interactiveReconnectBusy}
+              onInteractiveStatusRefresh={refreshInteractiveStatus}
+              layout={layout}
+              onLayoutChange={setLayout}
+              activityCount={activityEntries.length}
+              activityEntries={activityEntries}
+              activeActivitySessionId={activeActivitySessionId}
+              mcpFocusRequest={mcpFocusRequest}
+              onMcpFocusHandled={handleMcpFocusHandled}
+              onActivityRefresh={refreshActivity}
+              onOpenMcp={() => void openMcp()}
+              onOpenSettings={() => setWizardMode("settings")}
+              sqlDirty={sqlDirty}
+              onSqlDirtyChange={setSqlDirty}
+              openCenterEditorKind={openCenterEditorKind}
+              openCenterEditorRequest={openCenterEditorRequest}
+              focusMode={focusMode}
+              onFocusModeChange={handleFocusModeChange}
+              activityRail={activityRail}
+              onActivityRailChange={setActivityRail}
+              shellSession={shellSession}
+              onShellSessionChange={setShellSession}
+            />
+          </div>
+        ) : null}
+        {!workspaceMounted || wizardMode ? (
           <StartupFunnel
             backendConfig={backendConfig}
             isBackendOnline={isBackendOnline}
@@ -810,7 +832,7 @@ export const App = () => {
             wizardMode={wizardMode}
             onWizardModeChange={handleWizardModeChange}
           />
-        )}
+        ) : null}
       </main>
 
       <footer className="ide-statusbar" aria-label="Status bar">

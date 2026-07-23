@@ -10,9 +10,13 @@ from typing import TypeVar
 from apex_pilot.api.sql_sheet import SqlSheetRunResult, SqlSheetService
 from apex_pilot.events import ToolActivityEntry, ToolActivityLog
 from apex_pilot.interactive import (
+    DedicatedSessionPin,
+    InteractiveBrowseService,
     InteractiveDriverBinding,
     InteractiveOraclePool,
+    InteractivePoolState,
     InteractivePoolStatus,
+    InteractiveSessionService,
     OraclePoolDriver,
 )
 from apex_pilot.mcp import (
@@ -80,6 +84,8 @@ class ApexPilotRuntime:
         self._opened_project: OpenedProject | None = None
         self._mcp_lock = asyncio.Lock()
         self._interactive_pool = interactive_pool or InteractiveOraclePool(driver=interactive_driver)
+        self._interactive_browse = InteractiveBrowseService(self._interactive_pool)
+        self._interactive_sessions = InteractiveSessionService(self._interactive_pool)
         self._clock = clock or time.monotonic
         self._mcp_idle_stop_seconds = max(1, int(mcp_idle_stop_seconds))
         self._mcp_idle_since: float | None = None
@@ -116,6 +122,7 @@ class ApexPilotRuntime:
 
     async def stop(self) -> None:
         """Stop any owned runtime resources."""
+        self._interactive_browse.clear_cache()
         self._interactive_pool.close()
         if self._managed_client is not None:
             await self._managed_client.stop()
@@ -140,6 +147,7 @@ class ApexPilotRuntime:
 
     def close_project(self) -> None:
         """Clear the currently opened project without deleting local registration."""
+        self._interactive_browse.clear_cache()
         self._interactive_pool.close()
         self._opened_project = None
 
@@ -156,6 +164,10 @@ class ApexPilotRuntime:
         """Return interactive driver binding status after applying idle policy."""
         return self._interactive_pool.evaluate_idle_policy()
 
+    def interactive_browse_available(self) -> bool:
+        """True when Database Drawer / session-context should use borrow leases."""
+        return self._interactive_pool.status().state is InteractivePoolState.CONNECTED
+
     def open_interactive_pool(
         self,
         binding: InteractiveDriverBinding,
@@ -164,6 +176,9 @@ class ApexPilotRuntime:
         working_schema: str | None = None,
     ) -> InteractivePoolStatus:
         """Open or keep the interactive pool for the selected Connection Profile."""
+        prior = self._interactive_pool.status()
+        if prior.profile_id and prior.profile_id != binding.profile_id:
+            self._interactive_browse.clear_cache()
         if working_schema is not None:
             self._interactive_pool.set_working_schema(working_schema)
         self._interactive_pool.open(binding, password=password)
@@ -188,6 +203,7 @@ class ApexPilotRuntime:
 
     def disconnect_interactive_pool(self) -> InteractivePoolStatus:
         """Explicitly disconnect the interactive pool and clear session credentials."""
+        self._interactive_browse.clear_cache()
         self._interactive_pool.close()
         return self._interactive_pool.status()
 
@@ -200,6 +216,18 @@ class ApexPilotRuntime:
         if getattr(self._managed_client, "is_running", False):
             return "running"
         return "stopped"
+
+    def acquire_dedicated_session(self, document_id: str) -> DedicatedSessionPin:
+        """Pin a dedicated interactive session for one SQL/PLSQL editor document."""
+        return self._interactive_sessions.acquire(document_id)
+
+    def release_dedicated_session(self, document_id: str) -> DedicatedSessionPin | None:
+        """Release a dedicated editor pin on tab close/detach (idempotent)."""
+        return self._interactive_sessions.release(document_id)
+
+    def clear_interactive_browse_cache(self) -> None:
+        """Invalidate browse caches (Refresh / Working Schema change)."""
+        self._interactive_browse.clear_cache()
 
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""
@@ -240,11 +268,21 @@ class ApexPilotRuntime:
         return self.mcp_process_status()
 
     async def summarize_schema(self, schema_name: str, *, refresh: bool = False) -> SchemaSummary:
-        """Return a schema summary through guarded MCP dictionary queries."""
+        """Return a schema summary via interactive borrow when connected, else MCP."""
+        if self.interactive_browse_available():
+            if refresh:
+                self._interactive_browse.clear_cache()
+            return await asyncio.to_thread(
+                self._interactive_browse.summarize_schema,
+                schema_name,
+                refresh=refresh,
+            )
         return await self._schema_service.summarize_schema(schema_name, refresh=refresh)
 
     async def fetch_database_context(self) -> DatabaseContext:
-        """Return live Oracle session context for the connected MCP session."""
+        """Return session context via interactive borrow when connected, else MCP."""
+        if self.interactive_browse_available():
+            return await asyncio.to_thread(self._interactive_browse.fetch_database_context)
         return await self._schema_service.fetch_database_context()
 
     async def set_current_schema(self, schema_name: str) -> str:

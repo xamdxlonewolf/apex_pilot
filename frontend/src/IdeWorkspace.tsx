@@ -31,6 +31,7 @@ import {
   type SavedConnection,
   type SchemaSummary,
   getSessionContextOnce,
+  releaseDedicatedSession,
 } from "./backend";
 import {
   applyFocusModeSelection,
@@ -101,11 +102,25 @@ const EDITOR_TAB_KINDS = new Set<WorkspaceTabKind>([
 
 const isEditorTab = (tab: WorkspaceTab): boolean => EDITOR_TAB_KINDS.has(tab.kind);
 
-const isCloseableEditorTab = (tab: WorkspaceTab): boolean => tab.kind !== "sql";
+const isCloseableEditorTab = (tab: WorkspaceTab, tabs: readonly WorkspaceTab[]): boolean => {
+  if (tab.kind !== "sql") {
+    return true;
+  }
+  return tabs.filter((item) => item.kind === "sql").length > 1;
+};
 
 const defaultEditorTabs = (): WorkspaceTab[] => [
   { id: "sql", kind: "sql", title: "SQL Editor" },
 ];
+
+const nextSqlDocumentId = (tabs: readonly WorkspaceTab[]): string => {
+  let index = 2;
+  const used = new Set(tabs.map((tab) => tab.id));
+  while (used.has(`sql:${index}`)) {
+    index += 1;
+  }
+  return `sql:${index}`;
+};
 
 const restoreWorkspaceTabs = (
   saved: ReturnType<typeof loadProjectTabs>,
@@ -165,6 +180,7 @@ type IdeWorkspaceProps = Readonly<{
   interactiveStatus: InteractivePoolStatus;
   onInteractiveReconnect?: () => void;
   interactiveReconnectBusy?: boolean;
+  onInteractiveStatusRefresh?: () => Promise<void>;
   layout: ProfileLayoutPrefs;
   onLayoutChange: (
     next: ProfileLayoutPrefs | ((current: ProfileLayoutPrefs) => ProfileLayoutPrefs),
@@ -315,6 +331,7 @@ export const IdeWorkspace = ({
   interactiveStatus,
   onInteractiveReconnect,
   interactiveReconnectBusy = false,
+  onInteractiveStatusRefresh,
   layout,
   onLayoutChange,
   activityCount,
@@ -642,6 +659,12 @@ export const IdeWorkspace = ({
     setTabs((current) => {
       const closing = current.find((tab) => tab.id === tabId);
       const next = current.filter((tab) => tab.id !== tabId);
+      if (closing?.kind === "sql") {
+        // Release only on explicit close — Settings remounts must not unpin.
+        void releaseDedicatedSession(closing.id, backendConfig)
+          .then(() => onInteractiveStatusRefresh?.())
+          .catch(() => undefined);
+      }
       if (closing && isEditorTab(closing) && activeCenterTabId === tabId) {
         const fallback = next.find(isEditorTab) ?? null;
         if (fallback) {
@@ -787,8 +810,15 @@ export const IdeWorkspace = ({
   const explorerPosture = explorerPostureFromRail(activityRail);
 
   const handleNewSql = () => {
-    const existing = tabs.find((tab) => tab.kind === "sql");
-    const tab = existing ?? { id: "sql", kind: "sql" as const, title: "SQL Editor" };
+    const sqlCount = tabs.filter((tab) => tab.kind === "sql").length;
+    const tab =
+      sqlCount === 0
+        ? { id: "sql", kind: "sql" as const, title: "SQL Editor" }
+        : {
+            id: nextSqlDocumentId(tabs),
+            kind: "sql" as const,
+            title: `SQL Editor ${sqlCount + 1}`,
+          };
     setTabs((current) =>
       current.some((item) => item.id === tab.id) ? current : [...current, tab],
     );
@@ -880,6 +910,7 @@ export const IdeWorkspace = ({
   const databaseProps = {
     backendConfig,
     connectedConnection,
+    interactiveStatus,
     isBackendOnline,
     projectSchemaOverride,
     workingSchema,
@@ -1076,7 +1107,11 @@ export const IdeWorkspace = ({
         </button>
         <button
           type="submit"
-          form={WORKSPACE_SQL_FORM_ID}
+          form={
+            activeCenterTab?.kind === "sql" && activeCenterTab.id !== "sql"
+              ? `${WORKSPACE_SQL_FORM_ID}-${activeCenterTab.id}`
+              : WORKSPACE_SQL_FORM_ID
+          }
           className="chrome-button"
           disabled={!toolbarRunEnabled}
           aria-disabled={!toolbarRunEnabled}
@@ -1234,7 +1269,7 @@ export const IdeWorkspace = ({
                         onClick={() => activateEditorTab(tab.id, tab.kind)}
                       >
                         {tab.title}
-                        {isCloseableEditorTab(tab) ? (
+                        {isCloseableEditorTab(tab, editorTabs) ? (
                           <span
                             className="tab-close"
                             aria-hidden="true"
@@ -1251,19 +1286,32 @@ export const IdeWorkspace = ({
                   </div>
                 </div>
                 <div className="pane-body">
-                  {activeCenterTab?.kind === "sql" ? (
-                    <SqlSheet
-                      backendConfig={backendConfig}
-                      connectedConnection={connectedConnection}
-                      workingSchema={workingSchema}
-                      isBackendOnline={isBackendOnline}
-                      skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
-                      dirty={sqlDirty}
-                      onDirtyChange={onSqlDirtyChange}
-                      onActivityRefresh={onActivityRefresh}
-                      onRunStateChange={setSqlRunState}
-                    />
-                  ) : null}
+                  {editorTabs
+                    .filter((tab) => tab.kind === "sql")
+                    .map((tab) => (
+                      <div
+                        key={tab.id}
+                        style={{ display: tab.id === activeCenterTabId ? undefined : "none" }}
+                        aria-hidden={tab.id !== activeCenterTabId}
+                      >
+                        <SqlSheet
+                          documentId={tab.id}
+                          backendConfig={backendConfig}
+                          connectedConnection={connectedConnection}
+                          interactiveStatus={interactiveStatus}
+                          workingSchema={workingSchema}
+                          isBackendOnline={isBackendOnline}
+                          skipDestructivePrompt={layout.skipDestructiveSqlPrompt}
+                          dirty={sqlDirty}
+                          onDirtyChange={onSqlDirtyChange}
+                          onActivityRefresh={onActivityRefresh}
+                          onInteractiveStatusRefresh={onInteractiveStatusRefresh}
+                          onRunStateChange={
+                            tab.id === activeCenterTabId ? setSqlRunState : undefined
+                          }
+                        />
+                      </div>
+                    ))}
                   {activeCenterTab &&
                   isCenterEditorStubKind(activeCenterTab.kind) &&
                   !(activeCenterTab.kind === "file" && activeCenterTab.content !== undefined) ? (

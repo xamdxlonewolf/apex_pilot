@@ -247,6 +247,11 @@ class InteractiveOraclePool:
             self._teardown_pool_keep_credentials(DisconnectReason.APP_IDLE)
         return self.status()
 
+    @property
+    def binding(self) -> InteractiveDriverBinding | None:
+        """Return the active non-secret profile binding, if connected."""
+        return self._binding
+
     def open(self, binding: InteractiveDriverBinding, *, password: str) -> None:
         """Open or keep the pool for the given profile binding.
 
@@ -402,12 +407,21 @@ class InteractiveOraclePool:
         self.touch_activity()
         return handle
 
-    def release_dedicated(self, document_id: str) -> None:
-        """Release a pinned dedicated editor session back to the pool."""
+    def release_dedicated(self, document_id: str) -> bool:
+        """Release a pinned dedicated editor session back to the pool.
+
+        Returns True when a pin existed and was released; False when already free.
+        """
         handle = self._dedicated.pop(document_id.strip(), None)
-        if handle is None or self._pool is None:
-            return
-        self._pool.release(handle.connection)
+        if handle is None:
+            return False
+        if self._pool is not None:
+            self._pool.release(handle.connection)
+        return True
+
+    def is_dedicated_pinned(self, document_id: str) -> bool:
+        """Return whether a document currently holds a dedicated pin."""
+        return document_id.strip() in self._dedicated
 
     def close(self) -> None:
         """Close the pool and clear session-only credentials."""

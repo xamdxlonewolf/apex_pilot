@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import { DISCONNECTED_INTERACTIVE_STATUS } from "./backend";
 import { SqlSheet } from "./SqlSheet";
 
 const backendConfig = {
@@ -13,14 +14,17 @@ const renderSheet = (
     workingSchema: string;
     isBackendOnline: boolean;
     skipDestructivePrompt: boolean;
+    interactiveStatus: typeof DISCONNECTED_INTERACTIVE_STATUS;
   }> = {},
 ) => {
   const onDirtyChange = vi.fn();
   const onActivityRefresh = vi.fn().mockResolvedValue(undefined);
   render(
     <SqlSheet
+      documentId="sql"
       backendConfig={backendConfig}
       connectedConnection={overrides.connectedConnection ?? "dev"}
+      interactiveStatus={overrides.interactiveStatus ?? DISCONNECTED_INTERACTIVE_STATUS}
       workingSchema={overrides.workingSchema ?? "HR"}
       isBackendOnline={overrides.isBackendOnline ?? true}
       skipDestructivePrompt={overrides.skipDestructivePrompt ?? false}
@@ -211,5 +215,78 @@ describe("SqlSheet safety explainability", () => {
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls.every((url) => url.endsWith("/sql/run"))).toBe(true);
     expect(urls.some((url) => /sqlcl|jdbc|oracledb|direct/i.test(url))).toBe(false);
+  });
+
+  it("lazily pins a dedicated interactive session on first run when pool is connected", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("/interactive/sessions/acquire")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              document_id: "sql",
+              profile_id: "profile-hr",
+              dedicated_pinned: 1,
+              dedicated_limit: 5,
+              state: "pinned",
+            }),
+          ),
+        );
+      }
+      if (url.endsWith("/sql/run")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              classification: {
+                decision: "allow",
+                access: "read_only",
+                category: "query",
+                operation: "select",
+                reasons: [],
+              },
+              connection_name: "dev",
+              schema_name: "HR",
+              rows: [],
+              raw_text: null,
+              executed: true,
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({})));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderSheet({
+      interactiveStatus: {
+        ...DISCONNECTED_INTERACTIVE_STATUS,
+        state: "connected",
+        profile_id: "profile-hr",
+        display_name: "HR Dev",
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/interactive: pinned/i)).toBeInTheDocument();
+    });
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls.some((url) => url.endsWith("/interactive/sessions/acquire"))).toBe(true);
+    expect(urls.some((url) => url.endsWith("/sql/run"))).toBe(true);
+  });
+
+  it("surfaces honest capacity Unconnected when dedicated limit is exhausted", () => {
+    renderSheet({
+      interactiveStatus: {
+        ...DISCONNECTED_INTERACTIVE_STATUS,
+        state: "connected",
+        profile_id: "profile-hr",
+        display_name: "HR Dev",
+        dedicated_pinned: 5,
+      },
+    });
+
+    expect(screen.getByText(/unconnected \(capacity\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/dedicated session limit reached/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
   });
 });

@@ -1,11 +1,13 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { CodeEditor } from "./CodeEditor";
 import {
   type BackendConfig,
+  type InteractivePoolStatus,
   type SqlClassification,
   type SqlRunResult,
   BackendApiError,
+  acquireDedicatedSession,
   runSql,
 } from "./backend";
 
@@ -18,6 +20,8 @@ export type SqlRunState = Readonly<{
   canRun: boolean;
 }>;
 
+export type SqlSessionAttachment = "unconnected" | "pinned" | "capacity" | "dead" | "error";
+
 type SqlLogEntry = Readonly<{
   id: string;
   sql: string;
@@ -28,38 +32,59 @@ type SqlLogEntry = Readonly<{
 
 type SqlSheetProps = Readonly<{
   backendConfig: BackendConfig;
+  documentId: string;
   connectedConnection: string | null;
+  interactiveStatus: InteractivePoolStatus;
   workingSchema: string;
   isBackendOnline: boolean;
   skipDestructivePrompt: boolean;
   dirty: boolean;
   onDirtyChange: (dirty: boolean) => void;
   onActivityRefresh: () => Promise<void>;
+  onInteractiveStatusRefresh?: () => Promise<void>;
   /** Reports live Run preconditions for progressive Toolbar enablement. */
   onRunStateChange?: (state: SqlRunState) => void;
 }>;
 
 export const SqlSheet = ({
   backendConfig,
+  documentId,
   connectedConnection,
+  interactiveStatus,
   workingSchema,
   isBackendOnline,
   skipDestructivePrompt,
   dirty,
   onDirtyChange,
   onActivityRefresh,
+  onInteractiveStatusRefresh,
   onRunStateChange,
 }: SqlSheetProps) => {
   const [sql, setSql] = useState("select * from dual");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SqlRunResult | null>(null);
   const [log, setLog] = useState<SqlLogEntry[]>([]);
+  const [attachment, setAttachment] = useState<SqlSessionAttachment>("unconnected");
+  const [attachmentDetail, setAttachmentDetail] = useState<string | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState<{
     sql: string;
     classification: SqlClassification;
   } | null>(null);
+  const pinnedRef = useRef(false);
 
-  const canRun = isBackendOnline && Boolean(connectedConnection) && !busy;
+  const interactiveConnected = interactiveStatus.state === "connected";
+  const interactiveDead = interactiveStatus.state === "dead";
+  const atCapacity =
+    interactiveConnected &&
+    interactiveStatus.dedicated_pinned >= interactiveStatus.dedicated_limit &&
+    !pinnedRef.current;
+
+  const canRunMcp = isBackendOnline && Boolean(connectedConnection) && !busy;
+  const canRun =
+    canRunMcp &&
+    attachment !== "capacity" &&
+    attachment !== "dead" &&
+    interactiveStatus.state !== "dead";
   const hasSql = Boolean(sql.trim());
 
   useEffect(() => {
@@ -72,6 +97,66 @@ export const SqlSheet = ({
     };
   }, [onRunStateChange]);
 
+  useEffect(() => {
+    if (interactiveDead) {
+      setAttachment("dead");
+      setAttachmentDetail("Interactive pool is dead. Reconnect before attaching this editor.");
+      return;
+    }
+    if (!interactiveConnected) {
+      if (!pinnedRef.current) {
+        setAttachment("unconnected");
+        setAttachmentDetail(null);
+      }
+      return;
+    }
+    if (atCapacity) {
+      setAttachment("capacity");
+      setAttachmentDetail(
+        `Dedicated session limit reached (${interactiveStatus.dedicated_limit}). Close a connected tab or raise the limit.`,
+      );
+    }
+  }, [
+    atCapacity,
+    interactiveConnected,
+    interactiveDead,
+    interactiveStatus.dedicated_limit,
+  ]);
+
+  const ensureDedicatedPin = async (): Promise<boolean> => {
+    if (!interactiveConnected) {
+      // MCP Run may still proceed; pin only when interactive pool is connected.
+      return true;
+    }
+    if (interactiveDead) {
+      setAttachment("dead");
+      setAttachmentDetail("Interactive pool is dead. Reconnect before attaching this editor.");
+      return false;
+    }
+    if (pinnedRef.current) {
+      setAttachment("pinned");
+      return true;
+    }
+    try {
+      await acquireDedicatedSession(documentId, backendConfig);
+      pinnedRef.current = true;
+      setAttachment("pinned");
+      setAttachmentDetail(null);
+      await onInteractiveStatusRefresh?.();
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not pin editor session.";
+      const capacity =
+        error instanceof BackendApiError &&
+        error.status === 409 &&
+        /limit/i.test(message);
+      setAttachment(capacity ? "capacity" : "error");
+      setAttachmentDetail(message);
+      await onInteractiveStatusRefresh?.();
+      return false;
+    }
+  };
+
   const appendLog = (entry: Omit<SqlLogEntry, "id">) => {
     setLog((current) => [{ ...entry, id: `${Date.now()}-${current.length}` }, ...current].slice(0, 100));
   };
@@ -80,6 +165,15 @@ export const SqlSheet = ({
     setBusy(true);
     setPendingPrompt(null);
     try {
+      const pinned = await ensureDedicatedPin();
+      if (!pinned) {
+        appendLog({
+          sql: text,
+          status: "error",
+          detail: attachmentDetail || "Editor session is Unconnected.",
+        });
+        return;
+      }
       const payload = await runSql(
         {
           sql: text,
@@ -134,14 +228,45 @@ export const SqlSheet = ({
     void execute(trimmed, false);
   };
 
+  const attachmentLabel =
+    attachment === "pinned"
+      ? "Interactive: Pinned"
+      : attachment === "capacity"
+        ? "Interactive: Unconnected (capacity)"
+        : attachment === "dead"
+          ? "Interactive: Dead"
+          : attachment === "error"
+            ? "Interactive: Attach failed"
+            : interactiveConnected
+              ? "Interactive: Unconnected (lazy)"
+              : "Interactive: Disconnected";
+
   return (
     <div className="tool-panel sql-sheet" aria-label="SQL sheet">
-      <form id={WORKSPACE_SQL_FORM_ID} className="sql-editor" onSubmit={onSubmit}>
-        <label className="sr-only" htmlFor="sql-sheet-editor">
+      <div className="schema-status" role="status">
+        <span
+          className={
+            attachment === "pinned"
+              ? "status-pill status-pill--ok"
+              : attachment === "capacity" || attachment === "dead" || attachment === "error"
+                ? "status-pill"
+                : "status-pill"
+          }
+        >
+          {attachmentLabel}
+        </span>
+      </div>
+      {attachmentDetail ? <p className="pane-muted">{attachmentDetail}</p> : null}
+      <form
+        id={documentId === "sql" ? WORKSPACE_SQL_FORM_ID : `${WORKSPACE_SQL_FORM_ID}-${documentId}`}
+        className="sql-editor"
+        onSubmit={onSubmit}
+      >
+        <label className="sr-only" htmlFor={`sql-sheet-editor-${documentId}`}>
           SQL
         </label>
         <CodeEditor
-          id="sql-sheet-editor"
+          id={`sql-sheet-editor-${documentId}`}
           language="sql"
           value={sql}
           aria-label="SQL"
@@ -160,9 +285,12 @@ export const SqlSheet = ({
           <span className="pane-muted">
             {connectedConnection
               ? workingSchema
-                ? `Will run on ${connectedConnection}; unqualified objects target ${workingSchema}`
-                : `Will run on ${connectedConnection} (no schema set — objects land in login schema)`
+                ? `Will run on ${connectedConnection} via SQLcl MCP; unqualified objects target ${workingSchema}`
+                : `Will run on ${connectedConnection} via SQLcl MCP (no schema set — objects land in login schema)`
               : "Connect a SQLcl saved connection to run SQL."}
+            {interactiveConnected
+              ? " Dedicated interactive session pins on first database action."
+              : ""}
           </span>
         </div>
       </form>

@@ -15,10 +15,14 @@ from apex_pilot.api.sql_sheet import (
     classification_to_dict,
 )
 from apex_pilot.interactive import (
+    DedicatedSessionLimitError,
+    DedicatedSessionPin,
+    InteractiveBrowseError,
     InteractiveDriverBinding,
     InteractivePoolError,
     InteractivePoolState,
     InteractivePoolStatus,
+    PoolNotOpenError,
 )
 from apex_pilot.mcp import SqlclConnectionError, SqlclMcpError
 from apex_pilot.projects import (
@@ -117,6 +121,26 @@ class InteractivePoolStatusResponse(BaseModel):
     working_schema: str | None = None
     reconnect_prompt_dismissed: bool = False
     mcp_process: str | None = None
+
+
+class DedicatedSessionBody(BaseModel):
+    """Request body for pinning a dedicated SQL/PLSQL editor session."""
+
+    model_config = ConfigDict(frozen=True)
+
+    document_id: str = Field(min_length=1)
+
+
+class DedicatedSessionResponse(BaseModel):
+    """Opaque dedicated session pin — never includes raw connections or cursors."""
+
+    model_config = ConfigDict(frozen=True)
+
+    document_id: str
+    profile_id: str
+    dedicated_pinned: int
+    dedicated_limit: int
+    state: str
 
 
 class DatabaseContextResponse(BaseModel):
@@ -671,6 +695,69 @@ async def disconnect_saved_connection(request: Request) -> ConnectResponse:
     return ConnectResponse(connection_name="")
 
 
+@router.post(
+    "/interactive/sessions/acquire",
+    response_model=DedicatedSessionResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def acquire_dedicated_session(
+    body: DedicatedSessionBody,
+    request: Request,
+) -> DedicatedSessionResponse:
+    """Lazily pin a dedicated session for one SQL/PLSQL editor document."""
+    runtime = _runtime_from_request(request)
+    try:
+        pin = runtime.acquire_dedicated_session(body.document_id)
+    except DedicatedSessionLimitError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except PoolNotOpenError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except InteractivePoolError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    return _dedicated_session_response(pin)
+
+
+@router.post(
+    "/interactive/sessions/release",
+    response_model=DedicatedSessionResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def release_dedicated_session(
+    body: DedicatedSessionBody,
+    request: Request,
+) -> DedicatedSessionResponse:
+    """Release a dedicated editor pin on tab close/detach (idempotent)."""
+    runtime = _runtime_from_request(request)
+    try:
+        pin = runtime.release_dedicated_session(body.document_id)
+    except InteractivePoolError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    snapshot = runtime.interactive_status()
+    if pin is None:
+        return DedicatedSessionResponse(
+            document_id=body.document_id.strip(),
+            profile_id=snapshot.profile_id or "",
+            dedicated_pinned=snapshot.dedicated_pinned,
+            dedicated_limit=snapshot.dedicated_limit,
+            state="not_pinned",
+        )
+    return _dedicated_session_response(pin)
+
+
 @router.get(
     "/schema/summary",
     response_model=SchemaSummaryResponse,
@@ -682,10 +769,20 @@ async def summarize_schema(
     schema_name: str = Query(alias="schema"),
     refresh: bool = False,
 ) -> SchemaSummaryResponse:
-    """Return a read-only schema summary for a selected Oracle schema."""
+    """Return a read-only schema summary (interactive borrow when pool connected)."""
     runtime = _runtime_from_request(request)
     try:
         summary = await runtime.summarize_schema(schema_name, refresh=refresh)
+    except PoolNotOpenError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except InteractiveBrowseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(error),
+        ) from error
     except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
         raise _mcp_http_error(error) from error
     return SchemaSummaryResponse.model_validate(summary.to_dict())
@@ -698,7 +795,7 @@ async def summarize_schema(
     dependencies=[Depends(require_bearer_token)],
 )
 async def get_session_context(request: Request) -> SessionContextResponse:
-    """Return live session user/schema context for the connected MCP session."""
+    """Return live session context (interactive borrow when pool connected)."""
     runtime = _runtime_from_request(request)
     try:
         context = await runtime.fetch_database_context()
@@ -707,10 +804,24 @@ async def get_session_context(request: Request) -> SessionContextResponse:
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Timed out reading Oracle session context. Enter a schema and click Load.",
         ) from error
+    except PoolNotOpenError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except InteractiveBrowseError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(error),
+        ) from error
     except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
         raise _mcp_http_error(error) from error
+    connection_name = runtime.opened_connection_name()
+    if connection_name is None and runtime.interactive_browse_available():
+        status_snapshot = runtime.interactive_status()
+        connection_name = status_snapshot.display_name or status_snapshot.profile_id
     return SessionContextResponse(
-        connection_name=runtime.opened_connection_name(),
+        connection_name=connection_name,
         database_context=DatabaseContextResponse.model_validate(context.to_dict()),
         suggested_schema=runtime.suggested_schema(context),
     )
@@ -1099,6 +1210,16 @@ def _interactive_status_response(
         working_schema=snapshot.working_schema,
         reconnect_prompt_dismissed=snapshot.reconnect_prompt_dismissed,
         mcp_process=runtime.mcp_process_status() if runtime is not None else None,
+    )
+
+
+def _dedicated_session_response(pin: DedicatedSessionPin) -> DedicatedSessionResponse:
+    return DedicatedSessionResponse(
+        document_id=pin.document_id,
+        profile_id=pin.profile_id,
+        dedicated_pinned=pin.dedicated_pinned,
+        dedicated_limit=pin.dedicated_limit,
+        state=pin.state,
     )
 
 

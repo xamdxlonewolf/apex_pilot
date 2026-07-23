@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 
 import {
   type BackendConfig,
+  type InteractivePoolStatus,
   type SchemaSummary,
   getSchemaSummary,
   getSessionContextOnce,
@@ -17,6 +18,7 @@ export type SchemaOpenTarget = Readonly<{
 type SchemaBrowserProps = Readonly<{
   backendConfig: BackendConfig;
   connectedConnection: string | null;
+  interactiveStatus: InteractivePoolStatus;
   isBackendOnline: boolean;
   /** Project/local override. When set, auto-load uses this and skips login detection. */
   projectSchemaOverride: string | null;
@@ -50,9 +52,20 @@ const withTimeout = <T,>(
   });
 };
 
+const browseConnectedLabel = (
+  interactiveStatus: InteractivePoolStatus,
+  connectedConnection: string | null,
+): string | null => {
+  if (interactiveStatus.state === "connected") {
+    return interactiveStatus.display_name?.trim() || interactiveStatus.profile_id || "interactive";
+  }
+  return connectedConnection;
+};
+
 export const SchemaBrowser = ({
   backendConfig,
   connectedConnection,
+  interactiveStatus,
   isBackendOnline,
   projectSchemaOverride,
   workingSchema,
@@ -62,17 +75,25 @@ export const SchemaBrowser = ({
   onSummaryChange,
   onOpenObject,
 }: SchemaBrowserProps) => {
+  const browseTarget = browseConnectedLabel(interactiveStatus, connectedConnection);
+  const interactiveConnected = interactiveStatus.state === "connected";
+  const canBrowse =
+    isBackendOnline &&
+    (interactiveConnected || Boolean(connectedConnection)) &&
+    interactiveStatus.state !== "dead";
+
   const [summary, setSummary] = useState<SchemaSummary | null>(null);
   const [draftSchema, setDraftSchema] = useState(workingSchema);
   const [message, setMessage] = useState(() =>
-    connectedConnection
-      ? `Connected to ${connectedConnection}. Load a schema to browse objects.`
+    browseTarget
+      ? `Connected to ${browseTarget}. Load a schema to browse objects.`
       : "Not connected. Use Connect in the Product Header.",
   );
   const [busy, setBusy] = useState(false);
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
   const [draftWorkingSchema, setDraftWorkingSchema] = useState(workingSchema);
-  const [stateConnection, setStateConnection] = useState(connectedConnection);
+  const [stateBrowseTarget, setStateBrowseTarget] = useState(browseTarget);
+  const [stateProfileId, setStateProfileId] = useState(interactiveStatus.profile_id);
   const autoLoadKey = useRef<string | null>(null);
   const onSummaryChangeRef = useRef(onSummaryChange);
 
@@ -81,14 +102,23 @@ export const SchemaBrowser = ({
     setDraftSchema(workingSchema);
   }
 
-  if (connectedConnection !== stateConnection) {
-    setStateConnection(connectedConnection);
-    if (!connectedConnection) {
+  if (browseTarget !== stateBrowseTarget) {
+    setStateBrowseTarget(browseTarget);
+    if (!browseTarget) {
       setSummary(null);
       setActiveSchema(null);
       setBusy(false);
-      setMessage("Not connected. Use Connect in the Product Header.");
+      setMessage(
+        interactiveStatus.state === "dead"
+          ? "Interactive pool is dead. Reconnect before browsing."
+          : "Not connected. Use Connect in the Product Header.",
+      );
     }
+  }
+
+  if (interactiveStatus.profile_id !== stateProfileId) {
+    setStateProfileId(interactiveStatus.profile_id);
+    autoLoadKey.current = null;
   }
 
   const publishSummary = useCallback(
@@ -104,23 +134,24 @@ export const SchemaBrowser = ({
   }, [onSummaryChange]);
 
   useEffect(() => {
-    if (!connectedConnection) {
+    if (!browseTarget) {
       autoLoadKey.current = null;
       onSummaryChangeRef.current?.(null);
     }
-  }, [connectedConnection]);
+  }, [browseTarget]);
 
   const loadSummaryForSchema = async (
     schema: string,
     options: Readonly<{
       loginUser: string | null;
-      source: "project" | "login" | "manual";
+      source: "project" | "login" | "manual" | "refresh";
       allowStateUpdate?: () => boolean;
+      refresh?: boolean;
     }>,
   ) => {
     const next = await withTimeout(
       getSchemaSummary(schema, {
-        refresh: true,
+        refresh: options.refresh ?? true,
         config: backendConfig,
       }),
       60_000,
@@ -133,46 +164,55 @@ export const SchemaBrowser = ({
     setActiveSchema(schema);
     setDraftSchema(schema);
     onWorkingSchemaChange(schema, {
-      persist: options.source === "project" || options.source === "manual",
+      persist:
+        options.source === "project" ||
+        options.source === "manual" ||
+        options.source === "refresh",
     });
     const asUser = options.loginUser ? ` as ${options.loginUser}` : "";
+    const pathHint = interactiveConnected ? " (interactive borrow)" : "";
     if (options.source === "project") {
       setMessage(
-        `Connected to ${connectedConnection}${asUser}. Using project schema ${schema}.`,
+        `Connected to ${browseTarget}${asUser}. Using project schema ${schema}.${pathHint}`,
       );
     } else if (options.source === "login") {
       setMessage(
-        `Connected to ${connectedConnection}${asUser}. Browsing login schema ${schema}.`,
+        `Connected to ${browseTarget}${asUser}. Browsing login schema ${schema}.${pathHint}`,
       );
+    } else if (options.source === "refresh") {
+      setMessage(`Refreshed schema ${schema} on ${browseTarget}.${pathHint}`);
     } else {
       setMessage(
-        `Browsing schema ${schema} on ${connectedConnection}. SQL sheet will use this as CURRENT_SCHEMA.`,
+        `Browsing schema ${schema} on ${browseTarget}. SQL sheet will use this as CURRENT_SCHEMA.${pathHint}`,
       );
     }
     await onActivityRefresh();
   };
 
-  const applySchema = async (schema: string) => {
+  const applySchema = async (schema: string, source: "manual" | "refresh" = "manual") => {
     const trimmed = schema.trim().toUpperCase();
     if (!trimmed) {
       setMessage("Enter a schema name.");
       return;
     }
-    if (!connectedConnection) {
-      setMessage("Not connected. Use Connect in the Product Header.");
+    if (!canBrowse || !browseTarget) {
+      setMessage(
+        interactiveStatus.state === "dead"
+          ? "Interactive pool is dead. Reconnect before browsing."
+          : interactiveStatus.state === "reconnecting"
+            ? "Interactive pool is reconnecting…"
+            : "Not connected. Use Connect in the Product Header.",
+      );
       return;
     }
-    // Mark complete before parent override updates, so the auto-load effect
-    // does not re-fire and fight this manual Load.
-    autoLoadKey.current = `${connectedConnection}:${trimmed}`;
+    autoLoadKey.current = `${browseTarget}:${trimmed}:${interactiveStatus.profile_id ?? ""}`;
     setBusy(true);
-    setMessage(`Loading schema ${trimmed}…`);
+    setMessage(source === "refresh" ? `Refreshing schema ${trimmed}…` : `Loading schema ${trimmed}…`);
     try {
-      // Schema browser queries ALL_* by owner — no ALTER SESSION needed.
-      // SQL sheet still prefixes CURRENT_SCHEMA per statement when running.
       await loadSummaryForSchema(trimmed, {
         loginUser: null,
-        source: "manual",
+        source,
+        refresh: true,
       });
     } catch (error) {
       publishSummary(null);
@@ -189,17 +229,16 @@ export const SchemaBrowser = ({
   };
 
   useEffect(() => {
-    if (!connectedConnection || !isBackendOnline) {
+    if (!browseTarget || !canBrowse) {
       return;
     }
     const override = projectSchemaOverride?.trim().toUpperCase() || null;
-    const key = `${connectedConnection}:${override ?? "login"}`;
+    const key = `${browseTarget}:${override ?? "login"}:${interactiveStatus.profile_id ?? ""}`;
     if (autoLoadKey.current === key) {
       return;
     }
 
     let cancelled = false;
-    // Debounce so React Strict Mode remount cancels before any MCP call starts.
     const timer = window.setTimeout(() => {
       if (cancelled) {
         return;
@@ -210,9 +249,7 @@ export const SchemaBrowser = ({
           if (override) {
             setDraftSchema(override);
             onWorkingSchemaChange(override, { persist: true });
-            setMessage(
-              `Connected to ${connectedConnection}. Loading project schema ${override}…`,
-            );
+            setMessage(`Connected to ${browseTarget}. Loading project schema ${override}…`);
             await loadSummaryForSchema(override, {
               loginUser: null,
               source: "project",
@@ -224,7 +261,7 @@ export const SchemaBrowser = ({
             return;
           }
 
-          setMessage(`Connected to ${connectedConnection}. Detecting login schema…`);
+          setMessage(`Connected to ${browseTarget}. Detecting login schema…`);
           let loginUser: string | null = null;
           let suggested: string | null = null;
           try {
@@ -252,9 +289,7 @@ export const SchemaBrowser = ({
           if (!suggested) {
             if (!cancelled) {
               autoLoadKey.current = key;
-              setMessage(
-                `Connected to ${connectedConnection}. Enter a schema and click Load.`,
-              );
+              setMessage(`Connected to ${browseTarget}. Enter a schema and click Load.`);
             }
             return;
           }
@@ -262,7 +297,7 @@ export const SchemaBrowser = ({
           setDraftSchema(suggested);
           onWorkingSchemaChange(suggested, { persist: false });
           setMessage(
-            `Connected to ${connectedConnection}${loginUser ? ` as ${loginUser}` : ""}. Loading schema ${suggested}…`,
+            `Connected to ${browseTarget}${loginUser ? ` as ${loginUser}` : ""}. Loading schema ${suggested}…`,
           );
           await loadSummaryForSchema(suggested, {
             loginUser,
@@ -294,23 +329,43 @@ export const SchemaBrowser = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per connection+override
-  }, [backendConfig, connectedConnection, isBackendOnline, projectSchemaOverride]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per connection+override+profile
+  }, [
+    backendConfig,
+    browseTarget,
+    canBrowse,
+    interactiveStatus.profile_id,
+    projectSchemaOverride,
+  ]);
 
   const runSummary = async (event: FormEvent) => {
     event.preventDefault();
-    await applySchema(draftSchema);
+    await applySchema(draftSchema, "manual");
   };
+
+  const statusTone =
+    interactiveStatus.state === "dead"
+      ? "bad"
+      : browseTarget
+        ? "ok"
+        : "idle";
 
   return (
     <div className="tool-panel" aria-label="Schema browser">
       <div className="schema-status" role="status">
-        <span className={connectedConnection ? "status-pill status-pill--ok" : "status-pill"}>
-          {connectedConnection ? `DB connected: ${connectedConnection}` : "DB not connected"}
+        <span className={browseTarget ? "status-pill status-pill--ok" : "status-pill"}>
+          {interactiveStatus.state === "dead"
+            ? "Interactive: Dead"
+            : browseTarget
+              ? `DB connected: ${browseTarget}`
+              : "DB not connected"}
         </span>
         <span className={activeSchema ? "status-pill status-pill--ok" : "status-pill"}>
           {activeSchema ? `Browsing: ${activeSchema}` : "Schema not loaded"}
         </span>
+        {interactiveConnected ? (
+          <span className={`status-pill status-pill--${statusTone}`}>borrow</span>
+        ) : null}
       </div>
       <form className="tool-toolbar" onSubmit={(event) => void runSummary(event)}>
         <label htmlFor="schema-name">
@@ -320,15 +375,19 @@ export const SchemaBrowser = ({
             value={draftSchema}
             onChange={(event) => setDraftSchema(event.target.value.toUpperCase())}
             placeholder="APP"
-            disabled={!isBackendOnline || !connectedConnection || busy}
+            disabled={!canBrowse || busy}
           />
         </label>
-        <button
-          type="submit"
-          disabled={!isBackendOnline || !connectedConnection || !draftSchema.trim() || busy}
-          aria-busy={busy}
-        >
+        <button type="submit" disabled={!canBrowse || !draftSchema.trim() || busy} aria-busy={busy}>
           {busy ? "Loading…" : "Load"}
+        </button>
+        <button
+          type="button"
+          className="chrome-button"
+          disabled={!canBrowse || !draftSchema.trim() || busy}
+          onClick={() => void applySchema(draftSchema, "refresh")}
+        >
+          Refresh
         </button>
         {summary && onSaveSummary ? (
           <button type="button" className="chrome-button" onClick={() => onSaveSummary(summary)}>
