@@ -53,9 +53,7 @@ class FakeDriverPool:
     closed: bool = False
     _next_id: int = 1
     acquired: list[FakeConnection] = field(default_factory=list)
-    lease_scripts: list[list[tuple[list[tuple[str]], list[tuple[object, ...]]]]] = field(
-        default_factory=list
-    )
+    lease_scripts: list[list[tuple[list[tuple[str]], list[tuple[object, ...]]]]] = field(default_factory=list)
 
     def acquire(self) -> FakeConnection:
         if not self.lease_scripts:
@@ -81,9 +79,7 @@ class FakeDriverPool:
 class FakeOracleDriver:
     def __init__(self) -> None:
         self.pools: list[FakeDriverPool] = []
-        self.lease_scripts: list[
-            list[tuple[list[tuple[str]], list[tuple[object, ...]]]]
-        ] = []
+        self.lease_scripts: list[list[tuple[list[tuple[str]], list[tuple[object, ...]]]]] = []
 
     def create_pool(
         self,

@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { CodeEditor } from "./CodeEditor";
 import {
@@ -70,14 +70,14 @@ export const SqlSheet = ({
     sql: string;
     classification: SqlClassification;
   } | null>(null);
-  const pinnedRef = useRef(false);
+  const [pinned, setPinned] = useState(false);
 
   const interactiveConnected = interactiveStatus.state === "connected";
   const interactiveDead = interactiveStatus.state === "dead";
   const atCapacity =
     interactiveConnected &&
     interactiveStatus.dedicated_pinned >= interactiveStatus.dedicated_limit &&
-    !pinnedRef.current;
+    !pinned;
 
   const canRunMcp = isBackendOnline && Boolean(connectedConnection) && !busy;
   const canRun =
@@ -98,29 +98,33 @@ export const SqlSheet = ({
   }, [onRunStateChange]);
 
   useEffect(() => {
-    if (interactiveDead) {
-      setAttachment("dead");
-      setAttachmentDetail("Interactive pool is dead. Reconnect before attaching this editor.");
-      return;
-    }
-    if (!interactiveConnected) {
-      if (!pinnedRef.current) {
-        setAttachment("unconnected");
-        setAttachmentDetail(null);
+    const timer = window.setTimeout(() => {
+      if (interactiveDead) {
+        setAttachment("dead");
+        setAttachmentDetail("Interactive pool is dead. Reconnect before attaching this editor.");
+        return;
       }
-      return;
-    }
-    if (atCapacity) {
-      setAttachment("capacity");
-      setAttachmentDetail(
-        `Dedicated session limit reached (${interactiveStatus.dedicated_limit}). Close a connected tab or raise the limit.`,
-      );
-    }
+      if (!interactiveConnected) {
+        if (!pinned) {
+          setAttachment("unconnected");
+          setAttachmentDetail(null);
+        }
+        return;
+      }
+      if (atCapacity) {
+        setAttachment("capacity");
+        setAttachmentDetail(
+          `Dedicated session limit reached (${interactiveStatus.dedicated_limit}). Close a connected tab or raise the limit.`,
+        );
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [
     atCapacity,
     interactiveConnected,
     interactiveDead,
     interactiveStatus.dedicated_limit,
+    pinned,
   ]);
 
   const ensureDedicatedPin = async (): Promise<boolean> => {
@@ -133,13 +137,13 @@ export const SqlSheet = ({
       setAttachmentDetail("Interactive pool is dead. Reconnect before attaching this editor.");
       return false;
     }
-    if (pinnedRef.current) {
+    if (pinned) {
       setAttachment("pinned");
       return true;
     }
     try {
       await acquireDedicatedSession(documentId, backendConfig);
-      pinnedRef.current = true;
+      setPinned(true);
       setAttachment("pinned");
       setAttachmentDetail(null);
       await onInteractiveStatusRefresh?.();
@@ -165,8 +169,8 @@ export const SqlSheet = ({
     setBusy(true);
     setPendingPrompt(null);
     try {
-      const pinned = await ensureDedicatedPin();
-      if (!pinned) {
+      const attached = await ensureDedicatedPin();
+      if (!attached) {
         appendLog({
           sql: text,
           status: "error",

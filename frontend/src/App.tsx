@@ -321,7 +321,6 @@ export const App = () => {
   );
 
   useEffect(() => {
-    void refreshInteractiveStatus();
     if (!isBackendOnline || !hasOpenedProject) {
       const reset = window.setTimeout(() => {
         setInteractiveStatus(DISCONNECTED_INTERACTIVE_STATUS);

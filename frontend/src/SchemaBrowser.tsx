@@ -118,7 +118,6 @@ export const SchemaBrowser = ({
 
   if (interactiveStatus.profile_id !== stateProfileId) {
     setStateProfileId(interactiveStatus.profile_id);
-    autoLoadKey.current = null;
   }
 
   const publishSummary = useCallback(
@@ -132,6 +131,10 @@ export const SchemaBrowser = ({
   useEffect(() => {
     onSummaryChangeRef.current = onSummaryChange;
   }, [onSummaryChange]);
+
+  useEffect(() => {
+    autoLoadKey.current = null;
+  }, [interactiveStatus.profile_id]);
 
   useEffect(() => {
     if (!browseTarget) {

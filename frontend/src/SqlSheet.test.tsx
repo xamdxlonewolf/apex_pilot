@@ -274,7 +274,7 @@ describe("SqlSheet safety explainability", () => {
     expect(urls.some((url) => url.endsWith("/sql/run"))).toBe(true);
   });
 
-  it("surfaces honest capacity Unconnected when dedicated limit is exhausted", () => {
+  it("surfaces honest capacity Unconnected when dedicated limit is exhausted", async () => {
     renderSheet({
       interactiveStatus: {
         ...DISCONNECTED_INTERACTIVE_STATUS,
@@ -285,7 +285,7 @@ describe("SqlSheet safety explainability", () => {
       },
     });
 
-    expect(screen.getByText(/unconnected \(capacity\)/i)).toBeInTheDocument();
+    expect(await screen.findByText(/unconnected \(capacity\)/i)).toBeInTheDocument();
     expect(screen.getByText(/dedicated session limit reached/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
   });
