@@ -226,7 +226,7 @@ Add global and project-level template management after the minimal bootstrap pat
 - SQLite JSON support is built into modern SQLite; the app should still check runtime capability.
 - FTS5 is suitable for phase 1 search and should also be checked at runtime.
 - `sqlite-vec` is the current lightweight successor to `sqlite-vss`, but it is still best treated as an optional later adapter.
-- Oracle AI Vector Search and `python-oracledb` vector support are real options for phase 2 shared/enterprise storage, but adding direct Oracle driver storage now would require a deliberate ADR because current execution invariants route database work through SQLcl MCP only.
+- Oracle AI Vector Search and `python-oracledb` vector support are real options for phase 2 shared/enterprise storage, but ADR-0008's guarded interactive path does not authorize Oracle-backed application persistence; that storage boundary still requires a separate deliberate ADR.
 - SQLcl APEXLang support includes lifecycle commands such as generate, validate, export, and import in newer SQLcl/APEX documentation.
 - Core SQLcl support should remain at SQLcl 25.2+ while APEXLang features are enabled only when command support is detected.
 

@@ -16,12 +16,17 @@ reviewed before broad implementation lands.
 
 ## Project Boundaries
 
-- SQL execution must go through SQLcl MCP.
+- Agent and skill database execution must go through SQLcl MCP.
+- Human-initiated interactive database access must use the narrow guarded
+  backend `python-oracledb` facades authorized by ADR-0008.
 - Skills must not directly access the database.
 - PydanticAI tools must use guarded application facades only.
 - System skills must come from a sparse checkout of only `apex/` and `db/` from
   `https://github.com/oracle/skills.git`.
 - User skills require consent and must not override system skill safety policy.
+- Oracle passwords may be persisted only in a SQLcl wallet or allowlisted native
+  OS keyring, never in project files, SQLite, generic encrypted files, logs, or
+  events.
 - SQL result rows are not persisted by default.
 - Local HTTP APIs must bind to loopback and require a per-run bearer token.
 
@@ -68,7 +73,7 @@ supersedes or amends the previous decision.
 Reviewers should prioritize:
 
 - Safety boundary regressions.
-- Direct database access or raw MCP exposure.
+- Unguarded database access, raw driver exposure, or raw MCP exposure.
 - Persistence of secrets or SQL result rows.
 - Missing tests for deterministic safety behavior.
 - Docs or ADR drift from implemented behavior.

@@ -210,10 +210,11 @@ show/hide panels as the primary navigation model
 The schema context currently selected for exploration and SQL work.
 
 **Environment**:
-A logical project environment (e.g. dev/test/prod identity) mapped locally to a
-SQLcl saved connection — not the connection name itself.
+A logical project environment (e.g. dev/test/prod identity) that selects a
+Connection Profile — not a connection name or live session itself.
 
 **Mapping**:
-Local binding of a logical environment to a SQLcl saved connection and optional
-APEX workspace. Hosted in connection / profile / preferences UX — not a
-permanent Inspector tab.
+Local binding of an Environment to a Connection Profile and optional APEX
+workspace. The profile may independently bind interactive and SQLcl connection
+paths. Hosted in connection / profile / preferences UX — not a permanent
+Inspector tab.

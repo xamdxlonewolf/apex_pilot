@@ -7,7 +7,10 @@ alwaysApply: true
 
 - Do not touch Oracle APEX export folders.
 - Do not touch root-level `f*.sql` APEX export files.
-- SQL execution must go through Oracle SQLcl MCP only.
+- Agent and skill database execution must go through Oracle SQLcl MCP.
+- Human-initiated interactive database access may use only guarded backend
+  `python-oracledb` facades authorized by ADR-0008; never expose raw driver
+  access to the frontend, agents, or skills.
 - Skills may inspect, transform, validate, and generate; they must not directly
   access the database.
 - PydanticAI tools must receive guarded application facades only, never raw MCP
@@ -16,6 +19,8 @@ alwaysApply: true
   `https://github.com/oracle/skills.git`.
 - User skills are additive extensions with consent. They cannot override system
   skill core actions or safety policy.
-- Do not persist Oracle passwords or SQL result rows by default.
+- Persist Oracle passwords only in a SQLcl wallet or allowlisted native OS
+  keyring, never in files, SQLite, logs, or events. Do not persist SQL result
+  rows by default.
 - Add or update ADRs for meaningful architecture, execution, persistence,
   safety, or trust-boundary decisions.

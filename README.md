@@ -2,8 +2,8 @@
 
 Apex Pilot is a local-first Oracle development automation platform. The first
 product shape is a chat-first desktop application that runs a local backend,
-uses Oracle SQLcl MCP for every database execution path, and layers Oracle/APEX
-skills on top for inspection, validation, transformation, and generation.
+uses Oracle SQLcl MCP for agent and skill execution, and layers guarded
+interactive Oracle access plus Oracle/APEX skills on top.
 
 This repository is being built in small PR-sized slices. The backend scaffold
 lives in `backend/`, and the frontend scaffold lives in `frontend/`. Later PRs
@@ -15,15 +15,19 @@ APEX workflows.
 - **Desktop app**: Tauri with a React and TypeScript frontend.
 - **Local backend**: FastAPI service owned by the desktop app in packaged mode.
 - **Agent layer**: PydanticAI with LiteLLM model profiles.
-- **Execution layer**: Oracle SQLcl MCP only.
+- **Execution layer**: Oracle SQLcl MCP for agents and skills; guarded backend
+  `python-oracledb` facades for human-initiated interactive work.
 - **Skill layer**: Oracle `db` and `apex` system skills plus shared and user
   extensions.
-- **Local persistence**: SQLite metadata database, with secrets stored in the OS
-  keyring or environment variables.
+- **Local persistence**: SQLite metadata database, with Oracle secrets owned by
+  a SQLcl wallet or allowlisted native OS keyring.
 
 ## Non-Negotiable Invariants
 
-- SQL execution happens only through SQLcl MCP.
+- Agent and skill database execution happens only through SQLcl MCP.
+- Human-initiated interactive database work uses only narrow guarded backend
+  facades; raw driver connections, pools, and cursors never reach the frontend,
+  agents, or skills.
 - Skills do not directly access the database.
 - PydanticAI tools receive guarded application facades only, never raw MCP
   clients.
@@ -34,7 +38,7 @@ APEX workflows.
 - SQL result rows are not persisted by default.
 - Database-changing actions must be visible through SQL text, risk
   classification, approval state, selected connection, model profile, and MCP
-  tool logs.
+  or guarded-driver execution logs.
 
 ## Planned Repository Shape
 
@@ -55,9 +59,17 @@ The backend package name will be `apex_pilot`. Its planned top-level modules are
 
 ## Safety Model
 
-Apex Pilot treats SQLcl MCP as the database execution boundary. Oracle
-connections are selected by SQLcl saved connection name, and Apex Pilot must not
-store Oracle passwords.
+Apex Pilot keeps model-driven database execution on SQLcl MCP. Human-initiated
+interactive browsing, editing, and compilation may use the separately guarded
+`python-oracledb` path defined by ADR-0008. Both paths enforce application-owned
+classification, approval, target selection, and logging; neither raw MCP nor raw
+driver clients reach agents or skills.
+
+SQLcl owns its saved passwords. Interactive-driver passwords may be remembered
+only in an allowlisted, probed native OS keyring, with session-memory prompting
+or an honest Unconnected state when secure persistence is unavailable. Passwords
+are never stored in project files, SQLite, generic encrypted files, logs, or
+events.
 
 The SQL safety policy is intentionally deterministic and conservative:
 

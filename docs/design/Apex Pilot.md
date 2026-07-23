@@ -1,15 +1,15 @@
 # Apex Pilot
 
-Apex Pilot is a local-first Oracle development automation platform. The first product shape is a Mission Control desktop IDE that runs a local backend, uses Oracle SQLcl MCP for all database execution, and uses skills for Oracle/APEX intelligence and transformations.
+Apex Pilot is a local-first Oracle development automation platform. The first product shape is a Mission Control desktop IDE that runs a local backend, uses Oracle SQLcl MCP for agent and skill execution, uses guarded `python-oracledb` facades for human-initiated interactive database work, and uses skills for Oracle/APEX intelligence and transformations.
 
 ## Core Architecture
 
 - Frontend: React + Tauri desktop app.
 - Backend: FastAPI local service.
 - Agent layer: PydanticAI with LiteLLM model abstraction.
-- Execution layer: Oracle SQLcl MCP only.
+- Execution layer: Oracle SQLcl MCP for agents/skills plus guarded backend `python-oracledb` facades for interactive UI.
 - Skill layer: Oracle `db` and `apex` skills plus shared/user extensions.
-- Persistence: local SQLite metadata database, with secrets stored in OS keyring or environment variables.
+- Persistence: local SQLite metadata database, with Oracle secrets owned by a SQLcl wallet or allowlisted native OS keyring.
 
 ## Locked Decisions
 
@@ -20,10 +20,12 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - Backend quality stack should use `uv`, Ruff, Pyright, and Pytest.
 - Frontend quality stack should use `pnpm`, Vite React TypeScript, ESLint, Prettier, and Vitest.
 - First project artifacts should be repo guidance: expanded `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, architecture docs/ADRs, contribution workflow, and Cursor project rules.
-- Oracle connections should use SQLcl saved connection names only. Apex Pilot should discover connections via SQLcl MCP and should not store Oracle passwords.
-- MCP execution should use a small process pool, but pooled sessions are read-only for discovery/comparison. Data-changing work must go through one explicit primary session.
-- SQL safety policy: `SELECT` is allowed; `INSERT`, `UPDATE`, and constructive DDL are allowed; `DELETE` requires prompt and preview; destructive or security-sensitive SQL requires prompt or blocking depending on risk.
-- SQL risk classification should use deterministic parsing/tokenization where possible, with conservative fallback for PL/SQL, SQLcl commands, and unknown syntax.
+- A Connection Profile is the stable logical Oracle target and may bind an interactive driver connection plus an optional SQLcl saved connection. Each binding reports availability independently.
+- Agent and skill execution should use SQLcl saved connection names only. SQLcl MCP execution may use a small process pool, but pooled sessions are read-only for discovery/comparison and data-changing work must go through one explicit primary session.
+- Human-initiated interactive database work may use only guarded backend `python-oracledb` facades. The backend-owned pool survives UI remounts, defaults to `min=1`/`max=6`, and isolates pinned editor sessions from short-lived browsing and compile leases.
+- SQLcl owns MCP-path credentials in its saved-connection wallet. Interactive-driver passwords may persist only in an allowlisted, probed native OS keyring; otherwise use session memory or remain Unconnected. Do not create an encrypted home-file fallback.
+- SQL safety policy for Interactive SQL Run is defined in ADR-0009: four actions (`Allow`, `Prompt`, `Prompt + Preview`, `Block`); whole-script preflight with max-risk aggregation; silent `Allow` for low-risk interactive writes; `DELETE` and unbounded `UPDATE` require `Prompt + Preview`; destructive DDL and security-sensitive SQL require `Prompt`; unparsed SQL is `Block`. Agent/SQLcl shares the classifier but never silent-Allows writes.
+- SQL risk classification should use deterministic parsing/tokenization where possible, with deep static extraction for PL/SQL, dynamic SQL escalating to at least `Prompt`, and `Block` for unknown syntax.
 - SQLcl-specific `run-sqlcl` commands should use an allowlist by category. Safe metadata/formatting commands may proceed; Liquibase, import, script-style, or unknown commands need stronger approval.
 - System skills come from `https://github.com/oracle/skills.git` by sparse checkout of only `apex/` and `db/`.
 - System skills track upstream `main` with auto-update, but Apex Pilot must record installed commits, snapshot previous versions, expose update history, and support rollback.
@@ -58,7 +60,7 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - Left — Activity Rail switches Explorer posture (Files / Agent / Code / Database / APEX / Review); Files is real FS source of truth; Database and APEX are separate object-browse bodies; junk hidden by default; respect APEX export folders and root `f*.sql` invariants.
 - Center — dual-primary Workspace: Mission peer with real code editors (SQL and other languages). Focus Modes Agent / SQL / Files / Review (default Agent; sticky Agent; Review explicit-entry). Layout Chrome is secondary. Composer may ship with send disabled until Agent Core; stubs must be honest.
 - Right — stage-driven Inspector only (Plan → SQL Generated → Review → Execute → Complete). Honest empty/stub evidence before Agent Core. Not a general tool-tab host.
-- SQL Editor lives in Workspace (relocated from interim right-pane SQL Sheet). Schema / APEX browsing under rail-selected Explorer bodies. Env→SQLcl / APEX mappings in Product Header Context Bar role and connection / profile / preferences UX.
+- SQL Editor lives in Workspace (relocated from interim right-pane SQL Sheet). Schema / APEX browsing uses dedicated rail surfaces. Environment→Connection Profile and APEX mappings live in Product Header Context Bar role and connection / profile / preferences UX.
 - Developer Console is in-shell; MCP Activity is a Console tab. Floating MCP window is migration-only, not the target.
 - Close project returns to picker with unsaved prompt; one project per window (prefer new window for another project).
 - Native folder pickers primary; Tauri FS for files; backend for MCP/metadata. Settings vs project split as in [[Apex Pilot Desktop Design Spec]] / ADR-0007.
@@ -66,7 +68,7 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 - Stub / gap conventions (ADR-0007 §11 / UI-9): primary copy `Not implemented yet`; optional secondary for missing dependency; chrome badge `Stub`; disable unfinished actions; no fake success data; `DS-*`/`UI-*` docs-only; Gap is Roadmap planning-only (`Gap:` + `DS-*` + Gaps/orphans until owned); working interim paths are not Stub-badged.
 - Keyboard / density / motion (ADR-0007 §12): split by concern. Shell/early: focus + core panel-toggle shortcuts; surface shortcuts with their features; Default density only; motion hard rules (no decoration, immediate resize, skeletons, reduced-motion). Minimal command palette soon after Spec shell (not blocking first IA PR); Quick Open trails file/object search. UI-7: Compact/Comfortable + switcher, Spec motion durations/choreography, focus token polish. Configurable shortcuts remain Spec Future.
 - Project storage should use a committed JSON manifest, initially `apex-pilot.json`, for portable project facts.
-- Local SQLite should store private/user/runtime facts such as local profiles, retention policy, logical environment to SQLcl saved connection mappings, and connection-to-APEX-workspace mappings.
+- Local SQLite should store private/user/runtime facts such as local profiles, non-secret interactive connection metadata, retention policy, logical environment to Connection Profile/SQLcl saved connection mappings, and connection-to-APEX-workspace mappings.
 - Project manifests should store logical environments, not actual SQLcl saved connection names.
 - Local profiles should use random local profile IDs plus a stable salted hash of email and username for duplicate detection.
 - Users should choose chat/tool retention policy during setup.
@@ -87,11 +89,13 @@ Apex Pilot is a local-first Oracle development automation platform. The first pr
 
 ## Design Invariants
 
-- SQL execution happens only through SQLcl MCP.
+- Agent and skill database execution happens only through SQLcl MCP.
+- Human-initiated interactive database work uses only guarded backend facades; raw driver access never reaches the frontend, agents, or skills.
 - Skills transform, inspect, validate, and generate. They do not directly access the database.
 - The agent orchestrates reasoning and tool selection. It does not bypass safety classification or execution approval.
 - System skills are trusted core behavior. User skills are local extensions executed with consent.
-- Every database-changing action must be explainable through visible SQL, classification, approval state, selected connection, model profile, and MCP tool log.
+- Every database-changing action must be explainable through visible SQL, classification, approval state, selected connection, model profile, and MCP or guarded-driver execution log.
+- Oracle passwords persist only in a SQLcl wallet or allowlisted native OS keyring, never in project files, SQLite, generic encrypted files, logs, or events.
 - Local HTTP APIs must not be exposed as unauthenticated localhost endpoints.
 
 ## Open Questions
