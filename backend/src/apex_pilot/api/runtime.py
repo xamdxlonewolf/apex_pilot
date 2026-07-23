@@ -8,6 +8,12 @@ from typing import TypeVar
 
 from apex_pilot.api.sql_sheet import SqlSheetRunResult, SqlSheetService
 from apex_pilot.events import ToolActivityEntry, ToolActivityLog
+from apex_pilot.interactive import (
+    InteractiveDriverBinding,
+    InteractiveOraclePool,
+    InteractivePoolStatus,
+    OraclePoolDriver,
+)
 from apex_pilot.mcp import (
     SqlclConnectionManager,
     SqlclMcpConfig,
@@ -51,6 +57,8 @@ class ApexPilotRuntime:
         metadata_store: LocalMetadataStore | None = None,
         sqlcl_config: SqlclMcpConfig | None = None,
         owns_metadata_store: bool = False,
+        interactive_pool: InteractiveOraclePool | None = None,
+        interactive_driver: OraclePoolDriver | None = None,
     ) -> None:
         self._managed_client = managed_client
         self._activity_log = activity_log or ToolActivityLog()
@@ -64,6 +72,7 @@ class ApexPilotRuntime:
         self._project_service = project_service
         self._opened_project: OpenedProject | None = None
         self._mcp_lock = asyncio.Lock()
+        self._interactive_pool = interactive_pool or InteractiveOraclePool(driver=interactive_driver)
 
     @classmethod
     def live(cls, settings: BackendSettings) -> ApexPilotRuntime:
@@ -95,6 +104,7 @@ class ApexPilotRuntime:
 
     async def stop(self) -> None:
         """Stop any owned runtime resources."""
+        self._interactive_pool.close()
         if self._managed_client is not None:
             await self._managed_client.stop()
         if self._owns_metadata_store and self._metadata_store is not None:
@@ -118,11 +128,36 @@ class ApexPilotRuntime:
 
     def close_project(self) -> None:
         """Clear the currently opened project without deleting local registration."""
+        self._interactive_pool.close()
         self._opened_project = None
 
     def opened_connection_name(self) -> str | None:
         """Return the active primary MCP connection name, if any."""
         return self._connection_manager.primary_session.connection_name
+
+    @property
+    def interactive_pool(self) -> InteractiveOraclePool:
+        """Return the app-owned interactive Oracle pool (never expose to agents/skills)."""
+        return self._interactive_pool
+
+    def interactive_status(self) -> InteractivePoolStatus:
+        """Return interactive driver binding status for Context Bar / status bar."""
+        return self._interactive_pool.status()
+
+    def open_interactive_pool(
+        self,
+        binding: InteractiveDriverBinding,
+        *,
+        password: str,
+    ) -> InteractivePoolStatus:
+        """Open or keep the interactive pool for the selected Connection Profile."""
+        self._interactive_pool.open(binding, password=password)
+        return self._interactive_pool.status()
+
+    def disconnect_interactive_pool(self) -> InteractivePoolStatus:
+        """Explicitly disconnect the interactive pool and clear session credentials."""
+        self._interactive_pool.close()
+        return self._interactive_pool.status()
 
     async def list_saved_connections(self) -> tuple[SqlclSavedConnection, ...]:
         """List saved SQLcl connections through MCP."""

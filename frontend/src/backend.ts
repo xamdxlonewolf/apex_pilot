@@ -170,6 +170,37 @@ export const connectSavedConnection = async (
     config,
   );
 
+export type InteractivePoolState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "dead";
+
+export type InteractivePoolStatus = Readonly<{
+  state: InteractivePoolState;
+  profile_id: string | null;
+  display_name: string | null;
+  dedicated_pinned: number;
+  dedicated_limit: number;
+  pool_min: number;
+  pool_max: number;
+}>;
+
+export const DISCONNECTED_INTERACTIVE_STATUS: InteractivePoolStatus = {
+  state: "disconnected",
+  profile_id: null,
+  display_name: null,
+  dedicated_pinned: 0,
+  dedicated_limit: 5,
+  pool_min: 1,
+  pool_max: 6,
+};
+
+export const getInteractiveStatus = async (
+  config: BackendConfig = getBackendConfig(),
+): Promise<InteractivePoolStatus> => apiFetch("/interactive/status", {}, config);
+
 export const getSchemaSummary = async (
   schemaName: string,
   options: Readonly<{ refresh?: boolean; config?: BackendConfig }> = {},

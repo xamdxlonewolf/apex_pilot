@@ -1,0 +1,281 @@
+"""App-owned interactive Oracle connection pool (ADR-0008)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, Protocol
+
+
+class InteractivePoolError(Exception):
+    """Base error for the interactive Oracle pool."""
+
+
+class PoolNotOpenError(InteractivePoolError):
+    """Raised when borrow/dedicated APIs are used before the pool is open."""
+
+
+class DedicatedSessionLimitError(InteractivePoolError):
+    """Raised when the dedicated editor pin limit is exhausted."""
+
+
+class InteractivePoolState(StrEnum):
+    """Honest interactive binding availability for Context Bar / status bar."""
+
+    DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    RECONNECTING = "reconnecting"
+    DEAD = "dead"
+
+
+@dataclass(frozen=True)
+class InteractiveDriverBinding:
+    """Non-secret interactive driver binding for a Connection Profile."""
+
+    profile_id: str
+    display_name: str
+    username: str
+    dsn: str
+
+
+@dataclass(frozen=True)
+class InteractivePoolStatus:
+    """Public status snapshot — never includes passwords or raw connections."""
+
+    state: InteractivePoolState
+    profile_id: str | None
+    display_name: str | None
+    dedicated_pinned: int
+    dedicated_limit: int
+    pool_min: int
+    pool_max: int
+
+
+@dataclass(frozen=True)
+class DedicatedSessionHandle:
+    """Opaque handle for a pinned SQL/PLSQL editor session."""
+
+    document_id: str
+    profile_id: str
+    connection: object
+
+
+class OracleDriverPool(Protocol):
+    """Minimal oracledb ConnectionPool surface used by InteractiveOraclePool."""
+
+    def acquire(self) -> Any:
+        """Acquire one connection from the pool."""
+        ...
+
+    def release(self, connection: Any) -> None:
+        """Return a borrowed connection to the pool."""
+        ...
+
+    def close(self) -> None:
+        """Close the underlying driver pool."""
+        ...
+
+
+class OraclePoolDriver(Protocol):
+    """Factory seam for creating an oracledb pool (injectable in tests)."""
+
+    def create_pool(
+        self,
+        *,
+        user: str,
+        password: str,
+        dsn: str,
+        min: int,
+        max: int,
+    ) -> OracleDriverPool:
+        """Create a backend-owned Oracle connection pool."""
+        ...
+
+
+class OracledbPoolDriver:
+    """Production driver that creates a real python-oracledb pool."""
+
+    def create_pool(
+        self,
+        *,
+        user: str,
+        password: str,
+        dsn: str,
+        min: int,
+        max: int,
+    ) -> Any:
+        import oracledb
+
+        return oracledb.create_pool(
+            user=user,
+            password=password,
+            dsn=dsn,
+            min=min,
+            max=max,
+        )
+
+
+DEFAULT_POOL_MIN = 1
+DEFAULT_POOL_MAX = 6
+DEFAULT_DEDICATED_LIMIT = 5
+
+
+class InteractiveOraclePool:
+    """Backend-owned interactive pool for one project's Connection Profile.
+
+    React remounts, Settings, drawers, and Focus changes do not own this pool.
+    It closes only on project close, confirmed profile change, explicit
+    disconnect, or app exit.
+    """
+
+    def __init__(
+        self,
+        *,
+        driver: OraclePoolDriver | None = None,
+        pool_min: int = DEFAULT_POOL_MIN,
+        pool_max: int = DEFAULT_POOL_MAX,
+        dedicated_limit: int = DEFAULT_DEDICATED_LIMIT,
+    ) -> None:
+        if pool_min < 0 or pool_max < 1 or pool_min > pool_max:
+            msg = "Invalid interactive pool size bounds."
+            raise InteractivePoolError(msg)
+        if dedicated_limit < 1 or dedicated_limit >= pool_max:
+            msg = "Dedicated editor limit must leave at least one pool slot free."
+            raise InteractivePoolError(msg)
+
+        self._driver = driver or OracledbPoolDriver()
+        self._pool_min = pool_min
+        self._pool_max = pool_max
+        self._dedicated_limit = dedicated_limit
+        self._state = InteractivePoolState.DISCONNECTED
+        self._binding: InteractiveDriverBinding | None = None
+        self._password: str | None = None
+        self._pool: OracleDriverPool | None = None
+        self._dedicated: dict[str, DedicatedSessionHandle] = {}
+
+    def status(self) -> InteractivePoolStatus:
+        """Return a non-secret status snapshot for UI cues."""
+        binding = self._binding
+        return InteractivePoolStatus(
+            state=self._state,
+            profile_id=binding.profile_id if binding else None,
+            display_name=binding.display_name if binding else None,
+            dedicated_pinned=len(self._dedicated),
+            dedicated_limit=self._dedicated_limit,
+            pool_min=self._pool_min,
+            pool_max=self._pool_max,
+        )
+
+    def open(self, binding: InteractiveDriverBinding, *, password: str) -> None:
+        """Open or keep the pool for the given profile binding.
+
+        Re-opening the same profile while connected is a no-op so UI remounts
+        and dialog cycles cannot recreate the pool.
+        """
+        if not password:
+            msg = "Interactive driver password cannot be empty."
+            raise InteractivePoolError(msg)
+
+        if (
+            self._state is InteractivePoolState.CONNECTED
+            and self._binding is not None
+            and self._binding.profile_id == binding.profile_id
+            and self._pool is not None
+        ):
+            return
+
+        if self._pool is not None:
+            self.close()
+
+        self._state = InteractivePoolState.CONNECTING
+        self._binding = binding
+        self._password = password
+        try:
+            self._pool = self._driver.create_pool(
+                user=binding.username,
+                password=password,
+                dsn=binding.dsn,
+                min=self._pool_min,
+                max=self._pool_max,
+            )
+        except Exception:
+            self._binding = None
+            self._password = None
+            self._pool = None
+            self._state = InteractivePoolState.DEAD
+            raise
+
+        self._state = InteractivePoolState.CONNECTED
+
+    @contextmanager
+    def borrow_readonly(self) -> Iterator[object]:
+        """Borrow a short-lived connection for browse/health reads."""
+        pool = self._require_open_pool()
+        connection = pool.acquire()
+        try:
+            yield connection
+        finally:
+            pool.release(connection)
+
+    def acquire_dedicated(self, document_id: str) -> DedicatedSessionHandle:
+        """Lazily pin a dedicated session for one SQL/PLSQL editor document."""
+        normalized = document_id.strip()
+        if not normalized:
+            msg = "Dedicated session document id cannot be empty."
+            raise InteractivePoolError(msg)
+
+        existing = self._dedicated.get(normalized)
+        if existing is not None:
+            return existing
+
+        if len(self._dedicated) >= self._dedicated_limit:
+            msg = (
+                f"Dedicated interactive session limit reached "
+                f"({self._dedicated_limit}). Disconnect a connected tab, raise "
+                "the configured limit, or cancel."
+            )
+            raise DedicatedSessionLimitError(msg)
+
+        pool = self._require_open_pool()
+        binding = self._binding
+        assert binding is not None
+        connection = pool.acquire()
+        handle = DedicatedSessionHandle(
+            document_id=normalized,
+            profile_id=binding.profile_id,
+            connection=connection,
+        )
+        self._dedicated[normalized] = handle
+        return handle
+
+    def release_dedicated(self, document_id: str) -> None:
+        """Release a pinned dedicated editor session back to the pool."""
+        handle = self._dedicated.pop(document_id.strip(), None)
+        if handle is None or self._pool is None:
+            return
+        self._pool.release(handle.connection)
+
+    def close(self) -> None:
+        """Close the pool and clear session-only credentials."""
+        if self._pool is not None:
+            for handle in list(self._dedicated.values()):
+                with suppress(Exception):
+                    self._pool.release(handle.connection)
+            self._dedicated.clear()
+            try:
+                self._pool.close()
+            finally:
+                self._pool = None
+
+        self._password = None
+        self._binding = None
+        self._state = InteractivePoolState.DISCONNECTED
+
+    def _require_open_pool(self) -> OracleDriverPool:
+        if self._pool is None or self._state is not InteractivePoolState.CONNECTED:
+            msg = "Interactive Oracle pool is not connected."
+            raise PoolNotOpenError(msg)
+        return self._pool

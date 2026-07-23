@@ -1,7 +1,12 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import type { BackendStatus, OpenedProject, SavedConnection } from "./backend";
-import { backendHealthLabel, environmentIdentity } from "./shellHealth";
+import type {
+  BackendStatus,
+  InteractivePoolStatus,
+  OpenedProject,
+  SavedConnection,
+} from "./backend";
+import { backendHealthLabel, environmentIdentity, interactiveHealthLabel } from "./shellHealth";
 
 type ProductHeaderProps = Readonly<{
   openedProject: OpenedProject;
@@ -15,13 +20,15 @@ type ProductHeaderProps = Readonly<{
   isConnecting: boolean;
   workingSchema: string;
   onWorkingSchemaChange: (schema: string) => void;
+  interactiveStatus: InteractivePoolStatus;
   onOpenSettings: () => void;
 }>;
 
 /**
  * Dense Product Header: brand + Context Bar role + Settings gear.
  * Context Bar is a role hosted here — not a second stacked chrome strip.
- * Connection name lives only on select + Connect; Backend is the sole health pill.
+ * SQLcl connection name lives on select + Connect; health pills report Backend
+ * and interactive driver binding availability independently (ADR-0008).
  */
 export const ProductHeader = ({
   openedProject,
@@ -35,10 +42,12 @@ export const ProductHeader = ({
   isConnecting,
   workingSchema,
   onWorkingSchemaChange,
+  interactiveStatus,
   onOpenSettings,
 }: ProductHeaderProps) => {
   const environment = environmentIdentity(openedProject.manifest);
   const backendHealth = backendHealthLabel(backendStatus);
+  const interactiveHealth = interactiveHealthLabel(interactiveStatus);
 
   const onContextKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
@@ -131,6 +140,13 @@ export const ProductHeader = ({
           >
             <span className="health-pill-dot" aria-hidden="true" />
             {backendHealth.label}
+          </span>
+          <span
+            className={`health-pill health-pill--${interactiveHealth.tone}`}
+            aria-label="Interactive database"
+          >
+            <span className="health-pill-dot" aria-hidden="true" />
+            {interactiveHealth.label}
           </span>
         </div>
       </div>

@@ -14,6 +14,12 @@ from apex_pilot.api.sql_sheet import (
     SqlSheetError,
     classification_to_dict,
 )
+from apex_pilot.interactive import (
+    InteractiveDriverBinding,
+    InteractivePoolError,
+    InteractivePoolState,
+    InteractivePoolStatus,
+)
 from apex_pilot.mcp import SqlclConnectionError, SqlclMcpError
 from apex_pilot.projects import (
     CreateProjectRequest,
@@ -67,6 +73,32 @@ class ConnectResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     connection_name: str
+
+
+class InteractiveConnectBody(BaseModel):
+    """Session-only interactive driver connect request (password never persisted here)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    profile_id: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    username: str = Field(min_length=1)
+    dsn: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class InteractivePoolStatusResponse(BaseModel):
+    """Interactive driver pool status — never includes passwords or raw connections."""
+
+    model_config = ConfigDict(frozen=True)
+
+    state: InteractivePoolState
+    profile_id: str | None = None
+    display_name: str | None = None
+    dedicated_pinned: int
+    dedicated_limit: int
+    pool_min: int
+    pool_max: int
 
 
 class DatabaseContextResponse(BaseModel):
@@ -472,6 +504,65 @@ async def connect_saved_connection(connection_name: str, request: Request) -> Co
 
 
 @router.get(
+    "/interactive/status",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def get_interactive_status(request: Request) -> InteractivePoolStatusResponse:
+    """Return app-owned interactive pool status for Context Bar / status bar cues."""
+    runtime = _runtime_from_request(request)
+    return _interactive_status_response(runtime.interactive_status())
+
+
+@router.post(
+    "/interactive/connect",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def connect_interactive_pool(
+    body: InteractiveConnectBody,
+    request: Request,
+) -> InteractivePoolStatusResponse:
+    """Open or keep the interactive pool for a Connection Profile (session-only password)."""
+    runtime = _runtime_from_request(request)
+    try:
+        status_snapshot = runtime.open_interactive_pool(
+            InteractiveDriverBinding(
+                profile_id=body.profile_id.strip(),
+                display_name=body.display_name.strip(),
+                username=body.username.strip(),
+                dsn=body.dsn.strip(),
+            ),
+            password=body.password,
+        )
+    except InteractivePoolError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Interactive Oracle pool failed to open.",
+        ) from error
+    return _interactive_status_response(status_snapshot)
+
+
+@router.post(
+    "/interactive/disconnect",
+    response_model=InteractivePoolStatusResponse,
+    tags=["interactive"],
+    dependencies=[Depends(require_bearer_token)],
+)
+def disconnect_interactive_pool(request: Request) -> InteractivePoolStatusResponse:
+    """Explicitly close the interactive pool and clear session-only credentials."""
+    runtime = _runtime_from_request(request)
+    return _interactive_status_response(runtime.disconnect_interactive_pool())
+
+
+@router.get(
     "/schema/summary",
     response_model=SchemaSummaryResponse,
     tags=["schema"],
@@ -603,9 +694,7 @@ async def run_sql_sheet(body: SqlRunBody, request: Request) -> SqlRunResponse:
     except (SchemaIntelligenceError, SqlclConnectionError, SqlclMcpError) as error:
         raise _mcp_http_error(error) from error
     return SqlRunResponse(
-        classification=SqlClassificationResponse.model_validate(
-            classification_to_dict(result.classification)
-        ),
+        classification=SqlClassificationResponse.model_validate(classification_to_dict(result.classification)),
         connection_name=result.connection_name,
         schema_name=result.schema_name,
         rows=[dict(row) for row in result.rows],
@@ -878,6 +967,18 @@ def put_retention(
     except (ProjectError, StorageError, ValueError) as error:
         raise _project_http_error(error) from error
     return _project_summary(project)
+
+
+def _interactive_status_response(snapshot: InteractivePoolStatus) -> InteractivePoolStatusResponse:
+    return InteractivePoolStatusResponse(
+        state=snapshot.state,
+        profile_id=snapshot.profile_id,
+        display_name=snapshot.display_name,
+        dedicated_pinned=snapshot.dedicated_pinned,
+        dedicated_limit=snapshot.dedicated_limit,
+        pool_min=snapshot.pool_min,
+        pool_max=snapshot.pool_max,
+    )
 
 
 def _runtime_from_request(request: Request) -> ApexPilotRuntime:
